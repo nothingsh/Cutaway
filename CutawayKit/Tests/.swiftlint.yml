@@ -1,0 +1,10 @@
+# In a test, a try! or a force unwrap that fails fails the test, which is what a test wants; an
+# implicitly unwrapped property is set up before each test. A test class holds the tests of the
+# type it tests, however many there are. A table of cases is an array of tuples.
+disabled_rules:
+  - file_length
+  - force_try
+  - force_unwrapping
+  - implicitly_unwrapped_optional
+  - large_tuple
+  - type_body_length

@@ -10,6 +10,7 @@ let package = Package(
     products: [
         .library(name: "CutawayTransport", targets: ["CutawayTransport"]),
         .library(name: "CutawayWire", targets: ["CutawayWire"]),
+        .library(name: "CutawayTestSupport", targets: ["CutawayTestSupport"]),
     ],
     dependencies: [
         // Must equal Protocol/FLATBUFFERS_VERSION; scripts/check.sh checks that they agree.
@@ -21,5 +22,18 @@ let package = Package(
             dependencies: [.product(name: "FlatBuffers", package: "flatbuffers")]
         ),
         .target(name: "CutawayTransport", dependencies: ["CutawayWire"]),
+        .target(name: "CutawayTestSupport", dependencies: ["CutawayWire", "CutawayTransport"]),
+        .testTarget(
+            name: "CutawayWireTests",
+            dependencies: [
+                "CutawayWire",
+                "CutawayTestSupport",
+                .product(name: "FlatBuffers", package: "flatbuffers"),
+            ]
+        ),
+        .testTarget(
+            name: "CutawayTransportTests",
+            dependencies: ["CutawayTransport", "CutawayWire", "CutawayTestSupport"]
+        ),
     ]
 )
