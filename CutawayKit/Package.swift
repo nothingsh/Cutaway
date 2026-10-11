@@ -22,6 +22,7 @@ let package = Package(
             dependencies: [.product(name: "FlatBuffers", package: "flatbuffers")]
         ),
         .target(name: "CutawayTransport", dependencies: ["CutawayWire"]),
+        .target(name: "CutawayScene"),
         .target(name: "CutawayTestSupport", dependencies: ["CutawayWire", "CutawayTransport"]),
         .testTarget(
             name: "CutawayWireTests",
