@@ -8,6 +8,7 @@ let package = Package(
     name: "CutawayKit",
     platforms: [.macOS(.v14)],
     products: [
+        .library(name: "CutawayTransport", targets: ["CutawayTransport"]),
         .library(name: "CutawayWire", targets: ["CutawayWire"]),
     ],
     dependencies: [
@@ -19,5 +20,6 @@ let package = Package(
             name: "CutawayWire",
             dependencies: [.product(name: "FlatBuffers", package: "flatbuffers")]
         ),
+        .target(name: "CutawayTransport", dependencies: ["CutawayWire"]),
     ]
 )
