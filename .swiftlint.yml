@@ -1,0 +1,146 @@
+# SwiftLint, pinned in scripts/format-tools.txt. Rules and thresholds follow the configuration of
+# an existing iOS project of the user's; the rules that disagree with the formatting SwiftFormat
+# gives this code are off.
+excluded:
+  - CutawayKit/Sources/CutawayWire/Generated
+  - CutawayKit/.build
+  - DerivedData
+  - build
+  - Protocol
+  - BaselineCandidates
+  - .build
+  - .tools
+
+disabled_rules:
+  - todo
+  # Formatting, which SwiftFormat owns.
+  - closure_parameter_position
+  - duplicate_imports
+  - opening_brace
+  - trailing_comma
+  - trailing_newline
+  - vertical_whitespace
+
+opt_in_rules:
+  - closure_spacing
+  - collection_alignment
+  - comma_inheritance
+  - contains_over_filter_count
+  - contains_over_filter_is_empty
+  - contains_over_first_not_nil
+  - contains_over_range_nil_comparison
+  - convenience_type
+  - discarded_notification_center_observer
+  - discouraged_assert
+  - discouraged_object_literal
+  - empty_collection_literal
+  - empty_count
+  - empty_string
+  - explicit_init
+  - fallthrough
+  - fatal_error_message
+  - file_name_no_space
+  - first_where
+  - force_unwrapping
+  - ibinspectable_in_extension
+  - identical_operands
+  - implicit_return
+  - implicitly_unwrapped_optional
+  - joined_default_parameter
+  - last_where
+  - literal_expression_end_indentation
+  - local_doc_comment
+  - lower_acl_than_parent
+  - operator_usage_whitespace
+  - override_in_extension
+  - optional_enum_case_matching
+  - prefer_self_in_static_references
+  - prefer_self_type_over_type_of_self
+  - prefer_zero_over_explicit_init
+  - prefixed_toplevel_constant
+  - prohibited_interface_builder
+  - quick_discouraged_call
+  - reduce_into
+  - redundant_nil_coalescing
+  - redundant_type_annotation
+  - required_enum_case
+  - return_value_from_void_function
+  - self_binding
+  - shorthand_optional_binding
+  - sorted_first_last
+  - static_operator
+  - strict_fileprivate
+  - strong_iboutlet
+  - toggle_bool
+  - unavailable_function
+  - unneeded_parentheses_in_closure_argument
+  - unowned_variable_capture
+  - untyped_error_in_catch
+  - vertical_parameter_alignment_on_call
+  - vertical_whitespace_closing_braces
+  - vertical_whitespace_opening_braces
+  - weak_delegate
+  - yoda_condition
+  # Not adopted, because SwiftFormat formats otherwise: multiline_arguments_brackets,
+  # multiline_parameters, multiline_parameters_brackets and multiline_literal_brackets (wrapped
+  # arguments stay packed after the parenthesis), modifier_order and sorted_imports (SwiftFormat
+  # orders them its own way), pattern_matching_keywords (`case .x(let a)`), trailing_comma
+  # (multi-line collections end with a comma). object_literal contradicts
+  # discouraged_object_literal.
+
+nesting:
+  type_level:
+    warning: 4
+
+identifier_name:
+  excluded:
+    - id
+    - x
+    - y
+    - i
+    - to
+    - en
+    - os
+    - on
+  # Geometry and tests use short names (dx, p, a, b).
+  min_length:
+    warning: 1
+    error: 1
+
+empty_count:
+  only_after_dot: true
+
+type_name:
+  excluded:
+    - C
+
+function_parameter_count:
+  warning: 6
+
+cyclomatic_complexity:
+  ignores_case_statements: true
+  warning: 12
+  error: 15
+
+large_tuple:
+  warning: 3
+
+line_length:
+  warning: 120
+  error: 200
+  ignores_urls: true
+
+function_body_length:
+  warning: 80
+  error: 100
+
+type_body_length:
+  warning: 500
+  error: 550
+
+file_length:
+  warning: 800
+  error: 1000
+
+trailing_whitespace:
+  ignores_empty_lines: true

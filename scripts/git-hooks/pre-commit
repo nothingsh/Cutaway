@@ -1,0 +1,48 @@
+#!/bin/bash
+# Formats the staged Swift files with the pinned SwiftFormat, stages the result, and shows what
+# the pinned SwiftLint finds in them without stopping the commit. scripts/install-git-hooks.sh
+# makes git run this hook. `git commit --no-verify` skips it.
+set -euo pipefail
+
+repo_root="$(git rev-parse --show-toplevel)"
+cd "$repo_root"
+
+fail() {
+  echo "pre-commit: $1" >&2
+  exit 1
+}
+
+# Added, copied, modified or renamed: the files whose staged content is committed.
+files=()
+while IFS= read -r -d '' file; do
+  files+=("$file")
+done < <(git diff --cached --name-only --diff-filter=ACMR -z -- '*.swift')
+((${#files[@]} > 0)) || exit 0
+
+# Staging a formatted file stages all of it: edits not staged yet would go into the commit.
+partial=()
+for file in "${files[@]}"; do
+  git diff --quiet -- "$file" || partial+=("$file")
+done
+if ((${#partial[@]} > 0)); then
+  printf '  %s\n' "${partial[@]}" >&2
+  fail "these files also have changes that are not staged; stage them whole, or stash the rest"
+fi
+
+swiftformat="$(scripts/get-format-tools.sh swiftformat)" || fail "could not install the pinned SwiftFormat"
+swiftlint="$(scripts/get-format-tools.sh swiftlint)" || fail "could not install the pinned SwiftLint"
+
+# The configuration's exclusions hold for files named here too.
+"$swiftformat" --quiet --cache ignore "${files[@]}" || fail "SwiftFormat failed"
+git add -- "${files[@]}"
+
+# Lint findings are shown, not enforced: a commit goes ahead whatever they are. Xcode shows them
+# as the app builds, and scripts/check.sh is the gate. SwiftLint loads SourceKit from Xcode; the
+# global developer directory has none.
+lint="$(DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer "$swiftlint" lint --quiet \
+  --force-exclude "${files[@]}" 2>&1)" || true
+# Nothing to say when every file is one the configuration excludes.
+if [[ -n "$lint" && "$lint" != *"No lintable files found"* ]]; then
+  echo "$lint" >&2
+  echo "pre-commit: SwiftLint findings above; the commit goes ahead" >&2
+fi

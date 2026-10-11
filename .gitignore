@@ -1,0 +1,23 @@
+/.tools/
+/.build/
+/.swiftpm/
+/CutawayKit/.build/
+/CutawayKit/.swiftpm/
+/.superpowers/
+/DerivedData/
+/build/
+/BaselineCandidates/
+*.xcodeproj
+*.xcresult
+xcuserdata/
+*.xcuserstate
+.DS_Store
+.claude/settings.local.json
+
+# Local development documents and agent configuration.
+/docs/
+/AGENTS.md
+/CLAUDE.md
+/.claude/
+/Baselines/README.md
+/scripts/verify.sh

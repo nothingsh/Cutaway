@@ -1,0 +1,15 @@
+# SwiftFormat, pinned in scripts/format-tools.txt. The options follow the way the code was
+# written before the tool came in.
+--swift-version 6.2
+--exclude CutawayKit/Sources/CutawayWire/Generated,Protocol,DerivedData,build,BaselineCandidates,.build,CutawayKit/.build,.tools
+--max-width 120
+--closing-paren balanced
+--wrap-arguments disabled
+--wrap-parameters disabled
+--wrap-collections disabled
+--trailing-commas collections-only
+--ranges no-space
+--import-grouping testable-last
+--pattern-let inline
+--extension-acl on-declarations
+--disable blankLinesBetweenImports,conditionalAssignment,consecutiveSpaces,docComments,hoistAwait,hoistTry,noForceTryInTests,noForceUnwrapInTests,numberFormatting,preferKeyPath,redundantReturn,redundantSelf,unusedArguments,wrapFunctionBodies,wrapIfExpressionBodies,wrapIfStatementBodies,wrapLoopBodies,wrapPropertyBodies
