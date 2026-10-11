@@ -1,0 +1,119 @@
+name: Cutaway
+options:
+  deploymentTarget:
+    macOS: "14.0"
+  createIntermediateGroups: true
+  # The interface is written in English first (C-LOC-01).
+  developmentLanguage: en
+packages:
+  CutawayKit:
+    path: CutawayKit
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    MARKETING_VERSION: "1.0.0-beta.1"
+    CURRENT_PROJECT_VERSION: "1"
+    # Signing with a Developer ID and notarisation come with the signed releases. Here the app is
+    # signed to run locally.
+    CODE_SIGN_STYLE: Manual
+    CODE_SIGN_IDENTITY: "-"
+    DEVELOPMENT_TEAM: ""
+targets:
+  Cutaway:
+    type: application
+    platform: macOS
+    sources:
+      - path: App
+        excludes:
+          - Info.plist
+    dependencies:
+      - package: CutawayKit
+        product: CutawayUI
+      - package: CutawayKit
+        product: CutawayModel
+      - package: CutawayKit
+        product: CutawayTransport
+      - package: CutawayKit
+        product: CutawayWire
+      - package: CutawayKit
+        product: CutawayRender
+    # SwiftLint's findings in Xcode, the package's code included.
+    preBuildScripts:
+      - name: SwiftLint
+        script: '"$SRCROOT/scripts/xcode-lint.sh"'
+        basedOnDependencyAnalysis: false
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.cutaway.Cutaway
+        # The SwiftLint phase reads the whole repository, which a sandboxed script cannot.
+        ENABLE_USER_SCRIPT_SANDBOXING: "NO"
+        PRODUCT_NAME: Cutaway
+        GENERATE_INFOPLIST_FILE: "YES"
+        # The archive's document type (C-ARCH-01); the generated keys are merged into it.
+        INFOPLIST_FILE: App/Info.plist
+        INFOPLIST_KEY_NSPrincipalClass: NSApplication
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.developer-tools
+        # The About panel's copyright line (C-MENU-03).
+        INFOPLIST_KEY_NSHumanReadableCopyright: "Copyright © 2026 Wynn Zhang."
+        # App/Assets.xcassets.
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        # The app must reach the usbmuxd socket, which a sandboxed app cannot (C-APP-01).
+        ENABLE_APP_SANDBOX: "NO"
+        ENABLE_HARDENED_RUNTIME: "NO"
+      # A release build runs under the hardened runtime and cannot be attached to, as
+      # notarisation requires. Debug keeps both off: the test host loads the test bundles,
+      # which the runtime's library validation would refuse.
+      configs:
+        Release:
+          ENABLE_HARDENED_RUNTIME: "YES"
+          CODE_SIGN_INJECT_BASE_ENTITLEMENTS: "NO"
+  CutawayAppTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - AppTests
+    dependencies:
+      - target: Cutaway
+      - package: CutawayKit
+        product: CutawayTestSupport
+      - package: CutawayKit
+        product: CutawayModel
+      - package: CutawayKit
+        product: CutawayUI
+      - package: CutawayKit
+        product: CutawayRender
+      - package: CutawayKit
+        product: CutawayWire
+      - package: CutawayKit
+        product: CutawayTransport
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.cutaway.CutawayAppTests
+        GENERATE_INFOPLIST_FILE: "YES"
+        TEST_HOST: $(BUILT_PRODUCTS_DIR)/Cutaway.app/Contents/MacOS/Cutaway
+        BUNDLE_LOADER: $(TEST_HOST)
+schemes:
+  Cutaway:
+    build:
+      targets:
+        Cutaway: all
+        CutawayAppTests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      # Tests never talk to real devices or real servers; a person does that, by hand.
+      environmentVariables:
+        CUTAWAY_DISABLE_DEVICE_DISCOVERY: "1"
+        # The protocol's ports are 48160 to 48167 (P-TRANS-02); a Cutaway or a demo app left
+        # open there would meet the tests' MockServer.
+        CUTAWAY_SIMULATOR_PORTS_START: "48260"
+        # Settings of their own, from the defaults each run: the user's must neither shape the
+        # tests nor be changed by them (C-PREF-01).
+        CUTAWAY_SETTINGS_SUITE: "dev.cutaway.app-tests.settings"
+      # The app's tests run in English whatever the Mac's language: their expectations are
+      # the English text (C-LOC-01).
+      commandLineArguments:
+        "-AppleLanguages (en)": true
+      targets:
+        - CutawayAppTests
