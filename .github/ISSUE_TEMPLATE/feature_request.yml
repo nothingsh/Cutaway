@@ -1,0 +1,27 @@
+name: Feature request
+description: Suggest something Cutaway should show or do.
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Check the README first; your idea may already be there. Features that need data the app
+        does not send today also need changes to CutawayServer and the Cutaway protocol.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What are you trying to inspect or do, and what gets in the way today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: What you would like Cutaway to do.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered

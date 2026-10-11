@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: CutawayServer (iOS SDK)
+    url: https://github.com/nothingsh/CutawayServer/issues
+    about: Problems with integrating the SDK, or with what it captures in your app, belong in the CutawayServer repository.
+  - name: Cutaway protocol
+    url: https://github.com/nothingsh/CutawayProtocol/issues
+    about: Proposals to change the protocol itself belong in the CutawayProtocol repository.

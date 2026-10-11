@@ -1,0 +1,71 @@
+name: Bug report
+description: Cutaway misbehaves, crashes, or shows something wrong.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. If Cutaway does not list your app at all, check the FAQ in the
+        README first. Problems in what the app sends (missing layers, wrong attributes captured)
+        may belong in the CutawayServer repository instead.
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened
+      description: What you saw, and what you expected instead. A screenshot helps.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: The smallest setup that shows the problem.
+      placeholder: |
+        1. Connect to an app ...
+        2. Switch to 3D and select the layer ...
+        3. ...
+    validations:
+      required: true
+  - type: input
+    id: cutaway-version
+    attributes:
+      label: Cutaway version
+      description: From Cutaway › About Cutaway, or a commit hash if you built it yourself.
+    validations:
+      required: true
+  - type: input
+    id: macos-version
+    attributes:
+      label: macOS version
+      placeholder: e.g. macOS 26.0
+    validations:
+      required: true
+  - type: input
+    id: server-version
+    attributes:
+      label: CutawayServer version
+      description: The version in the inspected app, if the problem involves a connection.
+  - type: dropdown
+    id: target
+    attributes:
+      label: Where the inspected app runs
+      options:
+        - Simulator
+        - Device over USB
+        - Not applicable (an archive, or no app)
+    validations:
+      required: true
+  - type: textarea
+    id: archive
+    attributes:
+      label: Archive
+      description: |
+        If the problem shows in an inspection, saving it with File › Save Archive… (⌘S) and attaching the
+        `.cutaway` file (zipped) lets us see exactly what you saw. Archives contain screenshots
+        of your app; leave this out if they are confidential.
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or crash report
+      description: Console output or a crash report, if there is one.
+      render: text

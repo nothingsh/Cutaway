@@ -1,0 +1,29 @@
+# Builds and tests the code on every push to main and every pull request by running
+# scripts/check.sh.
+name: check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # Protocol/ is the CutawayProtocol submodule, a public repository.
+          submodules: recursive
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Check
+        run: scripts/check.sh
+        env:
+          # Skips the tests timed against the developer's Mac, and those a virtual GPU or a
+          # loaded machine upsets (TestRunner in CutawayTestSupport).
+          CUTAWAY_CI: "1"
