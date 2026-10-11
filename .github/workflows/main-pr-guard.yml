@@ -1,0 +1,28 @@
+# main only takes the current dev-* branch at release time, from the repository owner.
+# Any other pull request into main is closed; contributions go to the dev-* branch instead.
+# pull_request_target runs this file from main and never checks out the pull request's code.
+name: main-pr-guard
+
+on:
+  pull_request_target:
+    types: [opened, reopened, edited, synchronize]
+    branches: [main]
+
+permissions:
+  pull-requests: write
+
+jobs:
+  close:
+    if: >-
+      github.event.pull_request.user.login != github.repository_owner ||
+      github.event.pull_request.head.repo.full_name != github.repository ||
+      !startsWith(github.event.pull_request.head.ref, 'dev-')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Close the pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          gh pr close "$NUMBER" --repo "$REPO" --comment "\`main\` only takes a \`dev-*\` branch at release time. Please open this pull request against the current \`dev-*\` branch instead."
