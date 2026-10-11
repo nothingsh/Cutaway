@@ -1,4 +1,5 @@
 <!--
+Open this pull request against the current dev-* branch, not main (see CONTRIBUTING.md).
 Title: use a Conventional Commits prefix, e.g. "feat: ...", "fix: ...", "docs: ...".
 -->
 
