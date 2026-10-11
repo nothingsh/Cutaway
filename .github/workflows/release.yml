@@ -1,0 +1,57 @@
+# Builds a release for each v* tag and attaches it to a draft release on GitHub, which the
+# maintainer reads over and publishes. scripts/release.sh checks the tag against the version
+# and the build, builds the app signed ad hoc (no Developer ID, no notarisation) and packages
+# it. Tag only commits that have passed the check workflow: this one runs no tests.
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+
+jobs:
+  release:
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # Protocol/ is the CutawayProtocol submodule, a public repository.
+          submodules: recursive
+          # Every tag, for the builds of the earlier releases.
+          fetch-depth: 0
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Build and package
+        run: scripts/release.sh --tag "$GITHUB_REF_NAME"
+      - name: Create the draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          out="build/release/$version"
+          prerelease=()
+          if [[ "$version" == *-beta.* ]]; then prerelease=(--prerelease); fi
+          {
+            echo "## Installing"
+            echo
+            echo "Download \`Cutaway-$version.dmg\`, open it and drag Cutaway to Applications."
+            echo
+            echo "Cutaway is not notarized by Apple. The first time it is opened, macOS says it cannot"
+            echo "verify the developer: open **System Settings › Privacy & Security** and choose"
+            echo "**Open Anyway**, or run \`xattr -dr com.apple.quarantine /Applications/Cutaway.app\`."
+            echo
+            echo "## Checksums (SHA-256)"
+            echo
+            echo '```'
+            cat "$out/SHA256SUMS"
+            echo '```'
+          } >"$RUNNER_TEMP/notes.md"
+          gh release create "$GITHUB_REF_NAME" --draft --verify-tag "${prerelease[@]}" \
+            --title "Cutaway $version" --notes-file "$RUNNER_TEMP/notes.md" \
+            "$out/Cutaway-$version.dmg" "$out/Cutaway-$version.zip" "$out/SHA256SUMS"
