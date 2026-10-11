@@ -11,7 +11,7 @@ packages:
 settings:
   base:
     SWIFT_VERSION: "6.0"
-    MARKETING_VERSION: "1.0.0-beta.1"
+    MARKETING_VERSION: "1.0.0"
     CURRENT_PROJECT_VERSION: "1"
     # Signing with a Developer ID and notarisation come with the signed releases. Here the app is
     # signed to run locally.
