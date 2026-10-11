@@ -9,6 +9,7 @@ let package = Package(
     platforms: [.macOS(.v14)],
     products: [
         .library(name: "CutawayModel", targets: ["CutawayModel"]),
+        .library(name: "CutawayRender", targets: ["CutawayRender"]),
         .library(name: "CutawayTransport", targets: ["CutawayTransport"]),
         .library(name: "CutawayWire", targets: ["CutawayWire"]),
         .library(name: "CutawayTestSupport", targets: ["CutawayTestSupport"]),
@@ -28,6 +29,11 @@ let package = Package(
             name: "CutawayModel",
             dependencies: ["CutawayScene", "CutawayTransport", "CutawayWire"]
         ),
+        .target(
+            name: "CutawayRender",
+            dependencies: ["CutawayScene"],
+            resources: [.process("Shaders")]
+        ),
         .target(name: "CutawayTestSupport", dependencies: ["CutawayWire", "CutawayTransport"]),
         .testTarget(
             name: "CutawayWireTests",
@@ -40,6 +46,12 @@ let package = Package(
         .testTarget(
             name: "CutawaySceneTests",
             dependencies: ["CutawayScene", "CutawayModel", "CutawayWire", "CutawayTestSupport"]
+        ),
+        .testTarget(
+            name: "CutawayRenderTests",
+            dependencies: [
+                "CutawayRender", "CutawayScene", "CutawayModel", "CutawayWire", "CutawayTestSupport",
+            ]
         ),
         .testTarget(
             name: "CutawayTransportTests",
