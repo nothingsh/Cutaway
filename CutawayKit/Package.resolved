@@ -1,0 +1,33 @@
+{
+  "originHash" : "752f57a35cb9e2aff180788c4854faa1a013017ac96f43b30539970b72691f70",
+  "pins" : [
+    {
+      "identity" : "declarativeappkit",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/nothingsh/DeclarativeAppKit.git",
+      "state" : {
+        "revision" : "2fea33c0451adeca3569d435f9d2168303b80b47",
+        "version" : "0.1.0"
+      }
+    },
+    {
+      "identity" : "declarativecombine",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/nothingsh/DeclarativeCombine.git",
+      "state" : {
+        "revision" : "031b0158900e3847690d37338d1bca89bea1cf78",
+        "version" : "0.2.0"
+      }
+    },
+    {
+      "identity" : "flatbuffers",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/google/flatbuffers.git",
+      "state" : {
+        "revision" : "7e163021e59cca4f8e1e35a7c828b5c6b7915953",
+        "version" : "25.12.19"
+      }
+    }
+  ],
+  "version" : 3
+}

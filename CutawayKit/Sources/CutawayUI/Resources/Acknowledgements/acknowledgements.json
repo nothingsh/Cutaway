@@ -1,0 +1,26 @@
+[
+  {
+    "name": "FlatBuffers",
+    "identity": "flatbuffers",
+    "version": "25.12.19",
+    "url": "https://github.com/google/flatbuffers",
+    "license": "Apache License 2.0",
+    "file": "flatbuffers-LICENSE.txt"
+  },
+  {
+    "name": "DeclarativeAppKit",
+    "identity": "declarativeappkit",
+    "version": "0.1.0",
+    "url": "https://github.com/nothingsh/DeclarativeAppKit",
+    "license": "MIT License",
+    "file": "DeclarativeAppKit-LICENSE.txt"
+  },
+  {
+    "name": "DeclarativeCombine",
+    "identity": "declarativecombine",
+    "version": "0.2.0",
+    "url": "https://github.com/nothingsh/DeclarativeCombine",
+    "license": "MIT License",
+    "file": "DeclarativeCombine-LICENSE.txt"
+  }
+]

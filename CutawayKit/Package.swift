@@ -6,8 +6,11 @@ import PackageDescription
 // swiftlint:disable:next prefixed_toplevel_constant
 let package = Package(
     name: "CutawayKit",
+    // The interface's text is written in English first (C-LOC-01).
+    defaultLocalization: "en",
     platforms: [.macOS(.v14)],
     products: [
+        .library(name: "CutawayUI", targets: ["CutawayUI"]),
         .library(name: "CutawayModel", targets: ["CutawayModel"]),
         .library(name: "CutawayRender", targets: ["CutawayRender"]),
         .library(name: "CutawayTransport", targets: ["CutawayTransport"]),
@@ -17,6 +20,8 @@ let package = Package(
     dependencies: [
         // Must equal Protocol/FLATBUFFERS_VERSION; scripts/check.sh checks that they agree.
         .package(url: "https://github.com/google/flatbuffers.git", exact: "25.12.19"),
+        .package(url: "https://github.com/nothingsh/DeclarativeAppKit.git", exact: "0.1.0"),
+        .package(url: "https://github.com/nothingsh/DeclarativeCombine.git", exact: "0.2.0"),
     ],
     targets: [
         .target(
@@ -33,6 +38,23 @@ let package = Package(
             name: "CutawayRender",
             dependencies: ["CutawayScene"],
             resources: [.process("Shaders")]
+        ),
+        .target(
+            name: "CutawayUI",
+            dependencies: [
+                "CutawayRender",
+                "CutawayScene",
+                "CutawayModel",
+                "CutawayTransport",
+                "CutawayWire",
+                .product(name: "DeclarativeAppKit", package: "DeclarativeAppKit"),
+                .product(name: "DeclarativeCombine", package: "DeclarativeCombine"),
+            ],
+            // The licences of the libraries shipped with the app (C-MENU-03).
+            // The interface's text in its languages (C-LOC-01).
+            resources: [
+                .copy("Resources/Acknowledgements"), .process("Resources/Localizable.xcstrings"),
+            ]
         ),
         .target(name: "CutawayTestSupport", dependencies: ["CutawayWire", "CutawayTransport"]),
         .testTarget(
@@ -51,6 +73,19 @@ let package = Package(
             name: "CutawayRenderTests",
             dependencies: [
                 "CutawayRender", "CutawayScene", "CutawayModel", "CutawayWire", "CutawayTestSupport",
+            ]
+        ),
+        .testTarget(
+            name: "CutawayUITests",
+            dependencies: [
+                "CutawayUI",
+                "CutawayScene",
+                "CutawayRender",
+                "CutawayModel",
+                "CutawayTransport",
+                "CutawayWire",
+                "CutawayTestSupport",
+                .product(name: "DeclarativeAppKit", package: "DeclarativeAppKit"),
             ]
         ),
         .testTarget(

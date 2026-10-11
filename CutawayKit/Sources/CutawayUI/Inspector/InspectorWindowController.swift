@@ -1,0 +1,387 @@
+import AppKit
+import Combine
+import CutawayModel
+import CutawayScene
+import CutawayTransport
+import CutawayWire
+import DeclarativeAppKit
+import DeclarativeCombine
+import UniformTypeIdentifiers
+
+/// The window that inspects one app (C-WIN-01): the app's name and device in the title, the
+/// 2D / 3D switch and a way to the app list in the toolbar, and the three panes below.
+public final class InspectorWindowController: NSWindowController {
+    /// What the window undoes while nothing can be changed: nothing.
+    private let idleUndoManager = UndoManager()
+    static let modeIdentifier = "inspection.mode"
+    static let appIconItem = NSToolbarItem.Identifier("inspector.appIcon")
+    static let modeItem = NSToolbarItem.Identifier("inspector.mode")
+    static let appsItem = NSToolbarItem.Identifier("inspector.apps")
+    static let refreshItem = NSToolbarItem.Identifier("inspector.refresh")
+    static let saveArchiveItem = NSToolbarItem.Identifier("inspector.saveArchive")
+    static let archiveTagItem = NSToolbarItem.Identifier("inspector.archiveTag")
+    static let size = NSSize(width: 1200, height: 760)
+    /// Room for the three panes at their least: 220 + 320 + 260 points, and the dividers.
+    static let minimumSize = NSSize(width: 820, height: 460)
+
+    /// The app this window inspects; nil for an archive's window.
+    let location: AppLocation?
+    /// The archive this window shows; nil for an app's (C-ARCH-05).
+    let archiveURL: URL?
+    /// Which app that is, across connections; nil when it cannot be recognised (C-WIN-04).
+    let identity: AppIdentity?
+    let store: InspectionStore
+    let splitController: InspectorSplitViewController
+    let appIcon: NSImage?
+    /// The toolbar's 2D / 3D switch, once the toolbar has made it.
+    var modeControl: NSSegmentedControl?
+    /// Whether the connection to the app is gone (C-WIN-03), as the store last said: read
+    /// inside the store's own publishing, before the store itself has changed.
+    public private(set) var isDisconnected = false
+    /// Called when the user asks for the app list.
+    var onShowApps: () -> Void = {}
+    /// Called when the window is about to close, however it was closed.
+    var onClose: () -> Void = {}
+    /// Called when an archive was saved from this window, with its place.
+    var onArchiveSaved: (URL) -> Void = { _ in }
+    /// Asks where to save an archive, suggesting a name without the extension, and calls back
+    /// with the place chosen; not at all when the user cancels. A save panel on the window by
+    /// default; tests put a place of their own (C-ARCH-02).
+    public var chooseArchiveDestination:
+        @MainActor (NSWindow, String, @escaping (URL) -> Void) -> Void =
+        InspectorWindowController.runSavePanel
+    /// Asks where to export a screenshot, as `chooseArchiveDestination` does (C-ARCH-06).
+    public var chooseScreenshotDestination:
+        @MainActor (NSWindow, String, @escaping (URL) -> Void) -> Void =
+        InspectorWindowController.runPNGSavePanel
+    private let appName: String
+    private var cancellables = Set<AnyCancellable>()
+
+    /// The window of an app over a connection.
+    convenience init(
+        location: AppLocation, entry: AppEntry?, store: InspectionStore,
+        paneWidths: PaneWidths? = nil
+    ) {
+        self.init(
+            location: location, archiveURL: nil, info: entry?.info, icon: entry?.icon,
+            title: InspectorWindowTitle(app: entry?.info), store: store, paneWidths: paneWidths)
+    }
+
+    /// The window of an archive (C-ARCH-05): its file's name is the title; the app, its
+    /// device and when it was saved are under it.
+    convenience init(archive: OpenedArchive, store: InspectionStore, paneWidths: PaneWidths? = nil) {
+        self.init(
+            location: nil, archiveURL: archive.url, info: archive.app, icon: archive.icon,
+            title: InspectorWindowTitle(
+                archive: archive.url, app: archive.app, savedAt: archive.manifest.savedAt),
+            store: store, paneWidths: paneWidths)
+    }
+
+    private init(
+        location: AppLocation?, archiveURL: URL?, info: AppInfo?, icon: Bitmap?,
+        title: InspectorWindowTitle, store: InspectionStore, paneWidths: PaneWidths?
+    ) {
+        self.location = location
+        self.archiveURL = archiveURL
+        // An archive's app is not waited for (C-WIN-04).
+        self.identity = archiveURL == nil ? info.flatMap(AppIdentity.init) : nil
+        self.store = store
+        let name = AppEntryPresentation.name(of: info)
+        appName = name
+        splitController = InspectorSplitViewController(
+            store: store, appName: name, paneWidths: paneWidths)
+        appIcon = icon?.makeImage()
+
+        let window = NSWindow(
+            contentRect: NSRect(origin: .zero, size: Self.size),
+            styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
+            backing: .buffered,
+            defer: false)
+        window.isReleasedWhenClosed = false
+        window.title = title.title
+        window.subtitle = title.subtitle
+        window.representedURL = archiveURL
+        window.toolbarStyle = .unified
+        // View › Enter Full Screen (C-MENU-02); a window has no full screen unless it asks.
+        window.collectionBehavior.insert(.fullScreenPrimary)
+        window.contentViewController = splitController
+        // Assigning the content view controller shrinks the window to the view's fitting size.
+        window.setContentSize(Self.size)
+        window.contentMinSize = Self.minimumSize
+        super.init(window: window)
+
+        let toolbar = NSToolbar(identifier: "inspector")
+        toolbar.delegate = self
+        toolbar.displayMode = .iconOnly
+        toolbar.allowsUserCustomization = false
+        window.toolbar = toolbar
+        window.delegate = self
+
+        splitController.containerController.onShowApps = { [weak self] in self?.close() }
+        // AppKit shrinks a window larger than the screen as it shows it, and the panes with
+        // it; made to fit now, they do not move then (C-WIN-02).
+        if let visible = (window.screen ?? NSScreen.main)?.visibleFrame {
+            let minimum = window.frameRect(
+                forContentRect: NSRect(origin: .zero, size: Self.minimumSize)).size
+            window.setFrame(
+                Self.frame(window.frame, fitting: visible, minimum: minimum), display: false)
+        }
+        window.center()
+        // Laid out now, before it is shown: the panes appear at their widths (C-WIN-02).
+        window.layoutIfNeeded()
+        // The arrow keys and typing go to the list from the start.
+        window.initialFirstResponder = splitController.hierarchyController.outlineView
+        // Saving starts and ends without an event; the toolbar is checked after events only.
+        // On the next turn: the store publishes before its state has changed.
+        store.$archiveSave
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] state in
+                self?.window?.toolbar?.validateVisibleItems()
+                if case .saved(let url) = state { self?.onArchiveSaved(url) }
+            }
+            .store(in: &cancellables)
+        // After the panes' own subscriptions: they follow the store before the window does.
+        store.$connection
+            .sink { [weak self] connection in
+                guard case .lost = connection else { return }
+                self?.connectionWasLost()
+            }
+            .store(in: &cancellables)
+    }
+
+    /// Whether this window shows an archive rather than an app (C-ARCH-05).
+    public var isArchive: Bool { archiveURL != nil }
+
+    /// Which commands can be used now: asked anew each time, so that it reads the store then.
+    var commands: InspectorCommands {
+        InspectorCommands(store: store, isArchive: isArchive, isDisconnected: isDisconnected)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) is not supported")
+    }
+
+    /// `frame` made no larger than `visible`, a screen's visible frame, and no smaller than
+    /// `minimum` (C-WIN-02).
+    static func frame(_ frame: NSRect, fitting visible: NSRect, minimum: NSSize) -> NSRect {
+        var fitted = frame
+        fitted.size.width = max(min(frame.width, visible.width), minimum.width)
+        fitted.size.height = max(min(frame.height, visible.height), minimum.height)
+        return fitted
+    }
+
+    /// The connection is gone: the window stays with what it last showed, and its panes say
+    /// so and offer the way back to the app list (C-WIN-03, C-WIN-04).
+    private func connectionWasLost() {
+        guard !isDisconnected else { return }
+        isDisconnected = true
+        // Toolbar items are checked after events; the loss of a connection is none.
+        window?.toolbar?.validateVisibleItems()
+        modeControl?.isEnabled = false
+    }
+
+    // MARK: - Actions
+
+    @objc func showApps(_ sender: Any?) {
+        onShowApps()
+    }
+
+    /// Loads the layers, their screenshots and the selected layer's attributes again
+    /// (C-DET-05).
+    @objc func refresh(_ sender: Any?) {
+        store.refresh()
+    }
+
+    /// Asks where to save, then captures the app into an archive there (C-ARCH-02).
+    @objc func saveArchive(_ sender: Any?) {
+        guard commands.canSaveArchive, let window else { return }
+        let version = AppVersion.current.version
+        chooseArchiveDestination(
+            window, InspectorWindowTitle.archiveName(appName: appName, at: Date())
+        ) { [weak self] url in
+            guard let self, self.commands.canSaveArchive else { return }
+            self.store.saveArchive(to: url, cutawayVersion: version)
+        }
+    }
+
+    static func runSavePanel(
+        on window: NSWindow, suggesting name: String, then save: @escaping (URL) -> Void
+    ) {
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.cutawayArchive]
+        panel.nameFieldStringValue = name
+        panel.beginSheetModal(for: window) { response in
+            guard response == .OK, let url = panel.url else { return }
+            save(url)
+        }
+    }
+
+    /// Exports a layer's own screenshot (C-ARCH-06): the layer of the row menu it was chosen
+    /// from, or else the selected one.
+    @objc func exportLayerScreenshot(_ sender: Any?) {
+        exportScreenshot(.solo, sender)
+    }
+
+    /// Exports the screenshot of a layer and its sublayers (C-ARCH-06).
+    @objc func exportScreenshotWithSublayers(_ sender: Any?) {
+        exportScreenshot(.group, sender)
+    }
+
+    private func exportTarget(_ sender: Any?) -> UInt64? {
+        (sender as? NSMenuItem)?.representedObject as? UInt64 ?? store.selectedLayerID
+    }
+
+    private func canExport(_ kind: TextureKey.Kind, _ sender: Any?) -> Bool {
+        commands.canExport(kind, of: exportTarget(sender))
+    }
+
+    private func exportScreenshot(_ kind: TextureKey.Kind, _ sender: Any?) {
+        guard canExport(kind, sender), let id = exportTarget(sender), let window else { return }
+        let name = InspectorWindowTitle.screenshotName(
+            title: store.tree.fileTitle(of: id), layerID: id, kind: kind)
+        chooseScreenshotDestination(window, name) { [weak self] url in
+            self?.store.exportScreenshot(of: id, kind: kind, to: url) { $0.pngData() }
+        }
+    }
+
+    static func runPNGSavePanel(
+        on window: NSWindow, suggesting name: String, then save: @escaping (URL) -> Void
+    ) {
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.png]
+        panel.nameFieldStringValue = name
+        panel.beginSheetModal(for: window) { response in
+            guard response == .OK, let url = panel.url else { return }
+            save(url)
+        }
+    }
+
+    /// Loads the selected layer's subtree again, with its screenshots (C-DET-07).
+    @objc func refreshSelectedSubtree(_ sender: Any?) {
+        guard let id = store.selectedLayerID else { return }
+        store.refreshSubtree(of: id)
+    }
+
+    @objc func showTwoD(_ sender: Any?) {
+        store.setPreviewMode(.twoD)
+    }
+
+    @objc func showThreeD(_ sender: Any?) {
+        store.setPreviewMode(.threeD)
+    }
+
+    /// Puts the focus in the list's search field, showing the sidebar if it is collapsed
+    /// (C-HIER-04).
+    @objc func findLayer(_ sender: Any?) {
+        splitController.splitViewItems.first?.isCollapsed = false
+        window?.makeFirstResponder(splitController.hierarchyController.searchField)
+    }
+
+    /// Shows or hides the layers that cannot be seen (C-PREV-08).
+    @objc func toggleHiddenLayers(_ sender: Any?) {
+        store.setShowsHiddenLayers(!store.showsHiddenLayers)
+    }
+
+    /// Outlines the layers or not (C-PREV-09).
+    @objc func toggleBorders(_ sender: Any?) {
+        store.setShowsBorders(!store.showsBorders)
+    }
+
+    /// View › Show Inspector while the window itself is the first responder, as it is once
+    /// disconnected: the window passes Show Sidebar on to the split view, but not this
+    /// (C-MENU-02). With a pane's view first, the split view answers before the window does.
+    @objc func toggleInspector(_ sender: Any?) {
+        splitController.toggleInspector(sender)
+    }
+
+    /// View › Zoom In: as a pinch would, about the middle of the preview (C-MENU-02).
+    @objc func zoomIn(_ sender: Any?) {
+        splitController.previewController.zoomAboutCentre(by: PreviewViewController.zoomStep)
+    }
+
+    /// View › Zoom Out (C-MENU-02).
+    @objc func zoomOut(_ sender: Any?) {
+        splitController.previewController.zoomAboutCentre(by: 1 / PreviewViewController.zoomStep)
+    }
+
+    /// Puts the camera of the mode shown back as it starts (C-PREV-07).
+    @objc func resetView(_ sender: Any?) {
+        store.resetCamera()
+    }
+
+    @objc func focusOnSelectedLayer(_ sender: Any?) {
+        store.focus(on: store.selectedLayerID)
+    }
+
+    @objc func showAllLayers(_ sender: Any?) {
+        store.focus(on: nil)
+    }
+
+    @objc func expandAllLayers(_ sender: Any?) {
+        store.expandAll()
+    }
+
+    @objc func collapseAllLayers(_ sender: Any?) {
+        store.collapseAll()
+    }
+}
+
+extension InspectorWindowController: NSWindowDelegate {
+    public func windowWillClose(_ notification: Notification) {
+        onClose()
+    }
+
+    /// The window's undo is the attribute changes (C-ATTR-08): the Edit menu's Undo and Redo
+    /// read their titles from it. The panel's fields keep no undo of their own.
+    /// An empty one while nothing can be changed (C-ATTR-04): Undo and Redo are unavailable
+    /// then, rather than failing and losing their step. Nil would not do: the window would use
+    /// an undo manager of its own.
+    public func windowWillReturnUndoManager(_ window: NSWindow) -> UndoManager? {
+        guard !isDisconnected, store.attributes.canEdit else { return idleUndoManager }
+        return store.attributes.undoManager
+    }
+}
+
+extension InspectorWindowController: NSMenuItemValidation {
+    public func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        switch menuItem.action {
+        case #selector(showTwoD(_:)):
+            menuItem.state = commands.isShowingTwoD ? .on : .off
+            return commands.canChangePreview
+        case #selector(showThreeD(_:)):
+            menuItem.state = commands.isShowingThreeD ? .on : .off
+            return commands.canChangePreview
+        case #selector(refresh(_:)):
+            return commands.canRefresh
+        case #selector(refreshSelectedSubtree(_:)):
+            return commands.canRefreshSelectedSubtree
+        case #selector(saveArchive(_:)):
+            return commands.canSaveArchive
+        case #selector(exportLayerScreenshot(_:)):
+            return canExport(.solo, menuItem)
+        case #selector(exportScreenshotWithSublayers(_:)):
+            return canExport(.group, menuItem)
+        case #selector(toggleHiddenLayers(_:)):
+            menuItem.state = commands.isShowingHiddenLayers ? .on : .off
+            return commands.canChangePreview
+        case #selector(toggleBorders(_:)):
+            menuItem.state = commands.isShowingBorders ? .on : .off
+            return commands.canChangePreview
+        case #selector(toggleInspector(_:)):
+            return splitController.validateUserInterfaceItem(menuItem)
+        case #selector(resetView(_:)), #selector(zoomIn(_:)), #selector(zoomOut(_:)):
+            return commands.canChangePreview
+        case #selector(findLayer(_:)):
+            return commands.canFindLayer
+        case #selector(focusOnSelectedLayer(_:)):
+            return commands.canFocusOnSelectedLayer
+        case #selector(showAllLayers(_:)):
+            return commands.canShowAllLayers
+        case #selector(expandAllLayers(_:)), #selector(collapseAllLayers(_:)):
+            return commands.canExpandOrCollapseAll
+        default:
+            return true
+        }
+    }
+}

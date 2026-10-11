@@ -1,0 +1,106 @@
+import AppKit
+
+/// The constants the interface is drawn with: spacing, corner radii, fonts and the SF Symbols
+/// it uses. Colours are the system's semantic colours, so light and dark follow the system.
+enum Theme {
+    enum Spacing {
+        static let tight: CGFloat = 4
+        static let small: CGFloat = 8
+        static let medium: CGFloat = 12
+        static let large: CGFloat = 16
+    }
+
+    /// How firmly the inspector's texts keep their width: less than the split view holds the
+    /// panes' widths with (250 and 260), so that a long text is cut short or wraps instead of
+    /// widening the inspector and moving the preview beside it.
+    static let textGivesWay = NSLayoutConstraint.Priority(rawValue: 200)
+
+    enum Radius {
+        static let control: CGFloat = 6
+        static let panel: CGFloat = 8
+        /// A 40-point app icon.
+        static let appIcon: CGFloat = 9
+    }
+
+    @MainActor
+    enum Font {
+        static let body = NSFont.systemFont(ofSize: 13)
+        static let bodyEmphasized = NSFont.systemFont(ofSize: 13, weight: .semibold)
+        static let caption = NSFont.systemFont(ofSize: 11)
+        static let captionEmphasized = NSFont.systemFont(ofSize: 11, weight: .semibold)
+        static let digits = NSFont.monospacedDigitSystemFont(ofSize: 13, weight: .regular)
+        static let captionDigits = NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .regular)
+        /// A constraint's equation (C-LAYOUT-02).
+        static let constraint = NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .regular)
+    }
+
+    /// The names of every SF Symbol the interface uses. A misspelt name makes no image and no
+    /// error, so a test loads each of them.
+    enum Symbol {
+        static let appPlaceholder = "app.dashed"
+        static let thisMac = "laptopcomputer"
+        static let usbDevice = "cable.connector"
+        static let phone = "iphone"
+        static let pad = "ipad"
+        static let mac = "desktopcomputer"
+        static let unknownDevice = "questionmark.square.dashed"
+        static let chevron = "chevron.right"
+        static let inactive = "pause.circle.fill"
+        static let background = "moon.fill"
+        static let incompatible = "exclamationmark.triangle.fill"
+        static let noApps = "iphone.gen3.radiowaves.left.and.right"
+        static let twoD = "square"
+        static let threeD = "square.3.layers.3d"
+        static let apps = "square.grid.2x2"
+        static let notActive = "moon.zzz.fill"
+        static let screenshotsFailed = "exclamationmark.triangle.fill"
+        static let disconnected = "cable.connector.slash"
+        static let expandMenu = "list.bullet.indent"
+        static let leaveFocus = "xmark.circle.fill"
+        static let noMatches = "magnifyingglass"
+        static let showHidden = "eye"
+        static let hideHidden = "eye.slash"
+        static let borders = "square.dashed"
+        static let refresh = "arrow.clockwise"
+        /// The grip a number is dragged by (C-ATTR-05).
+        static let scrub = "arrow.left.and.right"
+        static let editFailed = "exclamationmark.triangle.fill"
+        static let saveArchive = "archivebox"
+        static let archiveSaved = "checkmark.circle.fill"
+        static let archiveFailed = "exclamationmark.triangle.fill"
+
+        static let all = [
+            appPlaceholder, thisMac, usbDevice, phone, pad, mac, unknownDevice, chevron, inactive,
+            background, incompatible, noApps, twoD, threeD, apps, notActive, screenshotsFailed,
+            disconnected, expandMenu, leaveFocus, noMatches, showHidden, hideHidden, borders,
+            refresh, scrub, editFailed, saveArchive, archiveSaved, archiveFailed,
+        ]
+    }
+
+    /// An SF Symbol at a point size and weight, or nil when the system does not have it.
+    static func symbol(
+        _ name: String, size: CGFloat = 13, weight: NSFont.Weight = .regular,
+        scale: NSImage.SymbolScale = .medium, description: String? = nil
+    ) -> NSImage? {
+        let configuration = NSImage.SymbolConfiguration(
+            pointSize: size, weight: weight, scale: scale)
+        return NSImage(systemSymbolName: name, accessibilityDescription: description)?
+            .withSymbolConfiguration(configuration)
+    }
+
+    /// An SF Symbol drawn at its own aspect ratio, centred in a square of `side` points. A path
+    /// control draws its items' images into squares and stretches one that is not square.
+    static func squareSymbol(_ name: String, size: CGFloat, side: CGFloat) -> NSImage? {
+        guard let symbol = self.symbol(name, size: size) else { return nil }
+        let image = NSImage(size: NSSize(width: side, height: side), flipped: false) { _ in
+            let scale = min(side / symbol.size.width, side / symbol.size.height, 1)
+            let width = symbol.size.width * scale
+            let height = symbol.size.height * scale
+            symbol.draw(in: NSRect(
+                x: (side - width) / 2, y: (side - height) / 2, width: width, height: height))
+            return true
+        }
+        image.isTemplate = true
+        return image
+    }
+}
