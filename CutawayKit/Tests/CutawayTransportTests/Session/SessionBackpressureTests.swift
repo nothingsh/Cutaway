@@ -203,8 +203,9 @@ final class SessionBackpressureTests: XCTestCase {
             ending = error as? RequestError
         }
         XCTAssertEqual(ending, .disconnected)
-        let closed = await channel.closeCount
-        XCTAssertGreaterThanOrEqual(closed, 1)
+        // The channel records its close on a task of its own, after the deinit asked for it.
+        let closed = await Harness.eventually { await channel.closeCount >= 1 }
+        XCTAssertTrue(closed, "the channel was not closed")
     }
 
     func test_C_CONN_12_aCancelGoesOutWhileTheReadingIsPaused() async throws {
