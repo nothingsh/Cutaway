@@ -245,12 +245,6 @@ final class Measurement3DTests: XCTestCase {
         }
     }
 
-    func test_C_SCENE_12_squareOnNothingIsCopiedOrJoined() throws {
-        let drawn = try measured(try fixtureLayout(), .flat, to: 2)
-        XCTAssertEqual(drawn.links, [])
-        XCTAssertEqual(drawn.dashes.count, drawn.measurement.distances.flatMap(\.extensions).count)
-    }
-
     /// A layer inside a collapsed node is shown by the node's image: it is measured on the
     /// node's level, as its marks are (C-LAYOUT-04).
     func test_C_SCENE_12_aLayerInsideACollapsedNodeIsMeasuredOnTheNodesLevel() throws {

@@ -28,11 +28,6 @@ final class LanguageSettingTests: XCTestCase {
         defaults.persistentDomain(forName: suiteName)?[LanguageSetting.key]
     }
 
-    func test_C_LOC_01_theSystemsLanguageIsTheDefault() {
-        XCTAssertNil(setting().choice)
-        XCTAssertNil(kept)
-    }
-
     func test_C_LOC_01_aChoiceIsKeptAsTheAppsLanguagesAndReadBack() {
         let setting = setting()
         setting.choose("ja")

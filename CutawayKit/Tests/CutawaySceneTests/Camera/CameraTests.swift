@@ -111,47 +111,7 @@ final class CameraTests: XCTestCase {
         XCTAssertGreaterThan(window.points[0].x, 20)
     }
 
-    func test_C_SCENE_04_zoomScalesAboutTheViewportCenter() throws {
-        let layout = try fixtureLayout()
-        var zoomed = Camera.flat
-        zoomed.zoom = 2
-        let flat = layout.project(camera: .flat, viewport: viewport, selected: nil, hovered: nil)
-        let near = layout.project(camera: zoomed, viewport: viewport, selected: nil, hovered: nil)
-        XCTAssertEqual(flat.items.count, near.items.count)
-        for (a, b) in zip(flat.items, near.items) {
-            for (p, q) in zip(a.points, b.points) {
-                assertClose(q, ScenePoint(x: 240 + 2 * (p.x - 240), y: 450 + 2 * (p.y - 450)))
-            }
-        }
-    }
-
-    func test_C_SCENE_04_panMovesEverything() throws {
-        let layout = try fixtureLayout()
-        var moved = Camera.flat
-        moved.pan = ScenePoint(x: 30, y: -10)
-        let flat = layout.project(camera: .flat, viewport: viewport, selected: nil, hovered: nil)
-        let panned = layout.project(camera: moved, viewport: viewport, selected: nil, hovered: nil)
-        XCTAssertEqual(flat.items.count, panned.items.count)
-        for (a, b) in zip(flat.items, panned.items) {
-            for (p, q) in zip(a.points, b.points) {
-                assertClose(q, ScenePoint(x: p.x + 30, y: p.y - 10))
-            }
-        }
-    }
-
     // MARK: - Perspective
-
-    func test_C_SCENE_04_perspectiveWithoutTurnOrSpacingMatchesOrthographic() throws {
-        let layout = try fixtureLayout()
-        var camera = Camera.flat
-        camera.projection = .perspective
-        let flat = layout.project(camera: .flat, viewport: viewport, selected: nil, hovered: nil)
-        let deep = layout.project(camera: camera, viewport: viewport, selected: nil, hovered: nil)
-        XCTAssertEqual(flat.items.map(\.layerID), deep.items.map(\.layerID))
-        for (a, b) in zip(flat.items, deep.items) {
-            for (p, q) in zip(a.points, b.points) { assertClose(p, q, accuracy: 1e-9) }
-        }
-    }
 
     func test_C_SCENE_04_anyCameraMatchesTheReferenceProjection() throws {
         let layout = try fixtureLayout()

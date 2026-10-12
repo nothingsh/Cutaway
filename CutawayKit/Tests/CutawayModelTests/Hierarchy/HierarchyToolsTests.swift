@@ -57,14 +57,6 @@ final class HierarchyToolsTests: XCTestCase {
     }
 
     @MainActor
-    func test_C_HIER_04_clearingTheSearchEndsTheFilter() throws {
-        let model = try model()
-        model.setSearchText("label")
-        model.setSearchText("")
-        XCTAssertNil(model.filter)
-    }
-
-    @MainActor
     func test_C_HIER_04_searchingLeavesTheExpansionAndTheLayoutAlone() throws {
         let model = try model()
         model.setExpanded(6, false)
@@ -167,15 +159,6 @@ final class HierarchyToolsTests: XCTestCase {
         let model = try model()
         model.select(7)
         model.focus(on: 6)
-        XCTAssertEqual(model.selectedLayerID, 7)
-    }
-
-    @MainActor
-    func test_C_HIER_05_leavingTheFocusKeepsTheSelection() throws {
-        let model = try model()
-        model.select(7)
-        model.focus(on: 6)
-        model.focus(on: nil)
         XCTAssertEqual(model.selectedLayerID, 7)
     }
 

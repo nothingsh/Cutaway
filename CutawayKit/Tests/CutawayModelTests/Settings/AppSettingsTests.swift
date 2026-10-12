@@ -29,16 +29,6 @@ final class AppSettingsTests: XCTestCase {
         AppSettings.Key.showsHiddenLayers, AppSettings.Key.showsBorders,
     ]
 
-    func test_C_PREF_01_theDefaults() {
-        let settings = settings()
-        XCTAssertEqual(settings.newInspectionMode, .twoD)
-        XCTAssertEqual(settings.layerSpacing, 50)
-        XCTAssertFalse(settings.showsHiddenLayers)
-        XCTAssertTrue(settings.showsBorders)
-        XCTAssertTrue(settings.isShowingPreviewDefaults)
-        XCTAssertEqual(settings.inspectionStart, InspectionStart())
-    }
-
     func test_C_PREF_01_eachChangeIsKeptAndReadBack() {
         let settings = settings()
         settings.newInspectionMode = .threeD

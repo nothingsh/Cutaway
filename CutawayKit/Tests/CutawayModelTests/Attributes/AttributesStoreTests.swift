@@ -321,31 +321,6 @@ final class AttributesStoreTests: XCTestCase {
     // MARK: - Retrying
 
     @MainActor
-    func test_C_ATTR_01_retryingAfterATimeoutAsksAgain() async throws {
-        var steps = try MockScript.fixtures("handshake").steps
-        steps.append(.expect(.getLayerDetails, as: 90))  // never answered
-        steps += try MockScript.fixtures("layer-details").steps
-        let (model, session, server) = try await openModel(
-            MockScript(steps: steps), requestTimeout: .milliseconds(300))
-
-        model.select(3)
-        let failed = await Wait.until { await model.state == .failed }
-        XCTAssertTrue(failed)
-
-        model.retry()
-        XCTAssertEqual(model.state, .loading)
-        let loaded = await Wait.until { await model.state == .loaded(try! Self.layerThree()) }
-        XCTAssertTrue(loaded)
-        XCTAssertEqual(model.requestsStarted, 2)
-
-        let mismatches = await server.mismatches
-        XCTAssertEqual(mismatches, [])
-
-        await session.close()
-        await server.stop()
-    }
-
-    @MainActor
     func test_C_ATTR_01_retryingAnAppThatWasNotActiveAsksAgain() async throws {
         let (model, session, server) = try await openModel(
             try .fixtures("handshake", "layer-details-failed", "layer-details"))

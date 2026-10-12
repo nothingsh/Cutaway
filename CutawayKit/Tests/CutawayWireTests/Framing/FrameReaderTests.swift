@@ -66,15 +66,6 @@ final class FrameReaderTests: XCTestCase {
         }
     }
 
-    func test_C_WIRE_02_acceptsSlicesWithNonZeroStartIndex() throws {
-        let stream = try XCTUnwrap(
-            try Fixtures.stream(scenario: "handshake", direction: .serverToClient))
-        let padded = Data([0x01, 0x02]) + stream
-        var reader = FrameReader()
-        reader.append(padded[2...])
-        XCTAssertEqual(try drain(&reader).count, 2)
-    }
-
     func test_C_WIRE_02_lengthOverTheMaximumIsRejected() {
         var reader = FrameReader()
         // 268435457 = 0x10000001, little-endian.

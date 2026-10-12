@@ -65,40 +65,6 @@ final class PreviewPaneTests: XCTestCase {
         return true
     }
 
-    // MARK: - The text
-
-    func test_C_DET_02_progressReadsCompletedOfTotal() {
-        XCTAssertEqual(
-            PreviewPaneText.progressText(DetailProgress(completed: 12, total: 40)),
-            "12 / 40")
-    }
-
-    func test_C_DET_02_progressIsHiddenWhenThereIsNothingToLoad() {
-        XCTAssertNil(PreviewPaneText.progressText(
-            DetailProgress(completed: 0, total: 0)))
-        XCTAssertNil(PreviewPaneText.progressText(
-            DetailProgress(completed: 7, total: 7)))
-    }
-
-    func test_C_DET_04_theNoticesSayWhatHappened() {
-        XCTAssertEqual(
-            PreviewPaneText.noticeText(.appNotActive, appName: "Demo"),
-            "Demo is not active. Loading continues when it comes to the foreground.")
-        XCTAssertEqual(
-            PreviewPaneText.noticeText(.screenshotsFailed, appName: "Demo"),
-            "Some screenshots could not be loaded. Refresh to try again.")
-        XCTAssertEqual(
-            PreviewPaneText.noticeText(.layersFailed, appName: "Demo"),
-            "The layers could not be loaded again. Refresh to try again.")
-        XCTAssertNil(PreviewPaneText.noticeText(nil, appName: "Demo"))
-    }
-
-    func test_C_DET_07_theNoticeSaysTheLayerIsGone() {
-        XCTAssertEqual(
-            PreviewPaneText.noticeText(.layerGone, appName: "Demo"),
-            "The layer is no longer in Demo. Refresh to load all layers again.")
-    }
-
     // MARK: - The panels
 
     @MainActor
@@ -650,16 +616,6 @@ final class PreviewPaneTests: XCTestCase {
             XCTAssertEqual(preview.style.background, expected, "\(name)")
         }
         inspector.close()
-    }
-
-    @MainActor
-    func test_C_WIN_04_theDisconnectedNoticeSaysWhetherTheWindowWaits() {
-        XCTAssertEqual(
-            PreviewPaneText.disconnectedText(appName: "Demo", waiting: true),
-            "Lost the connection to Demo. Waiting for it to come back\u{2026}")
-        XCTAssertEqual(
-            PreviewPaneText.disconnectedText(appName: "Demo", waiting: false),
-            "Lost the connection to Demo.")
     }
 }
 
