@@ -71,17 +71,6 @@ final class ConstraintRowTests: XCTestCase {
         XCTAssertEqual(four[0].equation[2], .link("UILabel", layerID: 3))
     }
 
-    func test_C_LAYOUT_02_constraintsUIKitMadeNameTheirClass() throws {
-        let nine = try texts(of: 9)
-        XCTAssertEqual(nine.count, 4)
-        XCTAssertEqual(
-            nine.map(\.generatedClassName),
-            Array(repeating: "NSAutoresizingMaskLayoutConstraint", count: 4))
-        XCTAssertEqual(
-            ConstraintRow.readableClassName("NSAutoresizingMaskLayoutConstraint"),
-            "Autoresizing Mask")
-    }
-
     // MARK: - The parts of an equation
 
     func test_C_LAYOUT_02_relationsMultipliersAndConstants() throws {

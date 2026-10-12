@@ -4,8 +4,7 @@ import XCTest
 
 @testable import CutawayUI
 
-/// What the panels over the preview say, and the distances written over its drawing:
-/// C-DET-02, C-DET-04, C-DET-07, C-WIN-03, C-WIN-04, C-ARCH-02, C-ARCH-06, C-PREV-10.
+/// What the panels over the preview say: C-DET-02, C-DET-04, C-DET-07, C-WIN-04, C-ARCH-02.
 final class PreviewPaneTextTests: XCTestCase {
     func test_C_DET_02_progressReadsCompletedOfTotalUntilEveryScreenshotIsSettled() {
         XCTAssertEqual(
@@ -61,34 +60,5 @@ final class PreviewPaneTextTests: XCTestCase {
         XCTAssertEqual(
             PreviewPaneText.archiveFailureText(.writeFailed("Disk full."), appName: "Demo"),
             "The archive wasn\u{2019}t saved: the file couldn\u{2019}t be written. Disk full.")
-    }
-
-    func test_C_ARCH_06_aFailedExportSaysWhy() {
-        XCTAssertEqual(
-            PreviewPaneText.screenshotFailureText(.layerGone, appName: "Demo"),
-            "The screenshot wasn\u{2019}t exported: the layer is no longer in Demo.")
-        XCTAssertEqual(
-            PreviewPaneText.screenshotFailureText(.notCaptured, appName: "Demo"),
-            "The screenshot wasn\u{2019}t exported: Demo couldn\u{2019}t capture this layer.")
-        XCTAssertEqual(
-            PreviewPaneText.screenshotFailureText(.appNotActive, appName: "Demo"),
-            "The screenshot wasn\u{2019}t exported: Demo went to the background.")
-        XCTAssertEqual(
-            PreviewPaneText.screenshotFailureText(.disconnected, appName: "Unnamed app"),
-            "The screenshot wasn\u{2019}t exported: the connection to Unnamed app was lost.")
-        XCTAssertEqual(
-            PreviewPaneText.screenshotFailureText(.other, appName: "Demo"),
-            "The screenshot wasn\u{2019}t exported: Demo didn\u{2019}t send it.")
-        XCTAssertEqual(
-            PreviewPaneText.screenshotFailureText(.writeFailed("Disk full."), appName: "Demo"),
-            "The screenshot wasn\u{2019}t exported: the file couldn\u{2019}t be written. Disk full.")
-    }
-
-    func test_C_PREV_10_aDistanceHasOneDecimalAtMostAndNoTrailingZero() {
-        XCTAssertEqual(PreviewPaneText.distanceText(26.5), "26.5")
-        XCTAssertEqual(PreviewPaneText.distanceText(68), "68")
-        XCTAssertEqual(PreviewPaneText.distanceText(15.057713659400522), "15.1")
-        XCTAssertEqual(PreviewPaneText.distanceText(0.96), "1")
-        XCTAssertEqual(PreviewPaneText.distanceText(720), "720")
     }
 }

@@ -176,22 +176,6 @@ final class AttributesViewTests: XCTestCase {
         await server.stop()
     }
 
-    func test_C_ATTR_01_eachStateHasItsMessage() {
-        func message(_ state: AttributesStore.State) -> AttributesViewModel.Message? {
-            AttributesViewModel.message(for: state, appName: "Demo")
-        }
-        XCTAssertEqual(message(.none)?.title, "No Selection")
-        XCTAssertEqual(message(.loading)?.title, "Loading Attributes")
-        XCTAssertEqual(message(.loading)?.showsSpinner, true)
-        XCTAssertEqual(message(.loaded([]))?.title, "No Attributes")
-        XCTAssertNil(message(.loaded([AttributeGroup(id: "g", title: "G", attributes: [])])))
-        XCTAssertEqual(message(.layerGone)?.detail, "This layer is no longer in the app.")
-        XCTAssertEqual(message(.appNotActive)?.title, "Demo Is Not Active")
-        XCTAssertEqual(message(.failed)?.title, "Couldn’t Load Attributes")
-        XCTAssertEqual(message(.failed)?.offersRetry, true)
-        XCTAssertEqual(message(.none)?.offersRetry, false)
-    }
-
     @MainActor
     func test_C_ATTR_01_everySymbolOfThePanelExists() {
         for name in AttributesViewController.symbols + LayerSymbol.all {

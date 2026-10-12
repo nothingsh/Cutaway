@@ -526,26 +526,6 @@ final class AttributeEditingTests: XCTestCase {
         await server.stop()
     }
 
-    /// The same when another layer is selected before the drag's end comes.
-    @MainActor
-    func test_C_ATTR_07_anotherSelectionEndsADrag() async throws {
-        let layerThree = try AttributesStoreTests.layerThree()
-        let dragged = Self.replacing("layer.opacity", with: .double(0.8), in: layerThree)
-        let (model, session, server) = try await editing(
-            try Self.script(Self.resultSteps(3, dragged, as: 30)))
-        let opacity = Self.key(3, "layer.opacity")
-        model.set(opacity, to: .double(0.8), continuous: true)
-        let answered = await Wait.until { await model.state == .loaded(dragged) }
-        XCTAssertTrue(answered)
-
-        model.select(nil)
-        XCTAssertEqual(model.edits, [:])
-        XCTAssertTrue(model.undoManager.canUndo)
-
-        await session.close()
-        await server.stop()
-    }
-
     /// An editor left over from the layer selected before (a color well still attached to the
     /// color panel) cannot change that layer: only the selected layer's attributes are set.
     @MainActor

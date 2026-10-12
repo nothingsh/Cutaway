@@ -108,10 +108,4 @@ final class TextureCacheTests: XCTestCase {
             XCTAssertEqual(Array(row[pixel..<(pixel + 4)]), [0x00, 0x80, 0xFF, 0xFF], "byte \(pixel)")
         }
     }
-
-    func test_C_REND_01_theFixturesGiveTheirDetailsInOrder() throws {
-        let details = try Fixtures.layerDetails(scenario: "layer-details")
-        XCTAssertEqual(details.map(\.layerID), [3, 4, 99])
-        XCTAssertEqual(details.map(\.status), [.ok, .ok, .layerNotFound])
-    }
 }

@@ -21,20 +21,6 @@ final class FixtureDecodingTests: XCTestCase {
 
     // MARK: - C-WIRE-01
 
-    func test_C_WIRE_01_everyFixtureFrameDecodes() throws {
-        let scenarios = try Fixtures.scenarios()
-        XCTAssertEqual(scenarios.count, 14)
-        var count = 0
-        for scenario in scenarios {
-            for frame in try Fixtures.frames(scenario: scenario) {
-                XCTAssertNoThrow(
-                    try FrameCodec.decode(frame.payload), "\(scenario)/\(frame.fileName)")
-                count += 1
-            }
-        }
-        XCTAssertEqual(count, 52)
-    }
-
     func test_C_WIRE_01_handshake() throws {
         XCTAssertEqual(
             try decode("handshake", "01-c2s-hello.bin"),

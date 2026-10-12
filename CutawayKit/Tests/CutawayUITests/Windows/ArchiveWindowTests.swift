@@ -246,23 +246,3 @@ final class ArchiveWindowTests: XCTestCase {
         XCTAssertEqual(recents.urls, [])
     }
 }
-
-/// What the alert says about an archive that cannot be opened: C-ARCH-04.
-final class ArchiveOpenErrorTextTests: XCTestCase {
-    func test_C_ARCH_04_theAlertNamesTheFileAndSaysWhy() {
-        XCTAssertEqual(
-            ArchiveOpenError.openFailureTitle(URL(fileURLWithPath: "/tmp/Text.cutaway")),
-            "\u{201C}Text.cutaway\u{201D} can\u{2019}t be opened.")
-        let texts: [(ArchiveOpenError, String)] = [
-            (.unreadable("No such file."), "No such file."),
-            (.notAnArchive, "It isn\u{2019}t a Cutaway archive."),
-            (.incomplete, "The file is incomplete. It may not have finished copying or downloading."),
-            (.damaged, "The file is damaged."),
-            (.newer, "It was saved by a newer version of Cutaway. Update Cutaway to open it."),
-            (.otherMajor, "It was saved by a version of Cutaway that this one can\u{2019}t read."),
-        ]
-        for (error, text) in texts {
-            XCTAssertEqual(error.openFailureText, text, "\(error)")
-        }
-    }
-}

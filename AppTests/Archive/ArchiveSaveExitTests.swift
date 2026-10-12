@@ -8,7 +8,8 @@ import XCTest
 
 /// End to end: in the running app, ⌘S saves an archive of the app the
 /// window inspects; while it is saved the window can still be browsed but not refreshed; an
-/// archive that could not be saved leaves no file and says why (C-ARCH-02).
+/// archive that could not be saved leaves no file and says why (C-ARCH-02). The saved
+/// archive's manifest carries the app's version (C-DIST-01).
 final class ArchiveSaveExitTests: XCTestCase {
     private var directory: URL!
 
@@ -88,23 +89,6 @@ final class ArchiveSaveExitTests: XCTestCase {
         }
     }
 
-    /// The manifest carries the version the About panel and the handshake show (C-DIST-01).
-    @MainActor
-    func test_C_DIST_01_theSavedArchiveCarriesTheAppsVersion() async throws {
-        let (_, inspector) = try await inspect(try MockResponder.demo())
-        let save = try menuItem("Save Archive\u{2026}")
-        XCTAssertTrue(NSApp.sendAction(try XCTUnwrap(save.action), to: inspector, from: save))
-        let written = await eventually { FileManager.default.fileExists(atPath: self.destination.path) }
-        XCTAssertTrue(written, "no archive was written")
-        let decoder = try ArchiveDecoder(try Data(contentsOf: destination))
-        let version = try XCTUnwrap(
-            Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String)
-        XCTAssertEqual(decoder.manifest.cutawayVersion, version)
-        XCTAssertEqual(decoder.manifest.cutawayVersion, AppVersion.current.version)
-        let saved = await eventually { self.shown("preview.archiveSaved") }
-        XCTAssertTrue(saved, "nothing said the archive was saved")
-    }
-
     @MainActor
     func test_C_ARCH_02_theRunningAppSavesAnArchive() async throws {
         let gate = MockGate()
@@ -150,6 +134,11 @@ final class ArchiveSaveExitTests: XCTestCase {
         XCTAssertEqual(decoder.hierarchy.nodes.count, 9)
         let layers = try (0..<decoder.chunkCount).flatMap { try decoder.chunk(at: $0).details }
         XCTAssertEqual(layers.map(\.layerID), [1, 2, 3, 4, 5, 6, 7, 8, 9])
+        // The manifest carries the version the About panel and the handshake show (C-DIST-01).
+        XCTAssertEqual(
+            decoder.manifest.cutawayVersion,
+            Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String)
+        XCTAssertEqual(decoder.manifest.cutawayVersion, AppVersion.current.version)
 
         let saved = await eventually { self.shown("preview.archiveSaved") }
         XCTAssertTrue(saved, "nothing said the archive was saved")

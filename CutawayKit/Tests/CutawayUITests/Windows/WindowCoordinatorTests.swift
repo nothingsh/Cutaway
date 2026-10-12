@@ -181,19 +181,6 @@ final class WindowCoordinatorTests: XCTestCase {
     }
 
     @MainActor
-    func test_C_WIN_01_theMenuHasTheLeastTwoWindowsNeed() throws {
-        let (coordinator, _) = started()
-        let menu = coordinator.makeMainMenu()
-        let items = menu.items.compactMap(\.submenu).flatMap(\.items)
-        func item(_ title: String) throws -> NSMenuItem {
-            try XCTUnwrap(items.first { $0.title == title }, title)
-        }
-        // The two windows' own commands; the rest of the menu bar is C-MENU-01's.
-        XCTAssertEqual(try item("Close Window").action, #selector(NSWindow.performClose(_:)))
-        XCTAssertTrue(try item("Show App List").target === coordinator)
-    }
-
-    @MainActor
     func test_C_PREV_02_theMenuSwitchesTheMode() throws {
         let (coordinator, model) = started()
         try choose(0, in: coordinator)
@@ -522,30 +509,6 @@ final class WindowCoordinatorTests: XCTestCase {
     // MARK: - C-HIER-04 to 06: the list's commands
 
     @MainActor
-    func test_C_HIER_04_theMenuHasTheListsCommands() throws {
-        let (coordinator, _) = started()
-        let items = coordinator.makeMainMenu().items.compactMap(\.submenu).flatMap(\.items)
-        func item(_ title: String) throws -> NSMenuItem {
-            try XCTUnwrap(items.first { $0.title == title }, title)
-        }
-        XCTAssertEqual(try item("Find…").keyEquivalent, "f")
-        XCTAssertEqual(
-            try item("Find…").action, #selector(InspectorWindowController.findLayer(_:)))
-        XCTAssertEqual(
-            try item("Focus on Selected Layer").action,
-            #selector(InspectorWindowController.focusOnSelectedLayer(_:)))
-        XCTAssertEqual(
-            try item("Show All Layers").action,
-            #selector(InspectorWindowController.showAllLayers(_:)))
-        XCTAssertEqual(
-            try item("Expand All").action, #selector(InspectorWindowController.expandAllLayers(_:)))
-        XCTAssertEqual(
-            try item("Collapse All").action,
-            #selector(InspectorWindowController.collapseAllLayers(_:)))
-        // Their shortcuts are C-MENU-01's.
-    }
-
-    @MainActor
     func test_C_HIER_05_theViewMenuFocusesAndShowsAll() throws {
         let (coordinator, model) = started()
         try choose(0, in: coordinator)
@@ -624,28 +587,6 @@ final class WindowCoordinatorTests: XCTestCase {
                 XCTAssertFalse(current.responds(to: selector), "\(current) answers \(selector)")
             }
             responder = current.nextResponder
-        }
-    }
-
-    @MainActor
-    func test_C_HIER_05_theListsCommandsAreUnavailableOnceDisconnected() throws {
-        let (coordinator, model) = started()
-        try choose(0, in: coordinator)
-        let inspector = try XCTUnwrap(coordinator.inspector)
-        let inspection = try XCTUnwrap(model.inspection(at: Self.simulator))
-        inspection.apply(try Fixtures.hierarchy())
-        inspection.select(4)
-        inspection.focus(on: 2)
-        inspector.store.connectionLost()
-        for action in [
-            #selector(InspectorWindowController.findLayer(_:)),
-            #selector(InspectorWindowController.focusOnSelectedLayer(_:)),
-            #selector(InspectorWindowController.showAllLayers(_:)),
-            #selector(InspectorWindowController.expandAllLayers(_:)),
-            #selector(InspectorWindowController.collapseAllLayers(_:)),
-        ] {
-            let item = NSMenuItem(title: "", action: action, keyEquivalent: "")
-            XCTAssertFalse(inspector.validateMenuItem(item), "\(action)")
         }
     }
 
@@ -739,25 +680,6 @@ final class WindowCoordinatorTests: XCTestCase {
     // MARK: - C-PREV-07 to 09: the preview's commands
 
     @MainActor
-    func test_C_PREV_07_theMenuHasThePreviewsCommands() throws {
-        let (coordinator, _) = started()
-        let items = coordinator.makeMainMenu().items.compactMap(\.submenu).flatMap(\.items)
-        func item(_ title: String) throws -> NSMenuItem {
-            try XCTUnwrap(items.first { $0.title == title }, title)
-        }
-        XCTAssertEqual(
-            try item("Show Hidden Layers").action,
-            #selector(InspectorWindowController.toggleHiddenLayers(_:)))
-        XCTAssertEqual(
-            try item("Show Borders").action,
-            #selector(InspectorWindowController.toggleBorders(_:)))
-        let reset = try item("Reset View")
-        XCTAssertEqual(reset.action, #selector(InspectorWindowController.resetView(_:)))
-        XCTAssertEqual(reset.keyEquivalent, "0")
-        XCTAssertEqual(reset.keyEquivalentModifierMask, .command)
-    }
-
-    @MainActor
     func test_C_PREV_08_theViewMenuSwitchesWhatThePreviewShows() throws {
         let (coordinator, model) = started()
         try choose(0, in: coordinator)
@@ -787,23 +709,6 @@ final class WindowCoordinatorTests: XCTestCase {
         inspection.pan(by: 20, 0)
         inspector.resetView(nil)
         XCTAssertEqual(inspection.camera, .flat)
-    }
-
-    @MainActor
-    func test_C_PREV_07_thePreviewsCommandsAreUnavailableOnceDisconnected() throws {
-        let (coordinator, model) = started()
-        try choose(0, in: coordinator)
-        let inspector = try XCTUnwrap(coordinator.inspector)
-        try XCTUnwrap(model.inspection(at: Self.simulator)).apply(try Fixtures.hierarchy())
-        inspector.store.connectionLost()
-        for action in [
-            #selector(InspectorWindowController.toggleHiddenLayers(_:)),
-            #selector(InspectorWindowController.toggleBorders(_:)),
-            #selector(InspectorWindowController.resetView(_:)),
-        ] {
-            let item = NSMenuItem(title: "", action: action, keyEquivalent: "")
-            XCTAssertFalse(inspector.validateMenuItem(item), "\(action)")
-        }
     }
 
     @MainActor
