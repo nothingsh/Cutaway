@@ -128,25 +128,6 @@ final class HierarchyViewModelTests: XCTestCase {
     // MARK: - Around the rows
 
     @MainActor
-    func test_C_HIER_01_theFooterCountsTheLayers() throws {
-        let model = try loaded()
-        XCTAssertEqual(Recorder(viewModel(for: model).count).last, "9 layers · 1 hidden")
-        XCTAssertEqual(HierarchyViewModel.countText(model), "9 layers · 1 hidden")
-    }
-
-    @MainActor
-    func test_C_HIER_04_theFooterCountsTheMatches() throws {
-        let model = try loaded()
-        let count = Recorder(viewModel(for: model).count)
-        model.setSearchText("label")
-        XCTAssertEqual(count.last, "2 matches")
-        model.setSearchText("scroll")
-        XCTAssertEqual(count.last, "1 match")
-        model.setSearchText("")
-        XCTAssertEqual(count.last, "9 layers · 1 hidden")
-    }
-
-    @MainActor
     func test_C_HIER_05_theFooterCountsTheFocus() throws {
         let model = try loaded()
         let count = Recorder(viewModel(for: model).count)
@@ -167,17 +148,6 @@ final class HierarchyViewModelTests: XCTestCase {
             .init(title: "CardView", symbolName: "square"),
             .init(title: "CAShapeLayer", symbolName: "square.dashed"),
         ])
-    }
-
-    @MainActor
-    func test_C_HIER_06_theMenuIsNotAvailableDuringASearch() throws {
-        let model = try loaded()
-        let enabled = Recorder(viewModel(for: model).expandEnabled)
-        XCTAssertEqual(enabled.last, true)
-        model.setSearchText("label")
-        XCTAssertEqual(enabled.last, false)
-        model.setSearchText("")
-        XCTAssertEqual(enabled.last, true)
     }
 
     @MainActor

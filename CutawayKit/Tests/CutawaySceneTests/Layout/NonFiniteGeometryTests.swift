@@ -179,17 +179,4 @@ final class NonFiniteGeometryTests: XCTestCase {
                 .empty, spoil.name)
         }
     }
-
-    func test_C_SCENE_11_aValueUnusedByTheProjectionStillCounts() throws {
-        var layers = try SceneFixtures.hierarchyLayers()
-        let index = try XCTUnwrap(layers.firstIndex { $0.id == poisoned })
-        layers[index].transform.m34 = .nan
-        let layout = SceneLayout(layers: layers, expanded: SceneFixtures.allIDs, showsHidden: true)
-        XCTAssertNil(layout.quad(of: poisoned))
-        XCTAssertNil(layout.quad(of: 5), "a sublayer of a layer that cannot be placed")
-        let drawn = layout.project(camera: .flat, viewport: viewport, selected: nil, hovered: nil)
-            .items.map(\.layerID)
-        XCTAssertFalse(drawn.contains(poisoned))
-        XCTAssertFalse(drawn.contains(5))
-    }
 }

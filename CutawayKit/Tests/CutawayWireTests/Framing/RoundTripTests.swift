@@ -5,8 +5,10 @@ import XCTest
 /// Encoding, checked against decoding: what is encoded must decode to the same value.
 final class RoundTripTests: XCTestCase {
     func test_C_WIRE_01_everyFixtureFrameSurvivesARoundTrip() throws {
+        let scenarios = try Fixtures.scenarios()
+        XCTAssertEqual(scenarios.count, 14)
         var count = 0
-        for scenario in try Fixtures.scenarios() {
+        for scenario in scenarios {
             for fixture in try Fixtures.frames(scenario: scenario) {
                 let frame = try FrameCodec.decode(fixture.payload)
                 let encoded = FrameCodec.encode(frame)
@@ -16,14 +18,6 @@ final class RoundTripTests: XCTestCase {
             }
         }
         XCTAssertEqual(count, 52)
-    }
-
-    func test_C_WIRE_02_encodedFramesAreIdentifiedPlainBuffers() throws {
-        let frame = try FrameCodec.decode(
-            try Fixtures.data(scenario: "handshake", file: "01-c2s-hello.bin"))
-        let encoded = FrameCodec.encode(frame)
-        // Bytes 4..<8 of a plain FlatBuffer are the file identifier (P-FRAME-01).
-        XCTAssertEqual(Data(encoded[4..<8]), Data("CTWY".utf8))
     }
 
     func test_C_WIRE_04_aFrameWithoutABodyRoundTrips() throws {

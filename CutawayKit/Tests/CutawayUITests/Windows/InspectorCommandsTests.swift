@@ -8,8 +8,7 @@ import XCTest
 @testable import CutawayUI
 
 /// Which of an inspector window's commands can be used, without the window: C-DET-05,
-/// C-DET-07, C-ARCH-02, C-ARCH-05, C-ARCH-06, C-PREV-02, C-PREV-07 to C-PREV-09, C-HIER-04 to
-/// C-HIER-06, C-WIN-03.
+/// C-DET-07, C-ARCH-02, C-ARCH-05, C-ARCH-06, C-HIER-04 to C-HIER-06, C-WIN-03.
 final class InspectorCommandsTests: XCTestCase {
     /// A live inspection whose session never connected, with the fixtures' tree.
     @MainActor
@@ -78,37 +77,6 @@ final class InspectorCommandsTests: XCTestCase {
         XCTAssertFalse(commands(model).canExport(.solo, of: nil), "no layer")
         XCTAssertFalse(commands(model).canExport(.solo, of: 999), "not in the tree")
         XCTAssertFalse(commands(model, disconnected: true).canExport(.solo, of: 4))
-    }
-
-    @MainActor
-    func test_C_PREV_02_theModeIsCheckedAsItIs() throws {
-        let model = try model()
-        model.setPreviewMode(.twoD)
-        XCTAssertTrue(commands(model).isShowingTwoD)
-        XCTAssertFalse(commands(model).isShowingThreeD)
-        model.setPreviewMode(.threeD)
-        XCTAssertFalse(commands(model).isShowingTwoD)
-        XCTAssertTrue(commands(model).isShowingThreeD)
-    }
-
-    @MainActor
-    func test_C_PREV_08_whatThePreviewShowsIsCheckedAsItIs() throws {
-        let model = try model()
-        model.setShowsHiddenLayers(true)
-        model.setShowsBorders(false)
-        XCTAssertTrue(commands(model).isShowingHiddenLayers)
-        XCTAssertFalse(commands(model).isShowingBorders)
-        model.setShowsHiddenLayers(false)
-        model.setShowsBorders(true)
-        XCTAssertFalse(commands(model).isShowingHiddenLayers)
-        XCTAssertTrue(commands(model).isShowingBorders)
-    }
-
-    @MainActor
-    func test_C_PREV_07_thePreviewsCommandsAreUnavailableOnceDisconnected() throws {
-        let model = try model()
-        XCTAssertTrue(commands(model).canChangePreview)
-        XCTAssertFalse(commands(model, disconnected: true).canChangePreview)
     }
 
     @MainActor

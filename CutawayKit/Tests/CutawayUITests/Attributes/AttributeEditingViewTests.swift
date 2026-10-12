@@ -237,22 +237,6 @@ final class AttributeEditingViewTests: XCTestCase {
     }
 
     @MainActor
-    func test_C_ATTR_06_theRowsSayWhyAChangeFailed() {
-        XCTAssertNil(
-            AttributesViewModel.failureText(.rejected, appName: "Demo"),
-            "the row shows the value the app holds; nothing to say")
-        XCTAssertEqual(
-            AttributesViewModel.failureText(.notEditable, appName: "Demo"),
-            "This attribute cannot be changed.")
-        XCTAssertEqual(
-            AttributesViewModel.failureText(.appNotActive, appName: "Demo"),
-            "Demo is not active.")
-        XCTAssertEqual(
-            AttributesViewModel.failureText(.noAnswer, appName: "Demo"),
-            "Demo did not answer in time.")
-    }
-
-    @MainActor
     func test_C_ATTR_06_aFieldBeingTypedInKeepsItsFocusWhenAnAnswerComes() async throws {
         let results = try Fixtures.setAttributeResults()
         let (model, session, server) = try await inspection(

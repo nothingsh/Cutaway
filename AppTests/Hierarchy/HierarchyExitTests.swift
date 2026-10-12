@@ -60,7 +60,9 @@ final class HierarchyExitTests: XCTestCase {
         XCTAssertEqual(outline.numberOfRows, 9)
         XCTAssertTrue(AppWindows.isShown(outline))
         XCTAssertEqual((0..<9).map(outline.level(forRow:)), [0, 1, 2, 2, 3, 2, 3, 2, 2])
-        // Shown means in view: the list has the room to show all nine rows.
+        // Shown means in view: the list has the room to show all nine rows. The window may
+        // not have had its first layout yet when the rows arrive, so lay it out first.
+        outline.window?.layoutIfNeeded()
         for row in 0..<9 {
             XCTAssertTrue(
                 outline.visibleRect.contains(outline.rect(ofRow: row)),

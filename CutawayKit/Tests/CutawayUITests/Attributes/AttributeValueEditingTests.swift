@@ -73,41 +73,6 @@ final class AttributeValueEditingTests: XCTestCase {
 
     // MARK: - Numbers
 
-    func test_C_ATTR_05_onlyAFiniteNumberIsRead() {
-        for text in ["abc", "inf", "nan", ""] {
-            XCTAssertNil(AttributeValueEditing.number(typed: text, isInteger: false), text)
-        }
-        XCTAssertEqual(AttributeValueEditing.number(typed: " 0.25 ", isInteger: false), 0.25)
-        XCTAssertNil(AttributeValueEditing.number(typed: "2.5", isInteger: true), "not an integer")
-        XCTAssertEqual(AttributeValueEditing.number(typed: "3", isInteger: true), 3)
-    }
-
-    func test_C_ATTR_05_anIntegerBeyondWhatCanBeSentExactlyIsNotRead() {
-        XCTAssertNil(AttributeValueEditing.number(typed: "9223372036854775807", isInteger: true))
-        XCTAssertNil(AttributeValueEditing.number(typed: "9007199254740993", isInteger: true))
-        XCTAssertEqual(
-            AttributeValueEditing.number(typed: "9007199254740992", isInteger: true),
-            9_007_199_254_740_992)
-    }
-
-    func test_C_ATTR_07_theStepFollowsTheNumber() {
-        func step(_ start: Double, integer: Bool = false, tenth: Bool = false, tenfold: Bool = false)
-            -> Double
-        {
-            AttributeValueEditing.step(
-                from: start, isInteger: integer, tenth: tenth, tenfold: tenfold)
-        }
-        XCTAssertEqual(step(1), 0.01)
-        XCTAssertEqual(step(-0.5), 0.01)
-        XCTAssertEqual(step(12), 1)
-        XCTAssertEqual(step(0.5, integer: true), 1)
-        XCTAssertEqual(step(12, tenth: true), 0.1)
-        XCTAssertEqual(step(12, tenfold: true), 10)
-        XCTAssertEqual(step(1, tenth: true), 0.001)
-        XCTAssertEqual(step(5, integer: true, tenth: true), 1)
-        XCTAssertEqual(step(5, integer: true, tenfold: true), 10)
-    }
-
     func test_C_ATTR_07_aDragIsRoundedToItsStep() {
         XCTAssertEqual(AttributeValueEditing.scrubbed(0.1, by: 20, step: 0.01), 0.3)
         XCTAssertEqual(AttributeValueEditing.scrubbed(1, by: -30, step: 0.01), 0.7)

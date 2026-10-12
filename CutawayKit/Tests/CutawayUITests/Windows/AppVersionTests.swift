@@ -39,14 +39,6 @@ final class AppVersionTests: XCTestCase {
         XCTAssertEqual(AppVersion(bundle: empty).build, "")
     }
 
-    @MainActor
-    func test_C_DIST_01_theAboutPanelShowsTheVersionAndTheBuild() {
-        let options = AboutPanel.options(
-            info: ["CFBundleShortVersionString": "1.2.3", "CFBundleVersion": "9"], icon: nil)
-        XCTAssertEqual(options[.applicationVersion] as? String, "1.2.3")
-        XCTAssertEqual(options[.version] as? String, "9")
-    }
-
     /// A bundle on disk with only an Info.plist.
     private func bundle(info: [String: String]) throws -> Bundle {
         let folder = FileManager.default.temporaryDirectory

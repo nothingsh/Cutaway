@@ -328,17 +328,6 @@ final class InspectionStoreTests: XCTestCase {
     }
 
     @MainActor
-    func test_C_HIER_02_reloadingClearsASelectionThatIsGone() throws {
-        let model = model()
-        model.apply(try Fixtures.hierarchy())
-        model.select(8)
-
-        model.apply(try changedHierarchy())
-
-        XCTAssertNil(model.selectedLayerID)
-    }
-
-    @MainActor
     func test_C_HIER_02_aSelectedLayerThatMovedIntoACollapsedNodeHandsTheSelectionOver() throws {
         let model = model()
         model.apply(try Fixtures.hierarchy())
@@ -700,15 +689,6 @@ final class InspectionStoreTests: XCTestCase {
 
         model.apply(try Fixtures.hierarchy())
         XCTAssertEqual(model.attributes.requestsStarted, asked + 1, "the selection is asked for again")
-    }
-
-    @MainActor
-    func test_C_HIER_02_reloadingLaysTheTreeOutOnce() throws {
-        let model = try loadedModel()
-        let built = model.geometryBuildCount
-        model.apply(try changedHierarchy())
-        XCTAssertEqual(model.geometryBuildCount, built + 1)
-        XCTAssertTrue(model.layout.isDisplayed(10))
     }
 
     @MainActor

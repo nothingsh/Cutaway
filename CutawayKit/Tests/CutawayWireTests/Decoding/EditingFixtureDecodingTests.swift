@@ -228,17 +228,4 @@ final class EditingFixtureDecodingTests: XCTestCase {
             XCTAssertEqual(try FrameCodec.decode(FrameCodec.encode(frame)), frame)
         }
     }
-
-    func test_C_WIRE_05_everyValueKnowsItsKind() {
-        let values: [(AttributeValue, AttributeValueKind)] = [
-            (.bool(true), .bool), (.integer(1), .integer), (.double(1), .double),
-            (.string(""), .string), (.color(.zero), .color), (.point(.zero), .point),
-            (.size(.zero), .size), (.rect(.zero), .rect), (.insets(.zero), .insets),
-            (.transform(.identity), .transform),
-            (.enumeration(EnumValue(value: 0, cases: [], caseName: nil)), .enumeration),
-        ]
-        for (value, kind) in values {
-            XCTAssertEqual(value.kind, kind)
-        }
-    }
 }

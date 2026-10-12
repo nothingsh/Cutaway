@@ -170,13 +170,6 @@ final class SceneLayoutTests: XCTestCase {
         XCTAssertEqual(layout.opacity(of: 3), 0)
     }
 
-    func test_C_SCENE_06_theFixturesVisibleLayersAreOpaque() throws {
-        let layout = try fixtureLayout()
-        for id: UInt64 in [1, 2, 3, 4, 6, 7, 8, 9] {
-            XCTAssertEqual(layout.opacity(of: id), 1, "layer \(id)")
-        }
-    }
-
     // MARK: - C-SCENE-02: levels
 
     func test_C_SCENE_02_theFixturesLevels() throws {

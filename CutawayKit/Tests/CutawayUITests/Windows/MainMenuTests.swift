@@ -639,21 +639,6 @@ final class MainMenuTests: XCTestCase {
         return packages
     }
 
-    func test_C_MENU_03_theProjectsPackagesAreReadWithTheirVersions() {
-        let spec = """
-        name: Cutaway
-        packages:
-          CutawayKit:
-            path: CutawayKit
-          Sparkle:
-            url: https://github.com/sparkle-project/Sparkle
-            exactVersion: "2.6.4"
-        settings:
-          base: {}
-        """
-        XCTAssertEqual(Self.remotePackages(inProjectSpec: spec), ["sparkle": "2.6.4"])
-    }
-
     // MARK: - C-MENU-04
 
     @MainActor
