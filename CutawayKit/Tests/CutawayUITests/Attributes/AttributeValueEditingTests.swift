@@ -63,19 +63,15 @@ final class AttributeValueEditingTests: XCTestCase {
     func test_C_ATTR_05_aColourIsReadFromHex() {
         XCTAssertNil(AttributeValueEditing.color(fromHex: "zz"))
         XCTAssertNil(AttributeValueEditing.color(fromHex: "#12345"))
+        // Only hex digits: a sign is not one, though the integer parser takes it.
+        XCTAssertNil(AttributeValueEditing.color(fromHex: "+FF00F"))
+        XCTAssertNil(AttributeValueEditing.color(fromHex: "-FF00F"))
+        XCTAssertNil(AttributeValueEditing.color(fromHex: "#+FF00FF0"))
         XCTAssertEqual(
             AttributeValueEditing.color(fromHex: "#3366CC"),
             Color(red: 0.2, green: 0.4, blue: 0.8, alpha: 1))
         XCTAssertEqual(
             AttributeValueEditing.color(fromHex: " 33669980 "),
             Color(red: 0.2, green: 0.4, blue: 0.6, alpha: Float(0x80) / 255))
-    }
-
-    // MARK: - Numbers
-
-    func test_C_ATTR_07_aDragIsRoundedToItsStep() {
-        XCTAssertEqual(AttributeValueEditing.scrubbed(0.1, by: 20, step: 0.01), 0.3)
-        XCTAssertEqual(AttributeValueEditing.scrubbed(1, by: -30, step: 0.01), 0.7)
-        XCTAssertEqual(AttributeValueEditing.scrubbed(12, by: 3, step: 10), 42)
     }
 }

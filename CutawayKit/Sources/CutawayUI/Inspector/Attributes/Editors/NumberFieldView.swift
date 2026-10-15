@@ -1,51 +1,97 @@
 import AppKit
+import CutawayModel
+import CutawayWire
 import DeclarativeAppKit
 
-/// A number that can be typed or dragged (C-ATTR-05, C-ATTR-07): a grip or a letter, and a
-/// field in a rounded box.
+/// A number that is typed (C-ATTR-05): a field in a rounded box, after the letter of its
+/// component when it has one. It is not dragged: dragging sent values as it went, which sat
+/// badly with the limits (user's decision, 2026-10-13). What is typed outside its limit
+/// (C-ATTR-13) is refused; `check` refuses what the whole value would not take.
+///
+/// A proportion is shown and typed in percent, and sent as a proportion; a number on its own
+/// says its unit at the end of the field (C-ATTR-20). What it takes and sends is always the
+/// value as the protocol has it.
 final class NumberFieldView: NSView {
+    static let unitIdentifier = "attributes.editor.unit"
+
     let isInteger: Bool
     let field = AttributeEditField()
-    let handle: ScrubHandle?
     /// The spinner or warning sign shown at the field's end (C-ATTR-06).
     let badge = EditBadge()
     /// The number shown, nil for none.
     private(set) var number: Double?
-    /// Called with a number to send; `continuous` while a drag goes on.
-    var onSet: (Double, _ continuous: Bool) -> Void = { _, _ in }
-    /// The number a drag started from, while one goes on.
-    private var dragStart: Double?
+    /// Called with a number to send.
+    var onSet: (Double) -> Void = { _ in }
+    /// Why a number may not be sent as part of the value, or nil when it may.
+    var check: (Double) -> String? = { _ in nil }
+    /// Why the number shown is outside its limit, or nil: the number is red, the reason its
+    /// tooltip.
+    private(set) var outOfRangeReason: String?
+    /// Called when the field takes or loses the focus, or its refusal changes.
+    var onStateChange: () -> Void = {}
+    private let box = AttributeEditorView.fieldBox()
 
-    var isBeingEdited: Bool { field.isTyping || dragStart != nil }
+    var isBeingEdited: Bool { field.isTyping }
+    /// Whether the field has the focus.
+    var hasFocus: Bool { field.hasFocus }
+    /// Whether the field had the focus when it last said so: while it is told it lost it, it
+    /// may still have its field editor.
+    private(set) var isFocused = false
+    /// Why what was typed is refused, while it is.
+    var refusal: String? { field.refusal }
 
-    /// `letter` names a component; nil gives a grip. Without a handle the number is only typed.
-    /// `name` is what accessibility calls the number.
-    init(letter: String?, isInteger: Bool, name: String = "", showsHandle: Bool = true) {
+    /// `letter` names a component, shown before the field; a click on it puts the focus in
+    /// the field. `name` is what accessibility calls the number.
+    /// How the number reads (C-ATTR-20). A proportion of an integer reads as a plain number.
+    let unit: AttributeUnit
+    private var inPercent: Bool { unit == .fraction && !isInteger }
+    /// "pt" or "%" after the field, for a number on its own.
+    private let unitLabel = NSTextField(labelWithString: "")
+        .font(.systemFont(ofSize: 11))
+        .textColor(.tertiaryLabelColor)
+        .accessibilityIdentifier(NumberFieldView.unitIdentifier)
+
+    init(
+        letter: String?, isInteger: Bool, name: String = "", unit: AttributeUnit = .unspecified,
+        showsUnit: Bool = true
+    ) {
         self.isInteger = isInteger
-        handle = showsHandle
-            ? ScrubHandle(content: letter.map { letter in
-                NSTextField(labelWithString: letter)
-                    .font(.systemFont(ofSize: 10, weight: .medium))
-                    .textColor(.tertiaryLabelColor)
-            } ?? NSImageView()
-                .image(Theme.symbol(Theme.Symbol.scrub, size: 8, weight: .semibold))
-                .contentTintColor(.tertiaryLabelColor))
-            : nil
+        self.unit = unit
         super.init(frame: .zero)
+        let suffix: String? = switch unit {
+        case .points: "pt"
+        case .fraction where !isInteger: "%"
+        default: nil
+        }
+        unitLabel.stringValue = suffix ?? ""
+        unitLabel.isHidden = suffix == nil || !showsUnit
         field.setAccessibilityLabel(name)
-        handle?.setAccessibilityLabel(localized("attributes.editor.adjust", name))
-        field.onCommit = { [weak self] text in self?.commit(text) }
-        handle?.onScrub = { [weak self] distance, modifiers, ended in
-            self?.scrub(by: distance, modifiers: modifiers, ended: ended)
+        field.onCommit = { [weak self] text, _ in self?.commit(text) ?? .accepted }
+        field.onFocus = { [weak self] focused in
+            self?.isFocused = focused
+            self?.onStateChange()
         }
-        handle?.onClick = { [weak self] in
-            guard let self else { return }
-            self.window?.makeFirstResponder(self.field)
+        field.onRefusal = { [weak self] reason in
+            self?.showRefused(reason != nil)
+            self?.onStateChange()
         }
-        let box = AttributeEditorView.fieldBox()
+        let letterLabel = letter.map { letter in
+            NSTextField(labelWithString: letter)
+                .font(.systemFont(ofSize: 10, weight: .medium))
+                .textColor(.tertiaryLabelColor)
+                .configure {
+                    $0.setContentHuggingPriority(.required, for: .horizontal)
+                    $0.addGestureRecognizer(NSClickGestureRecognizer(target: self, action: #selector(focusField)))
+                }
+        }
+        for label in [unitLabel] {
+            label.setContentHuggingPriority(.required, for: .horizontal)
+            label.setContentCompressionResistancePriority(.defaultHigh, for: .horizontal)
+        }
         box.contentView?.addHStack(alignment: .center, spacing: 5) {
-            if let handle { handle }
+            if let letterLabel { letterLabel }
             field
+            unitLabel
         }
         .padding(horizontal: 6, vertical: 0)
         addContent(
@@ -54,109 +100,84 @@ final class NumberFieldView: NSView {
                 .overlay(alignment: .trailing, offset: CGPoint(x: -4, y: 0)) { badge })
     }
 
+    /// Whether it only shows its number (C-ATTR-04).
+    private(set) var isReadOnly = false
+
+    /// Shows the number without letting it be typed: no fill, grey, still selectable.
+    func makeReadOnly() {
+        isReadOnly = true
+        field.isEditable = false
+        box.fillColor = .clear
+        if outOfRangeReason == nil { field.textColor = .secondaryLabelColor }
+    }
+
+    @objc private func focusField() {
+        window?.makeFirstResponder(field)
+    }
+
     @available(*, unavailable)
     required init?(coder: NSCoder) {
         fatalError("init(coder:) is not supported")
     }
 
-    /// Shows a number, unless it is being typed or dragged.
-    func show(_ number: Double?) {
-        guard dragStart == nil else { return }
+    /// Shows a number, keeping what is being typed. `outOfRange` says why it is outside its
+    /// limit, if it is: the app may have set it so itself (C-ATTR-13).
+    func show(_ number: Double?, outOfRange: String? = nil) {
         self.number = number
-        field.shownText = number.map(AttributeText.number) ?? ""
+        field.shownText = number.map(text) ?? ""
+        outOfRangeReason = outOfRange
+        field.textColor = outOfRange != nil ? .systemRed : isReadOnly ? .secondaryLabelColor : .labelColor
+        field.toolTip = outOfRange
     }
 
-    /// What was typed: sent when it reads as a finite number that differs from the one shown;
-    /// otherwise the field goes back to the number (C-ATTR-05).
-    func commit(_ text: String) {
-        let typed = AttributeValueEditing.number(typed: text, isInteger: isInteger)
-        guard let typed else {
-            field.revert()
-            return
+    /// What was typed: sent when it reads as a number the field can send, within its limit
+    /// and taken by the whole value, and it differs from the one shown (C-ATTR-05,
+    /// C-ATTR-13). Otherwise it is refused with the reason.
+    @discardableResult
+    func commit(_ text: String) -> AttributeEditField.Commit {
+        var typed: Double
+        switch AttributeValueEditing.number(typed: text, isInteger: isInteger) {
+        case .success(let number): typed = number
+        case .failure(let problem): return .refused(reason: LimitText.message(problem))
         }
+        if inPercent { typed /= 100 }
+        if let reason = check(typed) { return .refused(reason: reason) }
         guard typed != number else {
             field.revert()
-            return
+            return .accepted
         }
         number = typed
-        field.shownText = AttributeText.number(typed)
-        onSet(typed, false)
+        field.shownText = self.text(typed)
+        onSet(typed)
+        return .accepted
     }
 
-    /// A drag of `distance` points from where it started.
-    func scrub(by distance: CGFloat, modifiers: NSEvent.ModifierFlags, ended: Bool) {
-        let start = dragStart ?? number ?? 0
-        // There is no step from a number that is not finite: it can only be typed over
-        // (C-ATTR-09).
-        guard start.isFinite else { return }
-        dragStart = ended ? nil : start
-        let step = Self.step(from: start, isInteger: isInteger, modifiers: modifiers)
-        let value = AttributeValueEditing.scrubbed(start, by: distance, step: step)
-        // Near the largest Double a step can overflow (C-ATTR-09).
-        guard value.isFinite else { return }
-        guard !isInteger || Int64(exactly: value) != nil else { return }
-        number = value
-        field.shownText = AttributeText.number(value)
-        field.stringValue = field.shownText
-        onSet(value, !ended)
+    /// The number as the field shows it: in percent for a proportion.
+    private func text(_ number: Double) -> String {
+        inPercent ? AttributeText.percent(number) : AttributeText.number(number)
     }
 
-    /// How much one point of a drag changes a number (`AttributeValueEditing.step`): Option
-    /// is a tenth, Shift ten times.
-    static func step(
-        from start: Double, isInteger: Bool, modifiers: NSEvent.ModifierFlags
-    ) -> Double {
-        AttributeValueEditing.step(
-            from: start, isInteger: isInteger, tenth: modifiers.contains(.option),
-            tenfold: modifiers.contains(.shift))
-    }
-}
+    /// The unit after the field, or nil. For tests.
+    var shownUnit: String? { unitLabel.isHidden ? nil : unitLabel.stringValue }
 
-/// What a number is dragged by: a small grip, or the letter of a component. Dragging left and
-/// right changes the number; a click without a drag puts the focus in its field (C-ATTR-05).
-final class ScrubHandle: NSView {
-    /// The distance dragged so far in points, the keys held, and whether the drag ended.
-    var onScrub: (_ distance: CGFloat, _ modifiers: NSEvent.ModifierFlags, _ ended: Bool) -> Void =
-        { _, _, _ in }
-    var onClick: () -> Void = {}
-    private var start: NSPoint?
-    private var moved = false
-
-    init(content: NSView) {
-        super.init(frame: .zero)
-        setAccessibilityIdentifier(AttributeEditorView.handleIdentifier)
-        addContent(content)
+    /// A red outline while what was typed is refused (C-ATTR-13).
+    private func showRefused(_ refused: Bool) {
+        box.borderColor = refused ? .systemRed : .separatorColor
+        box.borderWidth = refused ? 1 : isBare ? 0 : 0.5
     }
 
-    @available(*, unavailable)
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) is not supported")
+    /// Whether the number has no box of its own: in an insets box (C-ATTR-22).
+    private(set) var isBare = false
+
+    /// Shows the number without a box of its own, in the middle of its place; a refusal still
+    /// outlines it.
+    func makeBare() {
+        isBare = true
+        box.fillColor = .clear
+        box.borderWidth = 0
+        field.alignment = .center
     }
 
-    override func resetCursorRects() {
-        addCursorRect(bounds, cursor: .resizeLeftRight)
-    }
-
-    override func mouseDown(with event: NSEvent) {
-        start = event.locationInWindow
-        moved = false
-    }
-
-    override func mouseDragged(with event: NSEvent) {
-        guard let start else { return }
-        let distance = event.locationInWindow.x - start.x
-        if distance != 0 { moved = true }
-        guard moved else { return }
-        onScrub(distance, event.modifierFlags, false)
-    }
-
-    override func mouseUp(with event: NSEvent) {
-        defer { start = nil }
-        guard let start else { return }
-        if moved {
-            onScrub(event.locationInWindow.x - start.x, event.modifierFlags, true)
-        } else {
-            onClick()
-        }
-    }
+    /// Whether the outline is red. For tests.
+    var isShowingRefusal: Bool { box.borderColor == .systemRed }
 }

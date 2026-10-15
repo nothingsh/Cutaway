@@ -5,19 +5,24 @@ import CutawayWire
 import DeclarativeAppKit
 import DeclarativeCombine
 
-/// The attributes of the selected layer (C-ATTR-01 to C-ATTR-03): a header naming the layer,
-/// then each group the app sent, in its order and titled as the app titled it, with its
-/// attributes. Nothing here knows any particular group or attribute (P-ATTR-03). A group folds
-/// away from its header. When there is nothing to list, a symbol and a line of text say why.
+/// The attributes of the selected layer (C-ATTR-01 to C-ATTR-03, C-ATTR-10): a header naming
+/// the layer, what holds it and its size (C-ATTR-18), a filter, and one list in five sections
+/// by what the attributes are for: the class's own content, titled by its most specific group,
+/// then Appearance, Layout, Behavior, and Object, which says what the object is, its addresses
+/// and its owner (C-ATTR-11, C-HIER-07) and starts folded. The sections follow the attributes'
+/// `section` alone; nothing here knows any particular group or attribute (P-ATTR-03). A section
+/// folds away from its header, and every section with Option held; the header of the section
+/// at the top of the list stays there while it scrolls (C-ATTR-15). The filter keeps the rows
+/// whose titles or IDs hold it (C-ATTR-14). When there are no attributes to list, a symbol and
+/// a line of text say why.
 ///
 /// Attributes the app marks as editable get an editor while the server can change them, the
 /// app is active and the connection holds (C-ATTR-04). New values for the same attributes are
 /// shown in place, so that a field being typed in keeps its focus and a drag goes on
 /// (C-ATTR-06); rows that are being changed show it, and failures are said in the row.
 ///
-/// For a layer that backs a view, a Constraints section follows the groups when the server
-/// gives constraints (C-LAYOUT-02). It is rebuilt on its own, leaving the attribute rows as
-/// they are.
+/// For a layer that backs a view, the constraints end the Layout section when the server gives
+/// them (C-LAYOUT-02). They are rebuilt on their own, leaving the attribute rows as they are.
 final class AttributesViewController: NSViewController {
     static let listIdentifier = "attributes.list"
     static let messageIdentifier = "attributes.message"
@@ -26,35 +31,60 @@ final class AttributesViewController: NSViewController {
     static let headerIdentifier = "attributes.header"
     static let headerTitleIdentifier = "attributes.header.title"
     static let headerSubtitleIdentifier = "attributes.header.subtitle"
-    static let headerControllerIdentifier = "attributes.header.controller"
-    static let headerReferencesIdentifier = "attributes.header.references"
+    static let filterIdentifier = "attributes.filter"
+    static let filterCountIdentifier = "attributes.filter.count"
+    static let noMatchIdentifier = "attributes.filter.none"
+    static let stickyIdentifier = "attributes.sticky"
 
     let viewModel: AttributesViewModel
     private let onRetry: () -> Void
-    /// Selects the layer at the other end of a constraint (C-LAYOUT-03).
+    /// Selects the layer at the other end of a constraint (C-LAYOUT-03), or an ancestor
+    /// (C-ATTR-16).
     private let onShowLayer: (UInt64) -> Void
+    /// Hovers the layer an ancestor names, or none (C-ATTR-16, C-HIER-15).
+    private let onHoverLayer: (UInt64?) -> Void
+    /// Hovers the other end of a constraint, or none (C-LAYOUT-06).
+    private let onHoverConstraintEnd: (ConstraintRow.End?) -> Void
+    private let onPointConstraints: (ConstraintPointer) -> Void
     /// How long a request may take before the panel says it is loading: most answers come
     /// sooner, and a spinner for every click would flicker.
     private let loadingDelay: TimeInterval
-    /// The groups shown, with their views.
+    /// The groups as they came.
     private(set) var groups: [AttributeGroup] = []
-    private(set) var groupViews: [AttributeGroupView] = []
-    /// The groups the user folded away, by ID, kept while the panel lives.
-    private var collapsed = Set<String>()
-    /// The views the groups take in the list: the groups and the separators between them.
-    private var groupArrangedViews: [NSView] = []
-    /// The constraints shown, or nil when there is no Constraints section.
+    /// The sections as listed, in the order of the list.
+    private(set) var sectionViews: [AttributeGroupView] = []
+    /// The sections folded away, by kind, kept while the panel lives; Object starts folded
+    /// (C-ATTR-10, C-ATTR-15).
+    var collapsed: Set<String> = [AttributesViewModel.Listing.Kind.object.rawValue]
+    /// The top of the Object section.
+    private(set) var identityView: IdentityLinesView
+    /// The constraints shown, or nil when the Layout section has none.
     private(set) var constraintRows: [ConstraintRow]?
     private(set) var constraintsView: ConstraintsSectionView?
-    private var constraintsSeparator: NSView?
-    /// Whether the Constraints section is folded away, and whether UIKit's constraints are
-    /// listed; kept while the panel lives, as the groups' folding is.
-    private var constraintsCollapsed = false
+    /// Whether UIKit's constraints are listed; kept while the panel lives, as the folding is.
     private var showsGeneratedConstraints = false
+    /// What is listed now.
+    private var shownListing = AttributesViewModel.Listing(sections: [])
+    /// How many addresses the selected layer has, for the Object section's summary.
+    private var addressCount = 0
     /// The shape of what is listed: rebuilt when it changes, updated in place when not.
     private var shownShape: AttributesViewModel.Shape?
-    /// Each attribute row with the attribute it shows, in the order of `groups`.
-    private(set) var attributeRows: [(attribute: Attribute, row: AttributeRowView)] = []
+    /// Each attribute's own row with the attribute it shows, in the order of the list.
+    /// Set only as the rows are made (`AttributesViewController+Rows.swift`).
+    var attributeRows: [(attribute: Attribute, row: AttributeRowView)] = []
+    /// What shows each attribute, its own row or a part of a compound row (C-ATTR-19), in
+    /// the order of `Listing.attributes`: what is updated in place (C-ATTR-06).
+    var attributeCells: [(attribute: Attribute, cell: any AttributeCell)] = []
+    /// The compound rows, in the order of the list.
+    var compoundRows: [CompoundRowView] = []
+
+    /// The filter (C-ATTR-14): kept while the panel lives, whatever is selected, refreshed or
+    /// changed; nil when it keeps everything.
+    var filter: String?
+    /// How many attributes the filter keeps of how many, or nil without a filter.
+    var filterCounts: (shown: Int, total: Int)?
+    /// The section whose header stays at the top of the list, if any (C-ATTR-15).
+    var stickySection: (any FoldingSection)?
     private let message = CurrentValueSubject<AttributesViewModel.Message?, Never>(nil)
     /// True while a request runs and nothing is shown yet, below the header.
     private let isWaiting = CurrentValueSubject<Bool, Never>(false)
@@ -62,7 +92,41 @@ final class AttributesViewController: NSViewController {
     private var listedLayerID: UInt64?
     private var selectedLayerID: UInt64?
     private var pendingLoading: DispatchWorkItem?
-    private let list = VScroll(alignment: .fill, spacing: 0) {}
+    // `list`, `separators`, `stickyBar`, `filter`, `filterCounts` and `stickySection` are
+    // internal only so that AttributesViewController+Folding.swift can reach them.
+    let list = VScroll(alignment: .fill, spacing: 0) {}
+    /// The sections, each after a line that shows when a section above it does.
+    private let sections = VStack(alignment: .fill, spacing: 0) {}
+    var separators: [(line: NSView, section: NSView)] = []
+    private(set) lazy var filterField: NSSearchField = FilterSearchField().configure {
+        $0.sendsSearchStringImmediately = true
+        $0.placeholderString = localized("attributes.filter.placeholder")
+        // Each change of the text as it is typed; the action, for Esc and the clear button.
+        $0.delegate = self
+        $0.target = self
+        $0.action = #selector(filterChanged(_:))
+    }
+
+    private(set) lazy var countLabel = NSTextField(labelWithString: "")
+    private(set) lazy var noMatchLabel = NSTextField(wrappingLabelWithString: "")
+    private(set) lazy var stickyHeader: SectionHeader = .init().configure {
+        $0.target = self
+        $0.action = #selector(toggleSticky(_:))
+    }
+
+    /// The selected layer's ancestors, under its name (C-ATTR-16).
+    private(set) lazy var ancestorsBar: AncestorsBar = .init().configure {
+        $0.onHover = { [weak self] id in self?.onHoverLayer(id) }
+        $0.onSelect = { [weak self] id in self?.onShowLayer(id) }
+    }
+
+    /// The header that stays at the top, on the same backdrop as the panel (`backdrop()`),
+    /// so that it is of a piece with the list under it (reported by the user: the sidebar's
+    /// material let much more of the desktop through than the panel does).
+    lazy var stickyBar: NSVisualEffectView = Self.backdrop().configure {
+        $0.isHidden = true
+    }
+
     private var cancellables = Set<AnyCancellable>()
 
     init(
@@ -71,13 +135,21 @@ final class AttributesViewController: NSViewController {
         tree: AnyPublisher<LayerTree, Never> = Just(.empty).eraseToAnyPublisher(),
         connection: AnyPublisher<InspectionStore.Connection, Never> = Just(.live).eraseToAnyPublisher(),
         onRetry: @escaping () -> Void = {}, onShowLayer: @escaping (UInt64) -> Void = { _ in },
+        onHoverLayer: @escaping (UInt64?) -> Void = { _ in },
+        onHoverConstraintEnd: @escaping (ConstraintRow.End?) -> Void = { _ in },
+        onPointConstraints: @escaping (ConstraintPointer) -> Void = { _ in },
+        copy: @escaping @MainActor (String) -> Void = AttributesViewController.copyToPasteboard,
         loadingDelay: TimeInterval = 0.2
     ) {
         viewModel = AttributesViewModel(
             store: store, appName: appName, layer: layer, tree: tree, connection: connection)
         self.onRetry = onRetry
         self.onShowLayer = onShowLayer
+        self.onHoverLayer = onHoverLayer
+        self.onHoverConstraintEnd = onHoverConstraintEnd
+        self.onPointConstraints = onPointConstraints
         self.loadingDelay = loadingDelay
+        identityView = IdentityLinesView(copy: copy)
         super.init(nibName: nil, bundle: nil)
     }
 
@@ -90,6 +162,8 @@ final class AttributesViewController: NSViewController {
         list.setAccessibilityIdentifier(Self.listIdentifier)
         list.autohidesScrollers = true
         list.stack.padding(top: 0, leading: 0, bottom: Theme.Spacing.medium, trailing: 0)
+        list.stack.addArrangedSubview(sections)
+        list.stack.addArrangedSubview(makeFilterResults())
 
         // Not shared: each subscriber gets the current value when it subscribes.
         let layer = viewModel.layer
@@ -102,7 +176,8 @@ final class AttributesViewController: NSViewController {
             .contentHuggingPriority(.defaultLow, for: .vertical)
             .bind(\.isHidden, to: isWaiting.map { !$0 })
 
-        let root = NSView()
+        // The panel draws its own backdrop, the one the header that stays at the top has too.
+        let root = Self.backdrop()
         root.addVStack(alignment: .fill) {
             header
             list
@@ -111,33 +186,19 @@ final class AttributesViewController: NSViewController {
         }
         view = root
         header.setContentHuggingPriority(.required, for: .vertical)
+        addStickyBar(over: list, in: root)
+        rebuild(AttributesViewModel.listing(of: []))
         follow(layer: layer)
     }
 
-    /// The selected layer's symbol, title, class, view controller and references.
+    /// The selected layer's icon and title, what holds it, and the filter.
     private func makeHeader(layer: AnyPublisher<LayerSummary?, Never>) -> NSView {
         VStack(alignment: .fill, spacing: 0) {
-            // The symbol stays beside the title however many lines follow it.
-            HStack(alignment: .top, spacing: 10) {
-                NSBox()
-                    .configure {
-                        $0.boxType = .custom
-                        $0.borderWidth = 0
-                        $0.cornerRadius = 7
-                        $0.fillColor = .quaternarySystemFill
-                        $0.contentViewMargins = .zero
-                        $0.titlePosition = .noTitle
-                        $0.contentView?.addContent(VStack(alignment: .center) {
-                            Spacer()
-                            NSImageView()
-                                .contentTintColor(.controlAccentColor)
-                                .bind(\.image, to: layer.map {
-                                    $0.flatMap { Theme.symbol($0.symbol, size: 14) }
-                                })
-                            Spacer()
-                        })
-                    }
-                    .frame(width: 28, height: 28)
+            HStack(alignment: .center, spacing: 10) {
+                NSImageView()
+                    .imageScaling(.scaleNone)
+                    .bind(\.image, to: layer.map { $0.map { LayerIconImage.image($0.icon, side: 24) } })
+                    .frame(width: 30, height: 30)
                 VStack(alignment: .leading, spacing: 1) {
                     NSTextField(labelWithString: "")
                         .font(Theme.Font.bodyEmphasized)
@@ -146,37 +207,88 @@ final class AttributesViewController: NSViewController {
                         .isSelectable(true)
                         .accessibilityIdentifier(Self.headerTitleIdentifier)
                         .bind(\.stringValue, to: layer.map { $0?.title ?? "" })
+                    // What holds the layer (C-HIER-07) and its size (C-ATTR-18). Cut short in
+                    // the middle, so that the size at the end stays in view.
                     NSTextField(labelWithString: "")
-                        .font(Theme.Font.captionDigits)
+                        .font(Theme.Font.caption)
                         .textColor(.secondaryLabelColor)
-                        .lineBreakMode(.byTruncatingTail)
+                        .lineBreakMode(.byTruncatingMiddle)
                         .compressionResistancePriority(Theme.textGivesWay, for: .horizontal)
                         .isSelectable(true)
                         .accessibilityIdentifier(Self.headerSubtitleIdentifier)
-                        .bind(\.stringValue, to: layer.map { $0?.subtitle ?? "" })
-                    // Where the layer is held (C-HIER-07): only what the hierarchy says.
-                    Self.headerLine(
-                        localized("attributes.header.viewController"), identifier: Self.headerControllerIdentifier,
-                        value: layer.map { $0?.controller })
-                    Self.headerLine(
-                        localized("attributes.header.referencedBy"), identifier: Self.headerReferencesIdentifier,
-                        value: layer.map { summary in
-                            summary.flatMap {
-                                $0.references.isEmpty ? nil : $0.references.joined(separator: "\n")
-                            }
-                        })
+                        .bind(\.stringValue, to: layer.map { $0?.headerLine ?? "" })
+                        .bind(\.isHidden, to: layer.map { $0?.headerLine == nil })
                 }
                 // The texts take the rest of the row, so that one that fits is shown whole:
                 // they give way to the panes' widths (`Theme.textGivesWay`), and beside a
                 // spacer the stack squeezed them instead.
                 .contentHuggingPriority(NSLayoutConstraint.Priority(1), for: .horizontal)
             }
+            // Clear of the toolbar's inspector button, which floats over the top right corner.
             .padding(top: Theme.Spacing.medium, leading: Theme.Spacing.large,
-                     bottom: Theme.Spacing.medium, trailing: Theme.Spacing.large)
+                     bottom: Theme.Spacing.small, trailing: 44)
+            // The icons of the ancestors line up with the selected layer's.
+            VStack(alignment: .fill) {
+                ancestorsBar
+                    .bind(\.isEnabled, to: viewModel.isLive)
+            }
+            .padding(top: 0, leading: Theme.Spacing.large - 5, bottom: Theme.Spacing.small,
+                     trailing: Theme.Spacing.medium)
+            .bind(\.isHidden, to: layer.map { $0?.ancestors.isEmpty ?? true })
+            VStack(alignment: .fill) {
+                Self.filterBox(around: filterField
+                    .compressionResistancePriority(Theme.textGivesWay, for: .horizontal)
+                    .accessibilityIdentifier(Self.filterIdentifier))
+            }
+            .padding(top: 0, leading: Theme.Spacing.medium, bottom: Theme.Spacing.small,
+                     trailing: Theme.Spacing.medium)
             NSBox().configure { $0.boxType = .separator }
         }
         .accessibilityIdentifier(Self.headerIdentifier)
         .bind(\.isHidden, to: layer.map { $0 == nil })
+    }
+
+    /// What follows the sections while a filter is on: how many attributes it keeps, or that
+    /// it keeps none (C-ATTR-14).
+    private func makeFilterResults() -> NSView {
+        VStack(alignment: .fill, spacing: 0) {
+            VStack(alignment: .center) {
+                noMatchLabel
+                    .font(Theme.Font.body)
+                    .textColor(.secondaryLabelColor)
+                    .alignment(.center)
+                    .accessibilityIdentifier(Self.noMatchIdentifier)
+            }
+            .padding(horizontal: Theme.Spacing.large, vertical: 28)
+            VStack(alignment: .leading) {
+                countLabel
+                    .font(Theme.Font.caption)
+                    .textColor(.tertiaryLabelColor)
+                    .accessibilityIdentifier(Self.filterCountIdentifier)
+            }
+            .padding(top: Theme.Spacing.small, leading: Theme.Spacing.large, bottom: 0,
+                     trailing: Theme.Spacing.large)
+        }
+    }
+
+    /// The bar over the top of the list that holds the header of the section scrolled under it
+    /// (C-ATTR-15).
+    private func addStickyBar(over list: NSView, in root: NSView) {
+        stickyBar.addVStack(alignment: .fill, spacing: 0) {
+            VStack(alignment: .fill) {
+                stickyHeader
+                    .accessibilityIdentifier(Self.stickyIdentifier)
+            }
+            .padding(top: 8, leading: Theme.Spacing.large, bottom: 6, trailing: Theme.Spacing.medium)
+            NSBox().configure { $0.boxType = .separator }
+        }
+        stickyBar.translatesAutoresizingMaskIntoConstraints = false
+        root.addSubview(stickyBar)
+        NSLayoutConstraint.activate([
+            stickyBar.topAnchor.constraint(equalTo: list.topAnchor),
+            stickyBar.leadingAnchor.constraint(equalTo: list.leadingAnchor),
+            stickyBar.trailingAnchor.constraint(equalTo: list.trailingAnchor),
+        ])
     }
 
     /// The message in place of the list: loading, nothing selected, a failure.
@@ -233,7 +345,16 @@ final class AttributesViewController: NSViewController {
     /// The panel follows the selected layer, the tree and the store's state.
     private func follow(layer: AnyPublisher<LayerSummary?, Never>) {
         layer
-            .sink { [weak self] summary in self?.selectedLayerID = summary?.id }
+            .sink { [weak self] summary in
+                self?.selectedLayerID = summary?.id
+                self?.addressCount = [summary?.viewAddress, summary?.layerAddress, summary?.controllerAddress]
+                    .compactMap { $0 }.count
+                self?.ancestorsBar.show(summary?.ancestors ?? [])
+                self?.identityView.show(summary)
+                self?.showLayerSize(summary?.size)
+                self?.showObjectSummary()
+                self?.applyFilter()
+            }
             .store(in: &cancellables)
         // The tree there is now, for the first list; its changes are followed below.
         viewModel.firstTree
@@ -265,70 +386,36 @@ final class AttributesViewController: NSViewController {
                 self.present(self.viewModel.store.state)
             }
             .store(in: &cancellables)
+
+        list.documentVisibleRectPublisher
+            .sink { [weak self] _ in self?.updateSticky() }
+            .store(in: &cancellables)
     }
 
     // MARK: - Changing attributes
 
-    private func makeRow(_ attribute: Attribute) -> AttributeRowView {
-        let title = AttributeText.title(attribute.title, id: attribute.id)
-        guard viewModel.hasEditor(attribute), let key = viewModel.key(of: attribute) else {
-            return AttributeRowView(title: title, value: attribute.value)
-        }
-        let editor = AttributeEditorView(
-            attribute: attribute, onSet: viewModel.setValue(for: key),
-            onFinish: viewModel.finish(for: key))
-        return AttributeRowView(title: title, value: attribute.value, editor: editor)
+    /// The selected layer's size, for insets boxes (C-ATTR-22).
+    private var layerSize: String?
+
+    private func showLayerSize(_ size: String?) {
+        guard size != layerSize else { return }
+        layerSize = size
+        for (_, cell) in attributeCells { cell.show(layerSize: size) }
     }
 
     /// Each row's value and state: a row being changed shows the value on its way.
     private func showRowStates() {
-        for (attribute, row) in attributeRows {
-            let state = viewModel.rowState(of: attribute)
-            row.show(state.value)
+        let layer = groups.flatMap(\.attributes)
+        for (attribute, row) in attributeCells {
+            let state = viewModel.rowState(of: attribute, among: layer)
+            row.show(state.value, systemColorName: state.systemColorName)
             row.show(sending: state.isSending, failure: state.failureText)
+            row.showInactive(state.inactiveReason)
+            row.show(layerSize: layerSize)
         }
     }
 
     // MARK: - What is shown
-
-    /// As wide as the wider of the header's two labels.
-    private static var headerLabelWidth: CGFloat {
-        [localized("attributes.header.viewController"), localized("attributes.header.referencedBy")]
-            .map {
-                NSTextField(labelWithString: $0).font(Theme.Font.caption).intrinsicContentSize.width
-            }
-            .max().map { $0.rounded(.up) } ?? 0
-    }
-
-    /// A line of the header: a label and a value that can be selected, one entry to a line;
-    /// hidden while there is no value.
-    private static func headerLine(
-        _ title: String, identifier: String, value: some Publisher<String?, Never>
-    ) -> NSView {
-        HStack(alignment: .top, spacing: Theme.Spacing.small) {
-            NSTextField(labelWithString: title)
-                .font(Theme.Font.caption)
-                .textColor(.tertiaryLabelColor)
-                // The same for both lines, so that their values line up.
-                .frame(width: headerLabelWidth)
-            NSTextField(wrappingLabelWithString: "")
-                .font(Theme.Font.caption)
-                .textColor(.secondaryLabelColor)
-                .compressionResistancePriority(Theme.textGivesWay, for: .horizontal)
-                .isSelectable(true)
-                .accessibilityIdentifier(identifier)
-                .bind(\.stringValue, to: value.map { $0 ?? "" })
-        }
-        .padding(top: 2, leading: 0, bottom: 0, trailing: 0)
-        .bind(\.isHidden, to: value.map { $0 == nil })
-    }
-
-    /// Every symbol the panel's messages use. A misspelt name makes no image.
-    static var symbols: [String] {
-        ["cursorarrow.click.2", "list.bullet.rectangle", "questionmark.square.dashed",
-         "moon.zzz", "exclamationmark.triangle", "checkmark.circle.fill", "circle",
-         "chevron.right", "chevron.down"] + ConstraintRowView.symbols
-    }
 
     /// Shows what the store published. The list is rebuilt only when the groups change, and
     /// then from the top.
@@ -349,6 +436,7 @@ final class AttributesViewController: NSViewController {
             DispatchQueue.main.asyncAfter(deadline: .now() + loadingDelay, execute: work)
             list.isHidden = true
             isWaiting.send(true)
+            updateSticky()
             return
         }
         isWaiting.send(false)
@@ -358,8 +446,7 @@ final class AttributesViewController: NSViewController {
     /// Shows a state other than loading: the groups and the constraints, or a message.
     private func present(_ state: AttributesStore.State) {
         let rows = viewModel.constraintRows(for: state)
-        let shown = AttributesViewModel.message(
-            for: state, appName: viewModel.appName, hasConstraints: rows != nil)
+        let shown = AttributesViewModel.message(for: state, appName: viewModel.appName)
         if case .loaded(let groups, _) = state, shown == nil {
             showGroups(groups)
             showConstraints(rows)
@@ -369,37 +456,38 @@ final class AttributesViewController: NSViewController {
         }
         message.send(shown)
         list.isHidden = shown != nil
+        updateSticky()
     }
 
-    /// Shows the Constraints section, or none, after the groups. Built again only when what it
-    /// says changes.
+    /// Shows the constraints, or none, at the end of the Layout section. Built again only when
+    /// what they say changes; the sections are built again only when the Layout section comes
+    /// or goes with them.
     private func showConstraints(_ rows: [ConstraintRow]?) {
-        defer { constraintsSeparator?.isHidden = groupViews.isEmpty }
         guard rows != constraintRows else { return }
+        let hadLayout = layoutSection != nil
         constraintRows = rows
-        constraintsView?.removeFromSuperview()
-        constraintsSeparator?.removeFromSuperview()
-        constraintsView = nil
-        constraintsSeparator = nil
-        guard let rows else { return }
-        let section = ConstraintsSectionView(
-            rows: rows, isCollapsed: constraintsCollapsed,
-            showsGenerated: showsGeneratedConstraints, onShowLayer: onShowLayer)
-        section.onToggle = { [weak self] in self?.constraintsCollapsed = $0 }
-        section.onToggleGenerated = { [weak self] in self?.showsGeneratedConstraints = $0 }
-        let separator = Self.separator()
-        list.stack.addArrangedSubview(separator)
-        list.stack.addArrangedSubview(section)
-        constraintsView = section
-        constraintsSeparator = separator
-        scrollToTopForAnotherLayer()
+        constraintsView = rows.map { rows in
+            let view = ConstraintsSectionView(
+                rows: rows, showsGenerated: showsGeneratedConstraints, onShowLayer: onShowLayer,
+                onHoverEnd: onHoverConstraintEnd, onPoint: onPointConstraints)
+            view.onToggleGenerated = { [weak self] in self?.showsGeneratedConstraints = $0 }
+            return view
+        }
+        if hasLayoutSection(shownListing) != hadLayout {
+            rebuild(shownListing)
+            showRowStates()
+        } else {
+            layoutSection?.setConstraints(constraintsView)
+            applyFilter()
+        }
+        if rows != nil { scrollToTopForAnotherLayer() }
     }
 
-    /// A line between two parts of the list.
+    /// A line between two sections.
     private static func separator() -> NSView {
         VStack(alignment: .fill) {
             NSBox().configure { $0.boxType = .separator }
-        }.padding(horizontal: Theme.Spacing.large, vertical: 0)
+        }
     }
 
     /// Another layer's attributes start at the top; a new answer for the same layer stays
@@ -407,77 +495,134 @@ final class AttributesViewController: NSViewController {
     private func scrollToTopForAnotherLayer() {
         guard selectedLayerID != listedLayerID else { return }
         listedLayerID = selectedLayerID
+        scrollToTop()
+    }
+
+    func scrollToTop() {
         list.contentView.scroll(to: .zero)
         list.reflectScrolledClipView(list.contentView)
     }
 
     private func showGroups(_ new: [AttributeGroup], force: Bool = false) {
         let newShape = viewModel.shape(of: new)
+        let listing = AttributesViewModel.listing(of: new)
         if !new.isEmpty, newShape == shownShape {
-            // The same attributes of the same layer: new values in place (C-ATTR-06).
+            // The same attributes of the same layer: new values in place (C-ATTR-06). The same
+            // shape lists them the same way, so the rows follow in the same order.
             groups = new
-            attributeRows = zip(new.flatMap(\.attributes), attributeRows.map(\.row)).map {
-                (attribute: $0, row: $1)
+            shownListing = listing
+            attributeCells = zip(listing.attributes, attributeCells.map(\.cell)).map {
+                (attribute: $0, cell: $1)
+            }
+            attributeRows = attributeCells.compactMap { attribute, cell in
+                (cell as? AttributeRowView).map { (attribute: attribute, row: $0) }
             }
             showRowStates()
+            showObjectSummary()
             return
         }
         guard new != groups || force || newShape != shownShape else { return }
         groups = new
         shownShape = new.isEmpty ? nil : newShape
-        // The Constraints section after them stays.
-        let stack = list.stack
-        for view in groupArrangedViews {
-            stack.removeArrangedSubview(view)
-            view.removeFromSuperview()
-        }
-        groupArrangedViews = []
-        attributeRows = []
-        groupViews = new.map { group in
-            let key = group.id ?? group.title ?? ""
-            let rows = group.attributes.map { attribute in
-                let row = makeRow(attribute)
-                attributeRows.append((attribute, row))
-                return row
-            }
-            let view = AttributeGroupView(
-                title: AttributeText.title(group.title, id: group.id), rows: rows,
-                isCollapsed: collapsed.contains(key))
-            view.onToggle = { [weak self] isCollapsed in
-                if isCollapsed { self?.collapsed.insert(key) } else { self?.collapsed.remove(key) }
-            }
-            return view
-        }
-        for (index, view) in groupViews.enumerated() {
-            if index > 0 { groupArrangedViews.append(Self.separator()) }
-            groupArrangedViews.append(view)
-        }
-        for (index, view) in groupArrangedViews.enumerated() {
-            stack.insertArrangedSubview(view, at: index)
-        }
-        constraintsSeparator?.isHidden = groupViews.isEmpty
+        rebuild(listing)
         showRowStates()
         if !new.isEmpty { scrollToTopForAnotherLayer() }
     }
 
-    // MARK: - For tests
-
-    /// One row of the panel. For tests.
-    enum Row: Equatable {
-        case group(title: String)
-        case attribute(title: String, value: AttributeValue?)
+    /// Builds the sections again, their rows in the order of `listing.attributes`. The Layout
+    /// section is there for its attributes or the constraints, the Object section always.
+    private func rebuild(_ listing: AttributesViewModel.Listing) {
+        shownListing = listing
+        attributeRows = []
+        attributeCells = []
+        compoundRows = []
+        sectionViews = AttributesViewModel.Listing.Kind.allCases.compactMap { kind in
+            let section = listing.section(kind)
+            switch kind {
+            case .layout: guard hasLayoutSection(listing) else { return nil }
+            case .object: break
+            case .content, .appearance, .behavior: guard section != nil else { return nil }
+            }
+            let parts = (section?.parts ?? []).enumerated().map { index, part in
+                // The Content section is titled by its first group; the others' groups go
+                // without headings, as the section is about what they are for.
+                AttributeGroupView.Part(
+                    heading: kind == .content && index > 0
+                        ? AttributeText.title(part.groupTitle, id: part.groupID) : nil,
+                    rows: rows(part.listed))
+            }
+            return sectionView(kind, first: section?.parts.first, parts: parts)
+        }
+        layoutSection?.setConstraints(constraintsView)
+        showObjectSummary()
+        arrange()
     }
 
-    /// The rows for some groups: each group's header, then its attributes, as they came.
-    /// For tests.
-    static func rows(for groups: [AttributeGroup]) -> [Row] {
-        groups.flatMap { group in
-            [Row.group(title: AttributeText.title(group.title, id: group.id))]
-                + group.attributes.map { attribute in
-                    Row.attribute(
-                        title: AttributeText.title(attribute.title, id: attribute.id),
-                        value: attribute.value)
-                }
+    private func sectionView(
+        _ kind: AttributesViewModel.Listing.Kind, first: AttributesViewModel.Listing.Part?,
+        parts: [AttributeGroupView.Part]
+    ) -> AttributeGroupView {
+        let title: String
+        let icon: SectionHeader.Icon?
+        if kind == .content, let first {
+            title = AttributeText.title(first.groupTitle, id: first.groupID)
+            // The class the server names, or a guess from the group's name (C-ATTR-17).
+            icon = .layer(first.groupClassName.map { LayerIcon(groupClass: $0) }
+                ?? LayerIcon(group: first.groupTitle, id: first.groupID))
+        } else {
+            title = Self.title(of: kind)
+            icon = Self.symbol(of: kind).map { .symbol($0) }
         }
+        let key = kind.rawValue
+        let view = AttributeGroupView(
+            title: title, icon: icon, parts: parts, lines: kind == .object ? identityView : nil,
+            isCollapsed: collapsed.contains(key))
+        view.foldKey = key
+        view.onToggle = { [weak self] isCollapsed in self?.fold(key, isCollapsed) }
+        view.onToggleAll = { [weak self] isCollapsed in self?.foldAll(isCollapsed) }
+        return view
+    }
+
+    /// Whether the Layout section is listed: for its attributes or the constraints.
+    private func hasLayoutSection(_ listing: AttributesViewModel.Listing) -> Bool {
+        listing.section(.layout) != nil || constraintRows != nil
+    }
+
+    func section(_ kind: AttributesViewModel.Listing.Kind) -> AttributeGroupView? {
+        sectionViews.first { $0.foldKey == kind.rawValue }
+    }
+
+    private var layoutSection: AttributeGroupView? { section(.layout) }
+    var objectSection: AttributeGroupView? { section(.object) }
+
+    /// What the folded Object section says (C-ATTR-10): each Identity attribute's title and
+    /// value, then how many addresses there are.
+    private func showObjectSummary() {
+        let attributes = shownListing.section(.object)?.attributes ?? []
+        var items = attributes.map { attribute in
+            AttributeText.title(attribute.title, id: attribute.id) + " "
+                + AttributeText.text(of: attribute.value)
+        }
+        if addressCount > 0 { items.append(localized("attributes.object.addresses", addressCount)) }
+        objectSection?.summary = items.joined(separator: " · ")
+    }
+
+    /// Every section in the order of the list.
+    var allSections: [any FoldingSection] { sectionViews }
+
+    /// Puts the sections into the list, each after a line of its own. The lines are made
+    /// again each time: one kept and shown again narrowed the inspector to its least width.
+    private func arrange() {
+        for view in sections.arrangedSubviews {
+            sections.removeArrangedSubview(view)
+            view.removeFromSuperview()
+        }
+        separators = allSections.map { section in
+            let line = Self.separator()
+            sections.addArrangedSubview(line)
+            sections.addArrangedSubview(section)
+            return (line, section)
+        }
+        applyFilter()
     }
 }

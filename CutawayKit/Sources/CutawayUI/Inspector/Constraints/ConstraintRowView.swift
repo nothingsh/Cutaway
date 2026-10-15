@@ -2,7 +2,17 @@ import AppKit
 import CutawayWire
 import DeclarativeAppKit
 
-/// One constraint: whether it holds, its equation, and the lines below it.
+/// Where the pointer is among the constraints of the attribute panel (C-LAYOUT-07): on some,
+/// by their places in the server's order, or off those it was on. A row's ends are stressed;
+/// those of the folded UIKit ones are not.
+enum ConstraintPointer: Equatable {
+    case entered([Int], stresses: Bool)
+    case left([Int])
+}
+
+/// One constraint: whether it holds, its equation, and the lines below it. Pointing anywhere
+/// on it marks its other ends on the preview (C-LAYOUT-07), and fills it as the hierarchy
+/// fills a hovered row.
 final class ConstraintRowView: NSView {
     static let identifier = "constraints.row"
     static let statusIdentifier = "constraints.status"
@@ -13,11 +23,25 @@ final class ConstraintRowView: NSView {
 
     let text: ConstraintRow
     let equationView: ConstraintEquationView
+    var onPoint: (ConstraintPointer) -> Void = { _ in }
+    private(set) var isHovered = false {
+        didSet {
+            guard isHovered != oldValue else { return }
+            needsDisplay = true
+            onPoint(isHovered ? .entered([text.index], stresses: true) : .left([text.index]))
+        }
+    }
 
-    init(_ text: ConstraintRow, showsClass: Bool, onShowLayer: @escaping (UInt64) -> Void) {
+    private var trackingArea: NSTrackingArea?
+
+    init(
+        _ text: ConstraintRow, showsClass: Bool, onShowLayer: @escaping (UInt64) -> Void,
+        onHoverEnd: @escaping (ConstraintRow.End?) -> Void = { _ in }
+    ) {
         self.text = text
         equationView = ConstraintEquationView(
             text.equation, dimmed: text.status == .unsatisfied, onShowLayer: onShowLayer)
+        equationView.onHoverEnd = onHoverEnd
         super.init(frame: .zero)
         setAccessibilityIdentifier(Self.identifier)
         let status = Self.status(text.status)
@@ -31,13 +55,15 @@ final class ConstraintRowView: NSView {
                 .frame(width: 12, height: 15)
             VStack(alignment: .fill, spacing: 2) {
                 equationView
-                lines.map { line in
+                // The owners come first, then the details: told apart by place, as a detail
+                // may read as an owner does.
+                lines.enumerated().map { index, line in
                     NSTextField(wrappingLabelWithString: line)
                         .font(Theme.Font.caption)
                         .textColor(.secondaryLabelColor)
                         .compressionResistancePriority(Theme.textGivesWay, for: .horizontal)
                         .accessibilityIdentifier(
-                            text.guideOwners.contains(line)
+                            index < text.guideOwners.count
                                 ? Self.ownerIdentifier : Self.detailIdentifier)
                 }
                 if showsClass, let className = text.generatedClassName {
@@ -76,6 +102,43 @@ final class ConstraintRowView: NSView {
     @available(*, unavailable)
     required init?(coder: NSCoder) {
         fatalError("init(coder:) is not supported")
+    }
+
+    /// Puts the pointer on the row, or off it, as the mouse does. For tests.
+    func point(_ inside: Bool) {
+        isHovered = inside
+    }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let trackingArea { removeTrackingArea(trackingArea) }
+        let area = NSTrackingArea(
+            rect: .zero, options: [.mouseEnteredAndExited, .activeInActiveApp, .inVisibleRect],
+            owner: self)
+        addTrackingArea(area)
+        trackingArea = area
+    }
+
+    override func mouseEntered(with event: NSEvent) {
+        super.mouseEntered(with: event)
+        isHovered = true
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        super.mouseExited(with: event)
+        isHovered = false
+    }
+
+    /// The hover fill, as the hierarchy's (C-HIER-15), inset from the panel's edges.
+    override func draw(_ dirtyRect: NSRect) {
+        super.draw(dirtyRect)
+        guard isHovered else { return }
+        Theme.hoverFill.setFill()
+        let inset = Theme.Spacing.large - 6
+        NSBezierPath(
+            roundedRect: bounds.insetBy(dx: inset, dy: 0), xRadius: Theme.Radius.control,
+            yRadius: Theme.Radius.control
+        ).fill()
     }
 
     /// How a status is marked.

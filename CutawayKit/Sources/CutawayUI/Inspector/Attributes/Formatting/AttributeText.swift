@@ -72,6 +72,82 @@ enum AttributeText {
         return text == "-0" ? "0" : text
     }
 
+    /// A proportion as a percentage (C-ATTR-20): 1 is "100", 0.375 is "37.5", with at most two
+    /// decimals. A number that is not finite is written as `number` writes it.
+    static func percent(_ fraction: Double) -> String {
+        guard fraction.isFinite else { return number(fraction) }
+        return number((fraction * 10000).rounded() / 100)
+    }
+
+    /// A number as its unit reads (C-ATTR-20): "40%" for a proportion, "8 pt" for points, the
+    /// number alone otherwise.
+    static func number(_ value: Double, unit: AttributeUnit) -> String {
+        switch unit {
+        case .fraction: percent(value) + "%"
+        case .points: number(value) + " pt"
+        case .unspecified: number(value)
+        }
+    }
+
+    /// A value as a sentence names it (C-ATTR-21): a number with its unit, anything else as
+    /// `text(of:)` writes it.
+    static func text(of value: AttributeValue?, unit: AttributeUnit) -> String {
+        switch value {
+        case .double(let double): number(double, unit: unit)
+        case .integer(let integer) where unit == .points: number(Double(integer), unit: unit)
+        default: text(of: value)
+        }
+    }
+
+    /// The name of a UIKit system colour as people read it (C-ATTR-22): the words of the
+    /// property's name, each capitalised: "systemBlue" is "System Blue".
+    static func systemColorName(_ name: String) -> String {
+        var words: [String] = []
+        for character in name {
+            if character.isUppercase || words.isEmpty {
+                words.append(String(character).uppercased())
+            } else {
+                words[words.count - 1].append(character)
+            }
+        }
+        return words.joined(separator: " ")
+    }
+
+    /// What a transform does, in a line (C-ATTR-19): "Identity"; for a 2D one of moving,
+    /// turning and scaling, the parts it has, as "Rotate −4° · Scale 1.02 · Move 10, −4";
+    /// otherwise "Custom" (3D, perspective, shear).
+    static func summary(of t: Transform3D) -> String {
+        guard t != .identity else { return localized("attributes.value.identity") }
+        let flat = [t.m13, t.m14, t.m23, t.m24, t.m31, t.m32, t.m34, t.m43].allSatisfy { $0 == 0 }
+            && t.m33 == 1 && t.m44 == 1
+        let entries = [t.m11, t.m12, t.m21, t.m22, t.m41, t.m42]
+        let tolerance = 1e-6
+        // The two axes stay at right angles unless there is shear.
+        guard flat, entries.allSatisfy(\.isFinite), abs(t.m11 * t.m21 + t.m12 * t.m22) < tolerance
+        else { return localized("attributes.value.custom") }
+        let scaleX = (t.m11 * t.m11 + t.m12 * t.m12).squareRoot()
+        guard scaleX > tolerance else { return localized("attributes.value.custom") }
+        let scaleY = (t.m11 * t.m22 - t.m12 * t.m21) / scaleX
+        let degrees = (atan2(t.m12, t.m11) * 180 / .pi * 10).rounded() / 10
+        var parts: [String] = []
+        if degrees != 0 { parts.append(localized("attributes.value.rotate", number(degrees))) }
+        if abs(scaleX - 1) > tolerance || abs(scaleY - 1) > tolerance {
+            parts.append(abs(scaleX - scaleY) < tolerance
+                ? localized("attributes.value.scale", number(scaleX))
+                : localized("attributes.value.scaleXY", number(scaleX), number(scaleY)))
+        }
+        if t.m41 != 0 || t.m42 != 0 {
+            parts.append(localized("attributes.value.move", number(t.m41), number(t.m42)))
+        }
+        return parts.isEmpty ? localized("attributes.value.identity") : parts.joined(separator: " · ")
+    }
+
+    /// An object's address as the panel writes it (C-ATTR-11): "0x" and lowercase hexadecimal,
+    /// not padded.
+    static func address(_ address: UInt64) -> String {
+        "0x" + String(address, radix: 16)
+    }
+
     /// What a group or an attribute is called: its title as the app sent it, or its ID when
     /// it has no title (C-WIRE-04).
     static func title(_ title: String?, id: String?) -> String {

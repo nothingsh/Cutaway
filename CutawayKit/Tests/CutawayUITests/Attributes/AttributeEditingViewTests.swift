@@ -16,13 +16,18 @@ final class AttributeEditingViewTests: XCTestCase {
 
     /// An inspection on a 0.3 server, entered, with layer 3 selected and its attributes in;
     /// then `steps`.
+    /// With `protocol10`, the server leaves out what protocol 1.1 added (C-ATTR-13). The
+    /// attributes come without clusters, each on a row of its own: these tests are about
+    /// what one attribute's editor does; `CompoundRowTests` has the compound rows (C-ATTR-19).
     @MainActor
-    private func inspection(
-        _ steps: [MockScript.Step]
+    func inspection(
+        _ steps: [MockScript.Step], protocol10: Bool = false
     ) async throws -> (InspectionStore, Session, MockServer) {
-        let server = try await MockServer.start(script: MockScript(
+        let script = MockScript(
             steps: try MockScript.fixtures("handshake", "hierarchy", "layer-details", "layer-details")
-                .steps + steps))
+                .steps + steps)
+        let server = try await MockServer.start(
+            script: protocol10 ? script.asProtocol10() : script.withoutClusters())
         let channel = try await ConnectionChannel.connect(
             host: "127.0.0.1", port: server.port, timeout: .seconds(2))
         let session = Session(channel: channel, client: Self.client)
@@ -48,7 +53,7 @@ final class AttributeEditingViewTests: XCTestCase {
     }
 
     @MainActor
-    private func panel(for model: InspectionStore) -> (AttributesViewController, NSWindow) {
+    func panel(for model: InspectionStore) -> (AttributesViewController, NSWindow) {
         let layer = Publishers.CombineLatest(model.$selectedLayerID, model.$tree)
             .map { id, tree in LayerSummary(tree, id) }
             .eraseToAnyPublisher()
@@ -75,20 +80,28 @@ final class AttributeEditingViewTests: XCTestCase {
     }
 
     @MainActor
-    private func row(_ title: String, in controller: AttributesViewController) throws
+    func row(_ title: String, in controller: AttributesViewController) throws
         -> AttributeRowView
     {
-        try XCTUnwrap(controller.groupViews.flatMap(\.rows).first { $0.title == title }, title)
+        try XCTUnwrap(controller.attributeRows.map(\.row).first { $0.title == title }, title)
+    }
+
+    /// The text area of a row whose value is a text (C-ATTR-05).
+    @MainActor
+    func textArea(of row: AttributeRowView) throws -> AttributeTextArea {
+        try XCTUnwrap(AppListViewTests.descendants(of: try XCTUnwrap(row.editor)) {
+            $0 is AttributeTextArea
+        }.first as? AttributeTextArea)
     }
 
     @MainActor
-    private func field(of row: AttributeRowView) throws -> AttributeEditField {
+    func field(of row: AttributeRowView) throws -> AttributeEditField {
         try XCTUnwrap(AppListViewTests.descendants(of: try XCTUnwrap(row.editor)) {
             $0 is AttributeEditField
         }.first as? AttributeEditField)
     }
 
-    private static func resultSteps(_ groups: [AttributeGroup], as id: UInt32) -> [MockScript.Step] {
+    static func resultSteps(_ groups: [AttributeGroup], as id: UInt32) -> [MockScript.Step] {
         [
             .expect(.setAttribute, as: id),
             .send(Frame(requestID: id, body: .setAttributeResult(SetAttributeResult(
@@ -102,16 +115,19 @@ final class AttributeEditingViewTests: XCTestCase {
     func test_C_ATTR_04_editableAttributesGetEditorsAndTheRestStayAsTheyWere() async throws {
         let (model, session, server) = try await inspection([])
         let (controller, window) = panel(for: model)
-        let rows = controller.groupViews.flatMap(\.rows)
-        XCTAssertEqual(rows.count, 12)
+        let rows = controller.attributeRows.map(\.row)
+        XCTAssertEqual(rows.count, 19)
         XCTAssertEqual(rows.filter { $0.editor == nil }.map(\.title), ["Frame"])
-        // The read-only row is the one of v0.2: its value view is on screen.
+        // The read-only row has the same controls, read-only (C-ATTR-02).
         let frame = try row("Frame", in: controller)
-        XCTAssertNotNil(frame.valueView.superview)
+        let display = try XCTUnwrap(frame.display)
+        XCTAssertNotNil(display.superview)
+        XCTAssertTrue(display.isReadOnly)
+        XCTAssertEqual(display.accessibilityIdentifier(), AttributeEditorView.readOnlyIdentifier)
 
         // A lost connection takes every editor away (C-WIN-03).
         model.connectionLost()
-        XCTAssertTrue(controller.groupViews.flatMap(\.rows).allSatisfy { $0.editor == nil })
+        XCTAssertTrue(controller.attributeRows.map(\.row).allSatisfy { $0.editor == nil })
 
         withExtendedLifetime(window) {}
         await session.close()
@@ -122,15 +138,15 @@ final class AttributeEditingViewTests: XCTestCase {
     func test_C_ATTR_04_noEditorsForAnOlderServerOrAnAppNotActive() async throws {
         let (model, session, server) = try await inspection([])
         let (controller, window) = panel(for: model)
-        func editors() -> Int { controller.groupViews.flatMap(\.rows).filter { $0.editor != nil }.count }
-        XCTAssertEqual(editors(), 11)
+        func editors() -> Int { controller.attributeRows.map(\.row).filter { $0.editor != nil }.count }
+        XCTAssertEqual(editors(), 18)
 
         model.attributes.appStateDidChange(.background)
         XCTAssertEqual(editors(), 0, "the app is not active")
         model.attributes.appStateDidChange(.active)
-        XCTAssertEqual(editors(), 11)
+        XCTAssertEqual(editors(), 18)
         model.attributes.setEditingSupported(false)
-        XCTAssertEqual(editors(), 0, "a server below 0.3")
+        XCTAssertEqual(editors(), 0, "a source that takes no changes")
 
         withExtendedLifetime(window) {}
         await session.close()
@@ -148,28 +164,32 @@ final class AttributeEditingViewTests: XCTestCase {
         let (model, session, server) = try await inspection(steps)
         let (controller, window) = panel(for: model)
         let text = try row("Text", in: controller)
-        let before = controller.groupViews.flatMap(\.rows).map(ObjectIdentifier.init)
+        let before = controller.attributeRows.map(\.row).map(ObjectIdentifier.init)
 
-        try field(of: text).onCommit("Welcome back")
+        let area = try textArea(of: text)
+        area.textView.string = "Welcome back"
+        area.textDidChange(Notification(name: NSText.didChangeNotification))
+        area.textDidEndEditing(Notification(name: NSText.didEndEditingNotification))
         XCTAssertTrue(text.isSending)
-        XCTAssertEqual(try field(of: text).stringValue, "Welcome back")
+        XCTAssertEqual(area.textView.string, "Welcome back")
         await gate.open()
         let done = await Wait.until { @MainActor in !text.isSending }
         XCTAssertTrue(done)
-        XCTAssertEqual(text.valueView.plainText, "Welcome back")
+        XCTAssertEqual(text.plainText, "Welcome back")
         XCTAssertNil(text.failureText)
         // The same rows, updated in place.
-        XCTAssertEqual(controller.groupViews.flatMap(\.rows).map(ObjectIdentifier.init), before)
+        XCTAssertEqual(controller.attributeRows.map(\.row).map(ObjectIdentifier.init), before)
 
         withExtendedLifetime(window) {}
         await session.close()
         await server.stop()
     }
 
-    /// A value the app does not take: the row just shows the value the app holds, which is
-    /// a valid one, without a warning sign (reported by the user).
+    /// A value within the limits that the app does not take: the row shows the value the app
+    /// holds, and a warning sign says the app did not accept it (C-ATTR-06, changed on
+    /// 2026-10-12; before, there was no sign).
     @MainActor
-    func test_C_ATTR_06_aValueTheAppDoesNotTakeJustGoesBack() async throws {
+    func test_C_ATTR_06_aRejectionWithinTheLimitsSaysSo() async throws {
         let steps: [MockScript.Step] = [
             .expect(.setAttribute, as: 30),
             .send(Frame(requestID: 30, body: .error(ServerError(
@@ -182,15 +202,16 @@ final class AttributeEditingViewTests: XCTestCase {
             $0 is NumberFieldView
         }.first as? NumberFieldView)
 
-        number.commit("7")
+        // 70% is within 0 to 1: it goes, and the app refuses it.
+        XCTAssertEqual(number.commit("70"), .accepted)
         let settled = await Wait.until { @MainActor in
-            model.attributes.edits[AttributeKey(layerID: 3, attributeID: "layer.opacity")]
+            model.attributes.edits[AttributeKey(layerID: 3, attributeID: "view.alpha")]
                 == .failed(.rejected)
         }
         XCTAssertTrue(settled)
-        XCTAssertNil(opacity.failureText, "no warning sign")
+        XCTAssertEqual(opacity.failureText, "The app did not accept this value.")
         XCTAssertFalse(opacity.isSending)
-        XCTAssertEqual(number.field.stringValue, "1", "the value the app holds")
+        XCTAssertEqual(number.field.stringValue, "100", "the value the app holds")
 
         withExtendedLifetime(window) {}
         await session.close()
@@ -214,14 +235,14 @@ final class AttributeEditingViewTests: XCTestCase {
         let number = try XCTUnwrap(AppListViewTests.descendants(of: try XCTUnwrap(opacity.editor)) {
             $0 is NumberFieldView
         }.first as? NumberFieldView)
-        number.commit("0.5")
+        number.commit("50")
         let failed = await Wait.until { @MainActor in opacity.failureText != nil }
         XCTAssertTrue(failed)
         window.layoutIfNeeded()
         XCTAssertEqual(opacity.failureText, "This attribute cannot be changed.")
         XCTAssertEqual(opacity.frame.height, height, "the row keeps its height")
         XCTAssertFalse(opacity.isSending)
-        XCTAssertEqual(number.field.stringValue, "1", "the value from before")
+        XCTAssertEqual(number.field.stringValue, "100", "the value from before")
 
         // Another selection clears it.
         model.select(4)
@@ -242,7 +263,7 @@ final class AttributeEditingViewTests: XCTestCase {
         let (model, session, server) = try await inspection(
             Self.resultSteps(results[0].attributeGroups, as: 30))
         let (controller, window) = panel(for: model)
-        let lines = try field(of: try row("Number Of Lines", in: controller))
+        let lines = try field(of: try row("Lines", in: controller))
         XCTAssertTrue(window.makeFirstResponder(lines))
         AttributeEditorTests.type("4", into: lines)
 
@@ -251,7 +272,7 @@ final class AttributeEditingViewTests: XCTestCase {
             AttributeKey(layerID: 3, attributeID: "label.text"), to: .string("Welcome back"),
             continuous: false)
         let answered = await Wait.until { @MainActor in
-            (try? self.row("Text", in: controller).valueView.plainText) == "Welcome back"
+            (try? self.row("Text", in: controller).plainText) == "Welcome back"
         }
         XCTAssertTrue(answered)
         XCTAssertNotNil(lines.currentEditor(), "still being typed in")

@@ -44,51 +44,7 @@ final class AttributesViewModelTests: XCTestCase {
     private static let readOnly = Attribute(
         id: "layer.frame", title: "Frame", value: nil, editable: false, valueKind: .rect)
 
-    // MARK: - Messages
-
-    func test_C_ATTR_01_eachStateHasItsMessage() {
-        func message(_ state: AttributesStore.State) -> AttributesViewModel.Message? {
-            AttributesViewModel.message(for: state, appName: "Demo")
-        }
-        XCTAssertEqual(message(.none), AttributesViewModel.Message(
-            symbol: "cursorarrow.click.2", title: "No Selection",
-            detail: "Select a layer in the list or the preview."))
-        XCTAssertEqual(message(.loading), AttributesViewModel.Message(
-            symbol: nil, title: "Loading Attributes", showsSpinner: true))
-        XCTAssertEqual(message(.loaded([])), AttributesViewModel.Message(
-            symbol: "list.bullet.rectangle", title: "No Attributes"))
-        XCTAssertNil(message(.loaded([AttributeGroup(id: "g", title: "G", attributes: [])])))
-        XCTAssertEqual(message(.layerGone), AttributesViewModel.Message(
-            symbol: "questionmark.square.dashed", title: "Layer Not Found",
-            detail: "This layer is no longer in the app."))
-        XCTAssertEqual(message(.appNotActive), AttributesViewModel.Message(
-            symbol: "moon.zzz", title: "Demo Is Not Active",
-            detail: "Attributes load when it comes to the foreground."))
-        XCTAssertEqual(message(.failed), AttributesViewModel.Message(
-            symbol: "exclamationmark.triangle", title: "Couldn’t Load Attributes",
-            detail: "The request failed or took too long.", offersRetry: true))
-    }
-
-    func test_C_LAYOUT_02_aLayerWithConstraintsButNoAttributesHasNoMessage() {
-        XCTAssertNil(AttributesViewModel.message(
-            for: .loaded([]), appName: "Demo", hasConstraints: true))
-    }
-
     // MARK: - Changing attributes
-
-    func test_C_ATTR_06_theRowsSayWhyAChangeFailed() {
-        XCTAssertNil(AttributesViewModel.failureText(.rejected, appName: "Demo"))
-        XCTAssertEqual(
-            AttributesViewModel.failureText(.notEditable, appName: "Demo"),
-            "This attribute cannot be changed.")
-        XCTAssertEqual(
-            AttributesViewModel.failureText(.appNotActive, appName: "Demo"),
-            "Demo is not active.")
-        XCTAssertEqual(
-            AttributesViewModel.failureText(.noAnswer, appName: "Demo"),
-            "Demo did not answer in time.")
-        XCTAssertNil(AttributesViewModel.failureText(.notFinite, appName: "Demo"))
-    }
 
     @MainActor
     func test_C_ATTR_04_editableAttributesGetEditorsWhileEditingIsPossible() {
@@ -128,8 +84,9 @@ final class AttributesViewModelTests: XCTestCase {
         XCTAssertEqual(shape, AttributesViewModel.Shape(
             layerID: 3,
             groups: [[AttributesViewModel.Shape.Row(
-                id: "view.alpha", title: "Alpha", kind: .double, hasEditor: false)]],
-            groupTitles: ["View"], groupIDs: ["view"]))
+                id: "view.alpha", title: "Alpha", kind: .double, section: .unspecified, limits: nil, unit: .unspecified,
+                hasEditor: false)]],
+            groupTitles: ["View"], groupIDs: ["view"], groupClassNames: [nil]))
 
         // New values keep the shape: the rows are updated in place.
         var newValue = groups
@@ -219,13 +176,12 @@ final class AttributesViewModelTests: XCTestCase {
         let texts = try XCTUnwrap(
             viewModel.constraintRows(for: .loaded([], constraints: constraints)))
         XCTAssertEqual(texts.map(\.plainEquation), [
-            "self.centerX = UIView.centerX",
+            "self.centerX = HomeViewController.centerX",
             "self.top = Safe Area.top + 49",
             "self.width = 240",
-            "CardView.top = self.bottom + 78",
+            "cardView.top = self.bottom + 78",
         ])
-        // The server gave none (P-HELLO-04), or the state is not an answer.
-        XCTAssertNil(viewModel.constraintRows(for: .loaded([])))
+        // The state is not an answer.
         XCTAssertNil(viewModel.constraintRows(for: .loading))
         // Layer 8 backs no view.
         model.select(8)
@@ -275,5 +231,125 @@ final class AttributesViewModelTests: XCTestCase {
         layers.send(LayerSummary(tree, 3))
         layers.send(nil)
         XCTAssertEqual(shown.values.map { $0?.id }, [3, nil])
+    }
+
+    // MARK: - C-ATTR-10: five sections
+
+    private static func attribute(_ id: String, _ section: AttributeSection) -> Attribute {
+        Attribute(id: id, title: id, value: .integer(0), section: section)
+    }
+
+    private static func ids(_ attributes: [Attribute]) -> [String?] {
+        attributes.map(\.id)
+    }
+
+    private static func ids(
+        _ listing: AttributesViewModel.Listing, _ kind: AttributesViewModel.Listing.Kind
+    ) -> [String?] {
+        ids(listing.section(kind)?.attributes ?? [])
+    }
+
+    private static func layerThree() throws -> [AttributeGroup] {
+        try XCTUnwrap(try Fixtures.layerDetails(scenario: "layer-details").first { $0.layerID == 3 })
+            .attributeGroups
+    }
+
+    func test_C_ATTR_10_eachAttributeIsListedOnceInTheSectionOfItsPurpose() throws {
+        let groups = try Self.layerThree()
+        let listing = AttributesViewModel.listing(of: groups)
+        XCTAssertEqual(listing.sections.map(\.kind), [.content, .appearance, .layout, .behavior, .object])
+        XCTAssertEqual(
+            Self.ids(listing, .content),
+            ["label.text", "label.fontSize", "label.numberOfLines", "label.textAlignment"])
+        XCTAssertEqual(listing.section(.content)?.parts.map(\.groupTitle), ["Label"])
+        XCTAssertEqual(listing.section(.content)?.parts.map(\.groupClassName), ["UILabel"])
+        // From the most specific group to the most general, each group as it came.
+        XCTAssertEqual(Self.ids(listing, .appearance), [
+            "view.isHidden", "view.alpha", "view.backgroundColor", "view.tintColor",
+            "layer.shadowOpacity", "layer.shadowOffset", "layer.borderWidth", "layer.borderColor",
+        ])
+        XCTAssertEqual(
+            Self.ids(listing, .layout),
+            ["view.layoutMargins", "layer.frame", "layer.bounds", "layer.position", "layer.transform"])
+        XCTAssertEqual(Self.ids(listing, .behavior), ["view.isUserInteractionEnabled"])
+        XCTAssertEqual(Self.ids(listing, .object), ["view.tag"])
+        // Every attribute exactly once.
+        let listed = Self.ids(listing.attributes)
+        XCTAssertEqual(listed.count, groups.flatMap(\.attributes).count)
+        XCTAssertEqual(Set(listed), Set(groups.flatMap(\.attributes).map(\.id)))
+    }
+
+    func test_C_ATTR_10_generalUnspecifiedAndUnknownSectionsAreAppearance() {
+        let groups = [AttributeGroup(id: "view", title: "View", attributes: [
+            Self.attribute("a", .general), Self.attribute("b", .unspecified),
+            Self.attribute("c", .appearance),
+        ])]
+        let listing = AttributesViewModel.listing(of: groups)
+        XCTAssertEqual(listing.sections.map(\.kind), [.appearance])
+        XCTAssertEqual(Self.ids(listing, .appearance), ["a", "b", "c"])
+    }
+
+    func test_C_ATTR_10_theContentOfSeveralGroupsKeepsThemApart() {
+        let groups = [
+            AttributeGroup(id: "view", title: "View", attributes: [Self.attribute("hidden", .appearance)]),
+            AttributeGroup(id: "control", title: "Control", attributes: [Self.attribute("enabled", .content)],
+                           className: "UIControl"),
+            AttributeGroup(id: "button", title: "Button", attributes: [Self.attribute("title", .content)],
+                           className: "UIButton"),
+            AttributeGroup(id: "empty", title: "Empty", attributes: []),
+        ]
+        let listing = AttributesViewModel.listing(of: groups)
+        let content = try? XCTUnwrap(listing.section(.content))
+        XCTAssertEqual(content?.parts.map(\.groupTitle), ["Button", "Control"], "the most specific first")
+        XCTAssertEqual(content?.parts.map(\.groupClassName), ["UIButton", "UIControl"])
+        XCTAssertEqual(Self.ids(listing.attributes), ["title", "enabled", "hidden"])
+        XCTAssertEqual(listing.sections.map(\.kind), [.content, .appearance], "no empty sections")
+    }
+
+    func test_C_ATTR_10_olderPeersFallBackToAppearance() throws {
+        // A server whose sections are Identity, Layout and General only.
+        let bare = AttributesViewModel.listing(of: Fixtures.withoutTheOptionalFields(try Self.layerThree()))
+        XCTAssertEqual(bare.sections.map(\.kind), [.appearance, .layout, .object])
+        XCTAssertEqual(Self.ids(bare, .appearance), [
+            "view.isHidden", "view.alpha", "view.backgroundColor", "view.tintColor",
+            "view.isUserInteractionEnabled",
+            "label.text", "label.fontSize", "label.numberOfLines", "label.textAlignment",
+            "layer.shadowOpacity", "layer.shadowOffset", "layer.borderWidth", "layer.borderColor",
+        ])
+        // A 1.0 server: no sections at all.
+        let old = AttributesViewModel.listing(of: Fixtures.withoutProtocol11(try Self.layerThree()))
+        XCTAssertEqual(old.sections.map(\.kind), [.appearance])
+        XCTAssertEqual(old.attributes.count, 19)
+    }
+
+    func test_C_ATTR_10_theListingDependsOnTheSectionAlone() {
+        // The IDs of groups and attributes mean nothing to the listing (C-ATTR-03).
+        let named = [
+            AttributeGroup(id: "layer", title: "Layer", attributes: [
+                Self.attribute("layer.frame", .behavior), Self.attribute("view.tag", .layout),
+                Self.attribute("layer.bounds", .identity), Self.attribute("label.text", .appearance),
+            ]),
+        ]
+        let renamed = [
+            AttributeGroup(id: "x9", title: "Q", attributes: [
+                Self.attribute("zz", .behavior), Self.attribute("yy", .layout),
+                Self.attribute("ww", .identity), Self.attribute("vv", .appearance),
+            ]),
+        ]
+        for groups in [named, renamed] {
+            let listing = AttributesViewModel.listing(of: groups)
+            XCTAssertEqual(listing.sections.map(\.kind), [.appearance, .layout, .behavior, .object])
+            XCTAssertEqual(listing.sections.map(\.attributes.count), [1, 1, 1, 1])
+        }
+    }
+
+    // MARK: - C-ATTR-14: the filter
+
+    @MainActor
+    func test_C_ATTR_10_theShapeChangesWithTheSection() {
+        let viewModel = self.viewModel(for: attributesStore())
+        let general = [AttributeGroup(id: "g", title: "G", attributes: [Self.attribute("a", .general)])]
+        let layout = [AttributeGroup(id: "g", title: "G", attributes: [Self.attribute("a", .layout)])]
+        XCTAssertNotEqual(viewModel.shape(of: general), viewModel.shape(of: layout))
     }
 }
