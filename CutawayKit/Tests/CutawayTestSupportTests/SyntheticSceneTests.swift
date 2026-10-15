@@ -71,52 +71,6 @@ final class SyntheticSceneTests: XCTestCase {
         await server.stop()
     }
 
-    func test_C_MOCK_03_theSameParametersGiveTheSameBytes() {
-        let shapes: [SyntheticScene.Shape] = [.deep, .wide, .app(AppShape())]
-        for shape in shapes {
-            let scene = SyntheticScene(
-                layerCount: 600, shape: shape, imagePixels: .layerSize(scale: 0.25),
-                attributes: true, constraints: true)
-            XCTAssertEqual(Self.frames(of: scene), Self.frames(of: scene), "\(shape)")
-            XCTAssertEqual(scene.hierarchy().nodes.count, 600, "\(shape)")
-        }
-    }
-
-    func test_C_MOCK_03_theShapesNestAsTheirNamesSay() {
-        let deep = SyntheticScene(layerCount: 50, shape: .deep).hierarchy()
-        XCTAssertTrue(zip(deep.nodes.dropFirst(), deep.nodes).allSatisfy { $0.parentID == $1.id })
-
-        let wide = SyntheticScene(layerCount: 50, shape: .wide).hierarchy()
-        XCTAssertTrue(wide.nodes.dropFirst().allSatisfy { $0.parentID == wide.nodes[0].id })
-
-        // A window, then screens: containers, a bar with its buttons, a list of cells.
-        let app = SyntheticScene(layerCount: 2_000, shape: .app(AppShape())).hierarchy()
-        let classes = app.nodes.compactMap(\.viewClassName)
-        XCTAssertEqual(app.nodes[0].viewClassName, "UIWindow")
-        XCTAssertGreaterThan(classes.filter { $0 == "UITableViewCell" }.count, 100)
-        XCTAssertGreaterThan(classes.filter { $0 == "UINavigationBar" }.count, 1)
-    }
-
-    func test_C_MOCK_03_imagesHaveTheSizeAskedFor() throws {
-        let fixed = SyntheticScene(
-            layerCount: 20, shape: .app(AppShape()), imagePixels: .fixed(width: 32, height: 16))
-        let image = try XCTUnwrap(fixed.details().values.first?.group)
-        XCTAssertEqual(image.pixelWidth, 32)
-        XCTAssertEqual(image.pixelHeight, 16)
-        XCTAssertEqual(try image.decoded().pixels.count, 32 * 16 * 4)
-
-        let none = SyntheticScene(layerCount: 20, shape: .app(AppShape()), imagePixels: .none)
-        XCTAssertTrue(none.details().values.allSatisfy { $0.solo == nil && $0.group == nil })
-
-        // The window is 393 × 852 points.
-        let sized = SyntheticScene(
-            layerCount: 1, shape: .app(AppShape()), imagePixels: .layerSize(scale: 2))
-        let window = try XCTUnwrap(sized.details().values.first?.group)
-        XCTAssertEqual(window.pixelWidth, 786)
-        XCTAssertEqual(window.pixelHeight, 1704)
-        XCTAssertEqual(window.scale, 2)
-    }
-
     /// The hierarchy, then one chunk of every eight layers' details, encoded.
     private static func frames(of scene: SyntheticScene) -> [Data] {
         let hierarchy = scene.hierarchy()

@@ -52,11 +52,13 @@ let package = Package(
             ],
             // The licences of the libraries shipped with the app (C-MENU-03).
             // The interface's text in its languages (C-LOC-01).
+            // The glyphs of the layers' icons (C-HIER-11), the empty app list's picture (C-LIST-04).
             resources: [
                 .copy("Resources/Acknowledgements"), .process("Resources/Localizable.xcstrings"),
+                .process("Resources/LayerGlyphs.xcassets"), .process("Resources/Images.xcassets"),
             ]
         ),
-        .target(name: "CutawayTestSupport", dependencies: ["CutawayWire", "CutawayTransport"]),
+        .target(name: "CutawayTestSupport", dependencies: ["CutawayScene", "CutawayWire", "CutawayTransport"]),
         .testTarget(
             name: "CutawayWireTests",
             dependencies: [
@@ -67,7 +69,7 @@ let package = Package(
         ),
         .testTarget(
             name: "CutawaySceneTests",
-            dependencies: ["CutawayScene", "CutawayModel", "CutawayWire", "CutawayTestSupport"]
+            dependencies: ["CutawayScene", "CutawayTestSupport"]
         ),
         .testTarget(
             name: "CutawayRenderTests",
@@ -91,6 +93,10 @@ let package = Package(
         .testTarget(
             name: "CutawayTransportTests",
             dependencies: ["CutawayTransport", "CutawayWire", "CutawayTestSupport"]
+        ),
+        .testTarget(
+            name: "CutawayTestSupportTests",
+            dependencies: ["CutawayTestSupport", "CutawayTransport", "CutawayWire"]
         ),
         .testTarget(
             name: "CutawayModelTests",

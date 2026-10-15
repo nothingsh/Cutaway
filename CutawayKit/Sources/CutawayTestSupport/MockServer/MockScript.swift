@@ -151,3 +151,59 @@ extension MockScript {
         return script
     }
 }
+
+extension MockScript {
+    /// The script as a 1.0 server plays it (C-WIRE-10): its `Hello` gives 1.0, and the frames
+    /// it sends have none of what 1.1 appended (addresses, sections, limits and the optional
+    /// fields).
+    public func asProtocol10() -> MockScript {
+        serverSpeaking(Version(major: 1, minor: 0)).strippingSentFrames(
+            hierarchy: Fixtures.withoutProtocol11, groups: Fixtures.withoutProtocol11)
+    }
+
+    /// The script as a server that leaves out what 1.1 lets it leave out plays it
+    /// (C-WIRE-11): the same `Hello`, and the frames it sends have none of the optional fields.
+    public func withoutTheOptionalFields() -> MockScript {
+        strippingSentFrames(hierarchy: Fixtures.withoutTheOptionalFields, groups: Fixtures.withoutTheOptionalFields)
+    }
+
+    /// The script with every attribute on a row of its own (C-ATTR-19): the attributes it
+    /// sends have no clusters, and nothing else changes. For the tests of what a single
+    /// attribute's row does.
+    public func withoutClusters() -> MockScript {
+        strippingSentFrames(
+            hierarchy: { $0 }, groups: Fixtures.withoutClusters, strippingConstraints: false)
+    }
+
+    private func strippingSentFrames(
+        hierarchy strippedHierarchy: (Hierarchy) -> Hierarchy,
+        groups strippedGroups: ([AttributeGroup]) -> [AttributeGroup],
+        strippingConstraints: Bool = true
+    ) -> MockScript {
+        var script = self
+        script.steps = script.steps.map { step in
+            guard case .send(var frame) = step else { return step }
+            switch frame.body {
+            case .hierarchy(let hierarchy):
+                frame.body = .hierarchy(strippedHierarchy(hierarchy))
+            case .layerDetailsChunk(var chunk):
+                chunk.details = chunk.details.map { detail in
+                    var detail = detail
+                    detail.attributeGroups = strippedGroups(detail.attributeGroups)
+                    if strippingConstraints {
+                        detail.constraints = Fixtures.withoutTheOptionalFields(detail.constraints)
+                    }
+                    return detail
+                }
+                frame.body = .layerDetailsChunk(chunk)
+            case .setAttributeResult(var result):
+                result.attributeGroups = strippedGroups(result.attributeGroups)
+                frame.body = .setAttributeResult(result)
+            default:
+                return step
+            }
+            return .send(frame)
+        }
+        return script
+    }
+}
