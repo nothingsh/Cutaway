@@ -1,3 +1,5 @@
+import CutawayScene
+
 // `fitCamerasToTheFocus()` is internal only so that the other InspectionStore files can call
 // it. What changes is worked out by `HierarchyViewState`; each function here publishes it in
 // the order its interface needs.
@@ -107,13 +109,41 @@ extension InspectionStore {
         setSelection(state.selection)
     }
 
-    /// Selects the layer at the other end of a constraint (C-LAYOUT-03): leaves the focus when
-    /// the layer is outside it, then reveals it, so that the layer itself is selected and not a
-    /// collapsed node above it. Does nothing for a layer that is not in the tree.
-    public func showConstraintEnd(_ id: UInt64) {
+    /// Selects a layer the attribute panel names: the other end of a constraint (C-LAYOUT-03)
+    /// or an ancestor (C-ATTR-16). Leaves the focus when the layer is outside it, then reveals
+    /// it, so that the layer itself is selected and not a collapsed node above it. Does nothing
+    /// for a layer that is not in the tree.
+    public func showLayer(_ id: UInt64) {
         guard tree.contains(id) else { return }
         if let focus = focusedLayerID, !tree.isWithin(id, root: focus) { self.focus(on: nil) }
         reveal(id)
+    }
+
+    /// The selected layer's parent; nil without a selection, or for a window's root layer
+    /// (C-ATTR-16).
+    public var selectedParentID: UInt64? {
+        selectedLayerID.flatMap(tree.parent(of:))
+    }
+
+    /// The selected layer's first child as the list shows it: under a search, the first one
+    /// the search keeps; nil without a selection or such a child (C-ATTR-16).
+    public var selectedFirstChildID: UInt64? {
+        guard let id = selectedLayerID else { return nil }
+        let children = tree.children(of: id)
+        guard let filter else { return children.first }
+        return children.first(where: filter.shown.contains)
+    }
+
+    /// Selects the selected layer's parent (⌘↑), leaving the focus when the selected layer is
+    /// its root (C-ATTR-16).
+    public func selectParent() {
+        if let parent = selectedParentID { showLayer(parent) }
+    }
+
+    /// Selects the selected layer's first child (⌘↓), expanding the selected layer when it is
+    /// collapsed (C-ATTR-16).
+    public func selectFirstChild() {
+        if let child = selectedFirstChildID { showLayer(child) }
     }
 
     /// Selects a layer, or nothing. Does nothing for a layer that is not in the tree, or that

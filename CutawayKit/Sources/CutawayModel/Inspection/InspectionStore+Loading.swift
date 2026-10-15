@@ -236,8 +236,8 @@ extension InspectionStore: HierarchyLoaderDelegate {
                 // The app is about to leave the list, and this inspection with it (C-CONN-07).
                 loader.dropQueued()
             case .unsupported:
-                // Not asked for when the server cannot send subtrees; if it happens anyway,
-                // the whole tree does the same job.
+                // Not asked for when the source cannot send subtrees (an archive); if it
+                // happens anyway, the whole tree does the same job.
                 loader.reloadAgain = true
             default:
                 notice = .layersFailed

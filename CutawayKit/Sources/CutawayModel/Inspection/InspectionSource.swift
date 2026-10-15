@@ -2,28 +2,24 @@ import CutawayTransport
 import CutawayWire
 import Foundation
 
-/// What an inspection may ask its source for (P-HELLO-04, C-ARCH-05): worked out from the
-/// negotiated protocol version and from whether the source is an app or an archive, in one
-/// place, so that the inspection never reads version numbers itself.
+/// What an inspection may ask its source for (C-ARCH-05), in one place: every version the
+/// handshake accepts has it all (P-HELLO-03), so it follows from whether the source is an
+/// app or an archive.
 public struct InspectionCapabilities: Equatable, Sendable {
-    /// `GetSubtree`: protocol 0.3, and only an app can send one (C-DET-07).
+    /// `GetSubtree`: only an app can send one (C-DET-07).
     public var canRefreshSubtrees: Bool
-    /// `SetAttribute`: protocol 0.3, and only an app can take one (C-ATTR-04).
+    /// `SetAttribute`: only an app can take one (C-ATTR-04).
     public var canEditAttributes: Bool
-    /// The constraints in a layer's detail: protocol 0.4 (C-LAYOUT-01).
-    public var givesConstraints: Bool
 
-    public init(canRefreshSubtrees: Bool, canEditAttributes: Bool, givesConstraints: Bool) {
+    public init(canRefreshSubtrees: Bool, canEditAttributes: Bool) {
         self.canRefreshSubtrees = canRefreshSubtrees
         self.canEditAttributes = canEditAttributes
-        self.givesConstraints = givesConstraints
     }
 
-    /// The capabilities of a source speaking `features`; an archive can only be looked at.
-    public init(features: ProtocolFeatures, isLive: Bool) {
-        canRefreshSubtrees = features.sendsSubtrees && isLive
-        canEditAttributes = features.changesAttributes && isLive
-        givesConstraints = features.givesConstraints
+    /// The capabilities of an app, or of an archive, which can only be looked at.
+    public init(isLive: Bool) {
+        canRefreshSubtrees = isLive
+        canEditAttributes = isLive
     }
 }
 
@@ -61,12 +57,10 @@ public protocol InspectionSource: AnyObject, Sendable {
 }
 
 extension InspectionSource {
-    /// By default, what the negotiated version has, for an app or an archive.
+    /// By default, those of an app or an archive, once a version is negotiated.
     public var capabilities: InspectionCapabilities? {
         get async {
-            await negotiatedVersion.map {
-                InspectionCapabilities(features: ProtocolFeatures(negotiated: $0), isLive: isLive)
-            }
+            await negotiatedVersion.map { _ in InspectionCapabilities(isLive: isLive) }
         }
     }
 

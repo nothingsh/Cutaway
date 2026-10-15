@@ -141,10 +141,11 @@ final class PreviewControlsTests: XCTestCase {
     @MainActor
     func test_C_PREV_09_bordersAreOnUntilTurnedOffAndNeedNoLayout() throws {
         let model = try model()
-        XCTAssertTrue(model.showsBorders)
+        XCTAssertTrue(model.borders.showsBorders)
         let builds = model.geometryBuildCount
-        model.setShowsBorders(false)
-        XCTAssertFalse(model.showsBorders)
+        model.setBorderStyle(.off)
+        XCTAssertFalse(model.borders.showsBorders)
+        model.setOnlyAppClasses(true)
         XCTAssertEqual(model.geometryBuildCount, builds)
     }
 
@@ -183,5 +184,14 @@ final class PreviewControlsTests: XCTestCase {
         XCTAssertEqual(model.detailProgress.total, 8, "layer 5 too")
         model.setShowsHiddenLayers(false)
         XCTAssertEqual(model.detailProgress.total, 7)
+    }
+
+    @MainActor
+    func test_C_PREV_18_anArchivesSwitchIsTakenOver() throws {
+        let model = try model()
+        var state = model.archiveState
+        state.showsConstraintEnds = true
+        model.restore(state)
+        XCTAssertTrue(model.showsAllConstraintEnds)
     }
 }

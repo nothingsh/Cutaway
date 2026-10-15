@@ -39,7 +39,9 @@ protocol HierarchyLoaderDelegate: AnyObject {
 @MainActor
 final class HierarchyLoader {
     private let source: any InspectionSource
-    private unowned let delegate: any HierarchyLoaderDelegate
+    /// Weak: a task may hold the loader while it delivers an answer after the inspection is
+    /// gone, which then does nothing.
+    private weak var delegate: (any HierarchyLoaderDelegate)?
 
     private(set) var isLoading = false
     /// Set when a reload is asked for while a load is under way: it is made after that one.
@@ -70,6 +72,7 @@ final class HierarchyLoader {
     /// Asks the app for its hierarchy, once `previous` is done. Asked while a request is
     /// under way, it asks once more after that one.
     func reload(after previous: Task<Void, Never>? = nil) {
+        guard let delegate else { return }
         guard !isLoading else {
             reloadAgain = true
             // The whole tree holds every subtree that waits.
@@ -92,10 +95,9 @@ final class HierarchyLoader {
     }
 
     private func finishWholeLoad(_ result: Result<Hierarchy, any Error>, generation: UInt64) {
-        // Held for the whole answer: the delegate is unowned, and what it does may let go
-        // of it.
-        let delegate = self.delegate
+        // Held for the whole answer: what the delegate does may let go of it.
         isLoading = false
+        guard let delegate else { return }
         delegate.loader(
             self, finishedWholeLoad: result, outOfDate: generation != delegate.activeGeneration)
         startNext(delegate)
@@ -124,7 +126,7 @@ final class HierarchyLoader {
     @discardableResult
     func layerDidChange(_ id: UInt64) -> Bool {
         changedLayers.insert(id)
-        guard !isLoading, delegate.hasLoadedTree else { return false }
+        guard !isLoading, let delegate, delegate.hasLoadedTree else { return false }
         startRefreshAfterChanges()
         return true
     }
@@ -132,7 +134,7 @@ final class HierarchyLoader {
     /// Takes the window of the changed layers again; changed layers of other windows wait
     /// for the next load. Changed layers no longer in the tree are dropped.
     private func startRefreshAfterChanges() {
-        let tree = delegate.tree
+        guard let tree = delegate?.tree else { return }
         changedLayers = changedLayers.filter(tree.contains)
         guard let first = changedLayers.first, let root = tree.path(to: first).first else {
             return
@@ -145,6 +147,7 @@ final class HierarchyLoader {
     /// `changed` is nil for a subtree the user asked for (C-DET-07), and the changed layers
     /// for a refresh after a change (C-DET-06).
     private func loadSubtree(_ id: UInt64, after changed: Set<UInt64>? = nil) {
+        guard let delegate else { return }
         isLoading = true
         loadingSubtree = id
         refreshingChanges = changed
@@ -164,11 +167,12 @@ final class HierarchyLoader {
     private func finishSubtree(
         _ id: UInt64, _ result: Result<Hierarchy, any Error>, generation: UInt64
     ) {
-        let delegate = self.delegate
         isLoading = false
         loadingSubtree = nil
         let changed = refreshingChanges
         refreshingChanges = nil
+        // Held for the whole answer: what the delegate does may let go of it.
+        guard let delegate else { return }
         delegate.loader(
             self, finishedSubtree: id, changed: changed, result: result,
             outOfDate: generation != delegate.activeGeneration)

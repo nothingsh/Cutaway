@@ -13,8 +13,30 @@ public final class AppSettings: ObservableObject {
         public static let newInspectionMode = "Settings.newInspectionMode"
         public static let layerSpacing = "Settings.layerSpacing"
         public static let showsHiddenLayers = "Settings.showsHiddenLayers"
+        /// The boolean of earlier versions, read when `borderStyle` is not kept.
         public static let showsBorders = "Settings.showsBorders"
+        public static let borderStyle = "Settings.borderStyle"
+        public static let onlyAppClasses = "Settings.onlyAppClasses"
+        public static let showsConstraintEnds = "Settings.showsConstraintEnds"
         public static let page = "Settings.page"
+        public static let appearance = "Settings.appearance"
+    }
+
+    /// How Cutaway looks (C-PREF-03): as the system says, or always light or dark.
+    public enum Appearance: String, CaseIterable, Sendable {
+        case system, light, dark
+    }
+
+    /// Cutaway's appearance (C-PREF-03), on the General page. It applies at once to every
+    /// window.
+    @Published public var appearance: Appearance {
+        didSet {
+            if appearance == .system {
+                if !isLoading { defaults.removeObject(forKey: Key.appearance) }
+            } else {
+                store(appearance.rawValue, at: Key.appearance)
+            }
+        }
     }
 
     /// The mode a new inspection opens in (C-PREF-02).
@@ -38,9 +60,24 @@ public final class AppSettings: ObservableObject {
         didSet { store(showsHiddenLayers, at: Key.showsHiddenLayers) }
     }
 
-    /// Whether a new inspection draws borders.
-    @Published public var showsBorders: Bool {
-        didSet { store(showsBorders, at: Key.showsBorders) }
+    /// How a new inspection outlines the layers (C-PREV-17).
+    @Published public var borderStyle: BorderStyle {
+        didSet {
+            store(borderStyle.rawValue, at: Key.borderStyle)
+            // The new key decides from now on.
+            if !isLoading { defaults.removeObject(forKey: Key.showsBorders) }
+        }
+    }
+
+    /// Whether a new inspection outlines only the app's own classes (C-PREV-17).
+    @Published public var onlyAppClasses: Bool {
+        didSet { store(onlyAppClasses, at: Key.onlyAppClasses) }
+    }
+
+    /// Whether a new inspection marks every end of the selected layer's constraints
+    /// (C-PREV-18).
+    @Published public var showsConstraintEnds: Bool {
+        didSet { store(showsConstraintEnds, at: Key.showsConstraintEnds) }
     }
 
     /// The settings window's page last shown, by its index; the first one at first. Not a
@@ -72,7 +109,19 @@ public final class AppSettings: ObservableObject {
             ?? start.layerSpacing
         showsHiddenLayers = Self.bool(defaults.object(forKey: Key.showsHiddenLayers))
             ?? start.showsHiddenLayers
-        showsBorders = Self.bool(defaults.object(forKey: Key.showsBorders)) ?? start.showsBorders
+        // The style kept, else the switch of an earlier version: on is by kind (C-PREV-17).
+        borderStyle = (defaults.object(forKey: Key.borderStyle) as? String)
+            .flatMap(BorderStyle.init(rawValue:))
+            ?? Self.bool(defaults.object(forKey: Key.showsBorders)).map {
+                BorderOptions(showsBorders: $0).style
+            }
+            ?? start.borders.style
+        onlyAppClasses = Self.bool(defaults.object(forKey: Key.onlyAppClasses))
+            ?? start.borders.onlyAppClasses
+        showsConstraintEnds = Self.bool(defaults.object(forKey: Key.showsConstraintEnds))
+            ?? start.showsConstraintEnds
+        appearance = (defaults.object(forKey: Key.appearance) as? String)
+            .flatMap(Appearance.init(rawValue:)) ?? .system
         isShowingPreviewDefaults = computeIsShowingPreviewDefaults()
     }
 
@@ -80,7 +129,9 @@ public final class AppSettings: ObservableObject {
     public var inspectionStart: InspectionStart {
         InspectionStart(
             previewMode: newInspectionMode, layerSpacing: layerSpacing,
-            showsHiddenLayers: showsHiddenLayers, showsBorders: showsBorders)
+            showsHiddenLayers: showsHiddenLayers,
+            borders: BorderOptions(style: borderStyle, onlyAppClasses: onlyAppClasses),
+            showsConstraintEnds: showsConstraintEnds)
     }
 
     /// Puts every value of the Preview page back to its default and forgets what was kept.
@@ -90,9 +141,14 @@ public final class AppSettings: ObservableObject {
             newInspectionMode = start.previewMode
             layerSpacing = start.layerSpacing
             showsHiddenLayers = start.showsHiddenLayers
-            showsBorders = start.showsBorders
+            borderStyle = start.borders.style
+            onlyAppClasses = start.borders.onlyAppClasses
+            showsConstraintEnds = start.showsConstraintEnds
         }
-        for key in [Key.newInspectionMode, Key.layerSpacing, Key.showsHiddenLayers, Key.showsBorders] {
+        for key in [
+            Key.newInspectionMode, Key.layerSpacing, Key.showsHiddenLayers, Key.showsBorders,
+            Key.borderStyle, Key.onlyAppClasses, Key.showsConstraintEnds,
+        ] {
             defaults.removeObject(forKey: key)
         }
     }

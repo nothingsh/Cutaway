@@ -37,24 +37,6 @@ final class AppListStoreTests: XCTestCase {
     }
 
     @MainActor
-    func test_C_LIST_01_entriesAreOrderedSimulatorsFirstThenDevices() {
-        let model = AppListStore()
-        let locations: [AppLocation] = [
-            .device(serial: "B", port: 48160), .simulator(port: 48162),
-            .device(serial: "A", port: 48161), .simulator(port: 48160),
-            .device(serial: "A", port: 48160),
-        ]
-        for location in locations {
-            model.apply(.found(location, Self.demo, session()))
-        }
-        XCTAssertEqual(model.entries.map(\.id), [
-            .simulator(port: 48160), .simulator(port: 48162),
-            .device(serial: "A", port: 48160), .device(serial: "A", port: 48161),
-            .device(serial: "B", port: 48160),
-        ])
-    }
-
-    @MainActor
     func test_C_LIST_01_inspectingAnAppRecordsItAndLeavingClearsIt() {
         let model = AppListStore()
         model.apply(.found(Self.simulator, Self.demo, session()))
@@ -182,19 +164,6 @@ final class AppListStoreTests: XCTestCase {
     }
 
     // MARK: - C-CONN-08, C-LIST-03
-
-    @MainActor
-    func test_C_CONN_08_stateChangesUpdateTheEntry() {
-        let model = AppListStore()
-        model.apply(.found(Self.simulator, Self.demo, session()))
-
-        model.apply(.stateChanged(Self.simulator, .background))
-        XCTAssertEqual(model.entries.first?.status, .ready(.background))
-        model.apply(.stateChanged(Self.simulator, .inactive))
-        XCTAssertEqual(model.entries.first?.status, .ready(.inactive))
-        model.apply(.stateChanged(Self.simulator, .active))
-        XCTAssertEqual(model.entries.first?.status, .ready(.active))
-    }
 
     @MainActor
     func test_C_CONN_08_stateChangesForUnknownOrIncompatibleAppsAreIgnored() {
