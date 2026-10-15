@@ -119,7 +119,7 @@ struct MainMenuBuilder {
     }
 
     /// The mode, the zoom and what the preview shows (C-PREV-02, C-PREV-05, C-PREV-07 to
-    /// C-PREV-09).
+    /// C-PREV-09, C-PREV-17).
     private func addPreviewItems(to view: NSMenu) {
         add("2D", #selector(InspectorWindowController.showTwoD(_:)), key: "1", to: view)
         add("3D", #selector(InspectorWindowController.showThreeD(_:)), key: "2", to: view)
@@ -131,13 +131,41 @@ struct MainMenuBuilder {
         add(
             localized("menu.view.showHiddenLayers"), #selector(InspectorWindowController.toggleHiddenLayers(_:)),
             key: "h", modifiers: [.command, .shift], to: view)
+        add(localized("menu.view.borders"), nil, to: view).submenu = makeBordersMenu()
         add(
-            localized("menu.view.showBorders"), #selector(InspectorWindowController.toggleBorders(_:)), key: "b",
+            localized("menu.view.showConstraintEnds"),
+            #selector(InspectorWindowController.toggleConstraintEnds(_:)), key: "k",
             modifiers: [.command, .shift], to: view)
     }
 
-    /// The list's commands (C-HIER-05, C-HIER-06).
+    /// The borders' style (C-PREV-17). A submenu's own item takes no shortcut, so ⇧⌘B is on
+    /// Show Borders, which turns them off and back to the style they had.
+    private func makeBordersMenu() -> NSMenu {
+        let borders = NSMenu(title: localized("menu.view.borders"))
+        add(
+            localized("menu.view.showBorders"), #selector(InspectorWindowController.toggleBorders(_:)), key: "b",
+            modifiers: [.command, .shift], to: borders)
+        borders.addItem(.separator())
+        add(localized("menu.view.borders.plain"), #selector(InspectorWindowController.showPlainBorders(_:)),
+            to: borders)
+        add(localized("menu.view.borders.byKind"), #selector(InspectorWindowController.showBordersByKind(_:)),
+            to: borders)
+        borders.addItem(.separator())
+        add(
+            localized("menu.view.borders.onlyAppClasses"),
+            #selector(InspectorWindowController.toggleOnlyAppClasses(_:)), to: borders)
+        return borders
+    }
+
+    /// The list's commands (C-ATTR-16, C-HIER-05, C-HIER-06).
     private func addListItems(to view: NSMenu) {
+        add(
+            localized("menu.view.selectParent"), #selector(InspectorWindowController.selectParentLayer(_:)),
+            key: Self.key(NSUpArrowFunctionKey), modifiers: [.command], to: view)
+        add(
+            localized("menu.view.selectFirstChild"),
+            #selector(InspectorWindowController.selectFirstChildLayer(_:)),
+            key: Self.key(NSDownArrowFunctionKey), modifiers: [.command], to: view)
         add(
             localized("menu.view.focusOnSelectedLayer"),
             #selector(InspectorWindowController.focusOnSelectedLayer(_:)),

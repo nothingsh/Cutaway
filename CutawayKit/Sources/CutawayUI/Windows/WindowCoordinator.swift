@@ -42,10 +42,13 @@ public final class WindowCoordinator: NSObject {
     /// `remembersWindowFrames` keeps the windows' sizes and places between launches; tests
     /// leave it off, so that one run does not shape the next. Without `settings`, the
     /// coordinator keeps its own, starting from the defaults each time; so it does without
-    /// `language`.
+    /// `language`. `applyAppearance` gives the whole app the appearance chosen in the settings
+    /// (C-PREF-03), nil for the system's; tests record it. Without an application, as in a
+    /// package test run before any test made one, there is nothing to give it to.
     public init(
         store: AppListStore, discoversDevices: Bool, remembersWindowFrames: Bool = false,
-        settings: AppSettings? = nil, language: LanguageSetting? = nil
+        settings: AppSettings? = nil, language: LanguageSetting? = nil,
+        applyAppearance: @escaping @MainActor (NSAppearance?) -> Void = { NSApp?.appearance = $0 }
     ) {
         self.store = store
         self.remembersWindowFrames = remembersWindowFrames
@@ -57,11 +60,17 @@ public final class WindowCoordinator: NSObject {
                 ? PaneWidths(key: PaneWidths.inspectorKey, defaults: .standard) : nil)
         super.init()
         let current = self.settings
+        // Before any window shows, and at once on each change (C-PREF-03).
+        current.$appearance
+            .removeDuplicates()
+            .sink { applyAppearance($0.nsAppearance) }
+            .store(in: &cancellables)
         store.inspectionStart = { current.inspectionStart }
         store.inspectionText = .interface
         launcher = LauncherWindowController(
             store: store, discoversDevices: discoversDevices,
-            onChoose: { [weak self] location in self?.choose(location) })
+            onChoose: { [weak self] location in self?.choose(location) },
+            openURL: { [weak self] url in self?.openURL(url) })
         if remembersWindowFrames { launcher.windowFrameAutosaveName = "Launcher" }
         // With no window left, the launcher shows (C-WIN-05).
         archives.didCloseWindow = { [weak self] in
@@ -255,5 +264,16 @@ public final class WindowCoordinator: NSObject {
         // AppKit would not give the name to the window that replaces it.
         old.windowFrameAutosaveName = ""
         old.close()
+    }
+}
+
+extension AppSettings.Appearance {
+    /// What the app is given: nil follows the system.
+    var nsAppearance: NSAppearance? {
+        switch self {
+        case .system: nil
+        case .light: NSAppearance(named: .aqua)
+        case .dark: NSAppearance(named: .darkAqua)
+        }
     }
 }

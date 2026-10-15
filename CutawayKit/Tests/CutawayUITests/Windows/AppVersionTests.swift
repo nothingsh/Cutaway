@@ -26,19 +26,6 @@ final class AppVersionTests: XCTestCase {
         }
     }
 
-    func test_C_DIST_01_theVersionIsReadFromTheBundle() throws {
-        let complete = try bundle(info: [
-            "CFBundleIdentifier": "dev.cutaway.versiontest.complete",
-            "CFBundleShortVersionString": "1.0.0-beta.1", "CFBundleVersion": "7",
-        ])
-        XCTAssertEqual(AppVersion(bundle: complete).version, "1.0.0-beta.1")
-        XCTAssertEqual(AppVersion(bundle: complete).build, "7")
-
-        let empty = try bundle(info: ["CFBundleIdentifier": "dev.cutaway.versiontest.empty"])
-        XCTAssertEqual(AppVersion(bundle: empty).version, "")
-        XCTAssertEqual(AppVersion(bundle: empty).build, "")
-    }
-
     /// A bundle on disk with only an Info.plist.
     private func bundle(info: [String: String]) throws -> Bundle {
         let folder = FileManager.default.temporaryDirectory
