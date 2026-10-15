@@ -18,5 +18,5 @@ swift build --package-path "$package" --build-tests
 # Run the bundle itself: `swift test` holds back a test's output until the test ends.
 bin="$(swift build --package-path "$package" --show-bin-path)"
 CUTAWAY_REPLAY_ARCHIVE="$archive" xcrun xctest \
-  -XCTest CutawayTransportTests.ArchiveReplayServiceTests/test_C_MOCK_04_serveTheArchiveNamedInTheEnvironment \
-  "$bin/CutawayTransportTests.xctest"
+  -XCTest CutawayTestSupportTests.ArchiveReplayServiceTests/test_C_MOCK_04_serveTheArchiveNamedInTheEnvironment \
+  "$bin/CutawayTestSupportTests.xctest"
