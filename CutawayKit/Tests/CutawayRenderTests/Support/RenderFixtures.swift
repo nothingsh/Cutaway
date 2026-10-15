@@ -8,6 +8,10 @@ import XCTest
 enum RenderFixtures {
     static let portrait = Viewport(width: 480, height: 900)
     static let square = Viewport(width: 900, height: 900)
+    /// The safe area of layer 2 in the `layout-constraints` fixture.
+    static let safeArea = SceneRect(x: 0, y: 59, width: 393, height: 759)
+    /// Layer 3's ends in the `layout-constraints` fixture.
+    static let layer3Ends: [SceneMark] = [.layer(2), .area(safeArea, in: 2), .layer(4)]
 
     static func textureImage(_ bitmap: Bitmap) -> TextureImage {
         TextureImage(
@@ -111,7 +115,6 @@ enum RenderFixtures {
     static let orange = Pixel(blue: 0x00, green: 0x80, red: 0xFF, alpha: 0xFF)
     /// 0x80 0x00 0x00 0x80 from `layer-details-cancelled`, as 0–1 premultiplied RGBA.
     static let translucentBlue = SIMD4<Float>(0, 0, 128.0 / 255, 128.0 / 255)
-    static let opaqueRed = SIMD4<Float>(1, 0, 0, 1)
 }
 
 extension RenderedImage {
