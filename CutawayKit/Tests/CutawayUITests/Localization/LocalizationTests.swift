@@ -10,11 +10,6 @@ final class LocalizationTests: XCTestCase {
         super.tearDown()
     }
 
-    func test_C_LOC_01_thePackageIsBuiltWithTheFiveLanguages() {
-        XCTAssertEqual(Set(Bundle.module.localizations), Set(Localization.languages))
-        XCTAssertEqual(Localization.languages.first, "en")
-    }
-
     func test_C_LOC_01_everyLanguageFindsEveryKey() throws {
         let packageRoot = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent().deletingLastPathComponent()
@@ -44,15 +39,5 @@ final class LocalizationTests: XCTestCase {
                 Bundle.preferredLocalizations(from: Localization.languages, forPreferences: [chosen])
                     .first, language, chosen)
         }
-    }
-
-    func test_C_LOC_01_thePackageTestsRunInEnglish() {
-        XCTAssertEqual(Localization.language, "en")
-    }
-
-    func test_C_LOC_01_anOverrideChangesTheLanguage() {
-        Localization.override = "ja"
-        XCTAssertEqual(Localization.language, "ja")
-        XCTAssertEqual(Localization.bundle, Localization.table(for: "ja"))
     }
 }

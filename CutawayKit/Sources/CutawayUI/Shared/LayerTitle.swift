@@ -17,6 +17,17 @@ extension LayerTree {
         title(of: id) ?? localized("layer.untitled")
     }
 
+    /// The layer's name where it is one of several in a line (C-ATTR-16, C-LAYOUT-06): the name
+    /// of the nearest member that holds it, without its owner; for a view controller's root
+    /// view that no member holds, the controller's class, as its variable is always `view`;
+    /// otherwise its title.
+    func shortTitle(of id: UInt64) -> String {
+        if let member = node(id)?.memberReferences.lazy.compactMap(\.name).first(where: { !$0.isEmpty }) {
+            return member
+        }
+        return viewControllerTitle(of: id) ?? displayTitle(of: id)
+    }
+
     /// The title in a file's name, which stays in English whatever the interface's language.
     func fileTitle(of id: UInt64) -> String {
         title(of: id) ?? "Layer"
