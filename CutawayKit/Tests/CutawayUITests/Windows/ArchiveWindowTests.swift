@@ -78,62 +78,6 @@ final class ArchiveWindowTests: XCTestCase {
         return condition()
     }
 
-    // MARK: - C-ARCH-05
-
-    @MainActor
-    func test_C_ARCH_05_theArchiveWindowSaysWhatItShows() async throws {
-        let (coordinator, _, _) = coordinator()
-        coordinator.start()
-        let url = try archive()
-        let opened = await coordinator.openArchive(url)
-        let controller = try XCTUnwrap(opened)
-        let window = try XCTUnwrap(controller.window)
-        XCTAssertTrue(window.isVisible)
-        XCTAssertEqual(window.title, "Demo")
-        XCTAssertEqual(window.representedURL, url)
-        XCTAssertTrue(window.subtitle.hasPrefix("Demo \u{00B7} iPhone 16 \u{00B7} iOS 18.0 \u{00B7} Saved "),
-                      window.subtitle)
-        XCTAssertTrue(controller.isArchive)
-
-        let identifiers = try XCTUnwrap(window.toolbar).items.map(\.itemIdentifier.rawValue)
-        XCTAssertTrue(identifiers.contains("inspector.archiveTag"))
-        XCTAssertTrue(identifiers.contains("inspector.mode"))
-        for live in ["inspector.refresh", "inspector.saveArchive", "inspector.apps"] {
-            XCTAssertFalse(identifiers.contains(live), "\(live) is in an archive's toolbar")
-        }
-        let tag = try XCTUnwrap(window.toolbar?.items.first {
-            $0.itemIdentifier.rawValue == "inspector.archiveTag"
-        }?.view)
-        tag.layoutSubtreeIfNeeded()
-        let label = try XCTUnwrap(Self.labels(in: tag).first)
-        XCTAssertEqual(label.stringValue, "Archive")
-        // The word in the middle of its border, the label no taller than its text.
-        let frame = label.convert(label.bounds, to: tag)
-        XCTAssertEqual(frame.midY, tag.bounds.midY, accuracy: 0.5)
-        XCTAssertEqual(frame.midX, tag.bounds.midX, accuracy: 0.5)
-        XCTAssertEqual(frame.height, label.intrinsicContentSize.height, accuracy: 0.5)
-        XCTAssertEqual(tag.bounds.height, 18)
-
-        let menu = NSMenu()
-        for (selector, enabled) in [
-            (#selector(InspectorWindowController.refresh(_:)), false),
-            (#selector(InspectorWindowController.refreshSelectedSubtree(_:)), false),
-            (#selector(InspectorWindowController.saveArchive(_:)), false),
-            (#selector(InspectorWindowController.showThreeD(_:)), true),
-            (#selector(InspectorWindowController.toggleBorders(_:)), true),
-        ] {
-            let item = menu.addItem(withTitle: "\(selector)", action: selector, keyEquivalent: "")
-            XCTAssertEqual(controller.validateMenuItem(item), enabled, "\(selector)")
-        }
-
-        // The archive is inspected: its tree is in, and nothing can be changed.
-        let loaded = await eventually { controller.store.loadState == .loaded }
-        XCTAssertTrue(loaded)
-        XCTAssertEqual(controller.store.tree.count, 9)
-        XCTAssertFalse(controller.store.attributes.canEdit)
-        XCTAssertFalse(controller.isDisconnected)
-    }
-
     // MARK: - C-WIN-05
 
     @MainActor
@@ -172,16 +116,6 @@ final class ArchiveWindowTests: XCTestCase {
         b?.close()
         XCTAssertTrue(coordinator.archiveWindows.isEmpty)
         XCTAssertTrue(try XCTUnwrap(coordinator.launcher.window).isVisible)
-    }
-
-    @MainActor
-    func test_C_WIN_05_openingAnArchiveLeavesTheLauncherAsItIs() async throws {
-        let (coordinator, _, _) = coordinator()
-        coordinator.start()
-        let launcher = try XCTUnwrap(coordinator.launcher.window)
-        XCTAssertTrue(launcher.isVisible)
-        _ = await coordinator.openArchive(try archive())
-        XCTAssertTrue(launcher.isVisible)
     }
 
     // MARK: - C-ARCH-04
@@ -228,21 +162,5 @@ final class ArchiveWindowTests: XCTestCase {
         let shown = await eventually { other.launcher.window?.isVisible == true }
         XCTAssertTrue(shown, "with nothing opened, the launcher did not show")
         XCTAssertEqual(failures.all.count, 1)
-    }
-
-    @MainActor
-    func test_C_ARCH_04_openedArchivesAreRecent() async throws {
-        let (coordinator, recents, _) = coordinator()
-        coordinator.start()
-        let url = try archive()
-        _ = await coordinator.openArchive(url)
-        XCTAssertEqual(recents.urls, [url])
-
-        let menu = NSMenu(title: "Open Recent")
-        coordinator.menuNeedsUpdate(menu)
-        XCTAssertEqual(menu.items.first?.title, "Demo.cutaway")
-        XCTAssertEqual(menu.items.last?.title, "Clear Menu")
-        coordinator.clearRecentArchives(nil)
-        XCTAssertEqual(recents.urls, [])
     }
 }

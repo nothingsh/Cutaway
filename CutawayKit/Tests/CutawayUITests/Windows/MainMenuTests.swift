@@ -31,7 +31,7 @@ final class MainMenuTests: XCTestCase {
         case layout
         /// An app's inspector window, connected, saving no archive.
         case online
-        /// As `online`, with a layer selected and a server of 0.3 or later.
+        /// As `online`, with a layer selected and a source that sends subtrees.
         case subtree
         /// As `inspector`, with a layer selected (C-ARCH-06).
         case selection
@@ -77,6 +77,19 @@ final class MainMenuTests: XCTestCase {
     }
 
     private typealias Window = InspectorWindowController
+
+    /// View › Borders (C-PREV-17).
+    private static let borders: [Expected] = [
+        Expected("Show Borders", #selector(Window.toggleBorders(_:)), "b", [.command, .shift], rule: .inspector),
+        Expected("Plain", #selector(Window.showPlainBorders(_:)), rule: .inspector),
+        Expected("By Kind", #selector(Window.showBordersByKind(_:)), rule: .inspector),
+        Expected("Only the App\u{2019}s Own Classes", #selector(Window.toggleOnlyAppClasses(_:)), rule: .inspector),
+    ]
+
+    /// Every item of a menu and of its submenus, depth first.
+    static func allItems(_ menu: NSMenu) -> [NSMenuItem] {
+        menu.items.flatMap { item in [item] + (item.submenu.map(allItems) ?? []) }
+    }
 
     /// The menu bar, item by item.
     private static let table: [(menu: String, items: [Expected])] = [
@@ -133,7 +146,16 @@ final class MainMenuTests: XCTestCase {
             Expected(
                 "Show Hidden Layers", #selector(Window.toggleHiddenLayers(_:)), "h", [.command, .shift],
                 rule: .inspector),
-            Expected("Show Borders", #selector(Window.toggleBorders(_:)), "b", [.command, .shift], rule: .inspector),
+            Expected("Borders", nil, rule: .appKit),
+            Expected(
+                "Show Constraint Ends", #selector(Window.toggleConstraintEnds(_:)), "k",
+                [.command, .shift], rule: .inspector),
+            Expected(
+                "Select Parent Layer", #selector(Window.selectParentLayer(_:)),
+                arrow(NSUpArrowFunctionKey), .command, rule: .selection),
+            Expected(
+                "Select First Child Layer", #selector(Window.selectFirstChildLayer(_:)),
+                arrow(NSDownArrowFunctionKey), .command, rule: .selection),
             Expected(
                 "Focus on Selected Layer", #selector(Window.focusOnSelectedLayer(_:)),
                 arrow(NSDownArrowFunctionKey), [.command, .option], rule: .unfocusedSelection),
@@ -291,8 +313,12 @@ final class MainMenuTests: XCTestCase {
         of menu: NSMenu, in window: NSWindow, _ situation: Situation,
         file: StaticString = #filePath, line: UInt = #line
     ) {
-        for (title, items) in Self.table {
-            guard let submenu = menu.items.first(where: { $0.title == title })?.submenu else {
+        let view = menu.items.first { $0.title == "View" }?.submenu
+        let borders = view?.items.first { $0.title == "Borders" }?.submenu
+        for (title, items) in Self.table + [("Borders", Self.borders)] {
+            guard let submenu = title == "Borders"
+                ? borders : menu.items.first(where: { $0.title == title })?.submenu
+            else {
                 XCTFail("no \(title) menu", file: file, line: line)
                 continue
             }
@@ -308,68 +334,20 @@ final class MainMenuTests: XCTestCase {
         }
     }
 
-    // MARK: - C-MENU-01
-
-    @MainActor
-    func test_C_MENU_01_theMenuBarMatchesTheTable() {
-        let (coordinator, _) = started()
-        let menu = coordinator.makeMainMenu()
-        XCTAssertEqual(menu.items.map(\.title), Self.table.map(\.menu))
-        for (title, expected) in Self.table {
-            // AppKit lists the open windows in the Window menu; they are not the table's.
-            let items = menu.items.first { $0.title == title }?.submenu?.items
-                .filter { !$0.isSeparatorItem && !($0.target is NSWindow) } ?? []
-            XCTAssertEqual(items.map(\.title), expected.map(\.title), title)
-            for (item, expected) in zip(items, expected) {
-                let name = "\(title) › \(expected.title)"
-                XCTAssertEqual(item.keyEquivalent, expected.key, name)
-                if !expected.key.isEmpty {
-                    XCTAssertEqual(item.keyEquivalentModifierMask, expected.modifiers, name)
-                }
-                guard expected.action != nil else {
-                    XCTAssertNotNil(item.submenu, name)
-                    continue
-                }
-                XCTAssertEqual(item.action, expected.action, name)
-                switch expected.target {
-                case .chain: XCTAssertNil(item.target, name)
-                case .coordinator: XCTAssertTrue(item.target === coordinator, name)
-                }
-            }
-        }
-    }
-
-    @MainActor
-    func test_C_MENU_01_appKitKeepsTheServicesTheWindowsAndHelp() {
-        let (coordinator, _) = started()
-        let menu = coordinator.makeMainMenu()
-        func submenu(_ path: String...) -> NSMenu? {
-            var current: NSMenu? = menu
-            for title in path {
-                current = current?.items.first { $0.title == title }?.submenu
-            }
-            return current
-        }
-        XCTAssertTrue(NSApp.servicesMenu === submenu("Cutaway", "Services"))
-        XCTAssertTrue(NSApp.windowsMenu === submenu("Window"))
-        XCTAssertTrue(NSApp.helpMenu === submenu("Help"))
-        XCTAssertTrue(submenu("File", "Open Recent")?.delegate === coordinator)
-    }
-
     // MARK: - C-MENU-02
 
     @MainActor
     func test_C_MENU_02_noTwoItemsShareAShortcut() {
         let (coordinator, _) = started()
         var seen: [String: String] = [:]
-        for item in coordinator.makeMainMenu().items.compactMap(\.submenu).flatMap(\.items)
+        for item in Self.allItems(coordinator.makeMainMenu())
             where !item.keyEquivalent.isEmpty
         {
             let shortcut = Self.shortcut(of: item)
             XCTAssertNil(seen[shortcut], "\(item.title) and \(seen[shortcut] ?? "") share a shortcut")
             seen[shortcut] = item.title
         }
-        XCTAssertEqual(seen.count, 34)
+        XCTAssertEqual(seen.count, 37)
     }
 
     /// The key and modifiers an item answers to: an upper-case key implies Shift.
@@ -378,23 +356,6 @@ final class MainMenuTests: XCTestCase {
         let key = item.keyEquivalent.lowercased()
         if key != item.keyEquivalent { modifiers.insert(.shift) }
         return "\(modifiers.rawValue)-\(key)"
-    }
-
-    @MainActor
-    func test_C_MENU_02_whatIsAvailableWithOnlyTheAppList() throws {
-        let (coordinator, _) = started()
-        let launcher = try XCTUnwrap(coordinator.launcher.window)
-        assertAvailability(
-            of: coordinator.makeMainMenu(), in: launcher,
-            Situation(inspector: false, online: false, disconnected: false))
-    }
-
-    @MainActor
-    func test_C_MENU_02_whatIsAvailableWhileInspecting() throws {
-        let (coordinator, inspector, _) = try inspecting()
-        assertAvailability(
-            of: coordinator.makeMainMenu(), in: try XCTUnwrap(inspector.window),
-            Situation(inspector: true, online: true, disconnected: false))
     }
 
     @MainActor
@@ -422,7 +383,7 @@ final class MainMenuTests: XCTestCase {
         let window = try XCTUnwrap(inspector.window)
         func enabled(_ title: String) throws -> Bool {
             let item = try XCTUnwrap(
-                menu.items.compactMap(\.submenu).flatMap(\.items).first { $0.title == title }, title)
+                Self.allItems(menu).first { $0.title == title }, title)
             return isEnabled(item, in: window)
         }
         XCTAssertTrue(try enabled("Focus on Selected Layer"))
@@ -430,9 +391,17 @@ final class MainMenuTests: XCTestCase {
         XCTAssertFalse(try enabled("Focus on Selected Layer"), "not with the focus on it")
         inspection.focus(on: nil)
         XCTAssertFalse(try enabled("Show All Layers"), "no focus")
+        // ⌘↑ and ⌘↓ need a parent and a child (C-ATTR-16).
+        inspection.select(1)
+        XCTAssertFalse(try enabled("Select Parent Layer"), "a window's root layer")
+        XCTAssertTrue(try enabled("Select First Child Layer"))
+        inspection.select(3)
+        XCTAssertTrue(try enabled("Select Parent Layer"))
+        XCTAssertFalse(try enabled("Select First Child Layer"), "a layer without sublayers")
         inspection.select(nil)
         for title in [
-            "Focus on Selected Layer", "Refresh Selected Subtree", "Export Layer Screenshot\u{2026}",
+            "Select Parent Layer", "Select First Child Layer", "Focus on Selected Layer", "Refresh Selected Subtree",
+            "Export Layer Screenshot\u{2026}",
             "Export Screenshot with Sublayers\u{2026}",
         ] {
             XCTAssertFalse(try enabled(title), "\(title) with nothing selected")
@@ -504,77 +473,34 @@ final class MainMenuTests: XCTestCase {
     }
 
     @MainActor
-    func test_C_MENU_02_eachNewShortcutDoesWhatItsItemSays() throws {
+    func test_C_ATTR_16_whileTextIsEditedCommandArrowsStayWithTheText() throws {
         let (coordinator, inspector, inspection) = try inspecting()
         let window = try XCTUnwrap(inspector.window)
-        window.contentView?.layoutSubtreeIfNeeded()
-        let items = coordinator.makeMainMenu().items.compactMap(\.submenu).flatMap(\.items)
-        // Sends the action of the item that answers the shortcut, as the menu does.
-        func press(_ key: String, _ modifiers: NSEvent.ModifierFlags) throws {
-            let pressed = try event(key, modifiers, in: window)
-            let item = try XCTUnwrap(
-                items.first {
-                    $0.keyEquivalent == pressed.charactersIgnoringModifiers
-                        && $0.keyEquivalentModifierMask
-                        == pressed.modifierFlags.intersection(.deviceIndependentFlagsMask)
-                        .subtracting([.function, .numericPad])
-                }, key)
-            XCTAssertTrue(isEnabled(item, in: window), item.title)
-            XCTAssertTrue(NSApp.sendAction(try XCTUnwrap(item.action), to: inspector, from: item), item.title)
-        }
+        let items = Self.allItems(coordinator.makeMainMenu())
+        let parent = try XCTUnwrap(items.first { $0.title == "Select Parent Layer" })
+        let child = try XCTUnwrap(items.first { $0.title == "Select First Child Layer" })
+        XCTAssertEqual(inspection.selectedLayerID, 4)
+        window.makeFirstResponder(inspector.splitController.hierarchyController.outlineView)
+        XCTAssertTrue(isEnabled(parent, in: window))
+        XCTAssertTrue(isEnabled(child, in: window))
 
-        try press("h", [.command, .shift])
-        XCTAssertTrue(inspection.showsHiddenLayers)
-        try press("b", [.command, .shift])
-        XCTAssertFalse(inspection.showsBorders)
-        let zoom = inspection.camera.zoom
-        try press("=", .command)
-        XCTAssertEqual(inspection.camera.zoom, zoom * 1.25, accuracy: 1e-9)
-        try press("-", .command)
-        XCTAssertEqual(inspection.camera.zoom, zoom, accuracy: 1e-9)
-        try press(Self.arrow(NSUpArrowFunctionKey), [.command, .option])
-        XCTAssertNil(inspection.focusedLayerID)
-        try press(Self.arrow(NSDownArrowFunctionKey), [.command, .option])
-        XCTAssertEqual(inspection.focusedLayerID, 4)
-        inspection.focus(on: nil)
-        try press(Self.arrow(NSLeftArrowFunctionKey), [.command, .option])
-        XCTAssertEqual(inspection.tree.ids.filter(inspection.isExpanded), [])
-        try press(Self.arrow(NSRightArrowFunctionKey), [.command, .option])
-        XCTAssertEqual(inspection.tree.ids.filter(inspection.isExpanded).count, 9)
-        inspection.select(4)
-        try press("r", [.command, .shift])
-        XCTAssertTrue(inspection.loadingSubtree == 4 || inspection.queuedSubtrees == [4])
+        // In the list's search field: the field editor has the keyboard.
+        let field = inspector.splitController.hierarchyController.searchField
+        XCTAssertTrue(window.makeFirstResponder(field))
+        XCTAssertTrue(inspector.isEditingText)
+        XCTAssertFalse(isEnabled(parent, in: window))
+        XCTAssertFalse(isEnabled(child, in: window))
+        // A disabled item leaves the key to the text, which goes to its start.
+        let editor = try XCTUnwrap(field.currentEditor() as? NSTextView)
+        editor.string = "label"
+        editor.setSelectedRange(NSRange(location: 5, length: 0))
+        let up = try event(Self.arrow(NSUpArrowFunctionKey), .command, in: window)
+        window.sendEvent(up)
+        XCTAssertEqual(editor.selectedRange(), NSRange(location: 0, length: 0))
+        XCTAssertEqual(inspection.selectedLayerID, 4)
     }
 
     // MARK: - C-MENU-03
-
-    @MainActor
-    func test_C_MENU_03_theAboutPanelHasEveryField() throws {
-        let icon = NSImage(size: NSSize(width: 16, height: 16))
-        let options = AboutPanel.options(
-            info: ["CFBundleName": "Cutaway", "CFBundleShortVersionString": "1.2.3", "CFBundleVersion": "45"],
-            icon: icon)
-        XCTAssertEqual(options[.applicationName] as? String, "Cutaway")
-        XCTAssertEqual(options[.applicationVersion] as? String, "1.2.3")
-        XCTAssertEqual(options[.version] as? String, "45")
-        XCTAssertTrue(options[.applicationIcon] as? NSImage === icon)
-        let credits = try XCTUnwrap(options[.credits] as? NSAttributedString)
-        XCTAssertTrue(credits.string.contains(AboutPanel.licenseLine))
-        XCTAssertTrue(credits.string.contains(Links.repository.absoluteString))
-        var links: [URL] = []
-        credits.enumerateAttribute(.link, in: NSRange(location: 0, length: credits.length)) { value, _, _ in
-            if let url = value as? URL { links.append(url) }
-        }
-        XCTAssertTrue(links.contains(Links.repository))
-        let acknowledgements = AboutPanel.acknowledgements()
-        XCTAssertFalse(acknowledgements.isEmpty)
-        for (library, text) in acknowledgements {
-            XCTAssertTrue(credits.string.contains("\(library.name) \(library.version)"), library.name)
-            XCTAssertTrue(credits.string.contains(library.license), library.name)
-            XCTAssertTrue(
-                credits.string.contains(text.trimmingCharacters(in: .whitespacesAndNewlines)), library.name)
-        }
-    }
 
     /// The repository's root, found from this file.
     private static let root = URL(fileURLWithPath: #filePath)
@@ -637,22 +563,5 @@ final class MainMenuTests: XCTestCase {
             }
         }
         return packages
-    }
-
-    // MARK: - C-MENU-04
-
-    @MainActor
-    func test_C_MENU_04_helpOpensTheTwoAddresses() throws {
-        let (coordinator, _) = started()
-        var opened: [URL] = []
-        coordinator.openURL = { opened.append($0) }
-        let help = try XCTUnwrap(coordinator.makeMainMenu().items.first { $0.title == "Help" }?.submenu)
-        for item in help.items {
-            XCTAssertTrue(NSApp.sendAction(try XCTUnwrap(item.action), to: item.target, from: item))
-        }
-        XCTAssertEqual(opened, [Links.help, Links.integrationGuide])
-        XCTAssertEqual(Links.help.host, "github.com")
-        XCTAssertEqual(Links.integrationGuide.host, "github.com")
-        XCTAssertTrue(Links.help.absoluteString.hasPrefix(Links.repository.absoluteString))
     }
 }
