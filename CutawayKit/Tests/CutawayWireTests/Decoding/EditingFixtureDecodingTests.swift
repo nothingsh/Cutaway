@@ -22,12 +22,12 @@ final class EditingFixtureDecodingTests: XCTestCase {
                 layerID: 3, attributeID: "label.textAlignment",
                 value: .enumeration(EnumValue(value: 2, cases: [], caseName: nil)))))),
             ("05-c2s-set-background.bin", Frame(requestID: 3, body: .setAttribute(SetAttribute(
-                layerID: 4, attributeID: "layer.backgroundColor", value: .color(Self.blue))))),
+                layerID: 4, attributeID: "view.backgroundColor", value: .color(Self.blue))))),
             ("07-c2s-set-alpha.bin", Frame(requestID: 4, body: .setAttribute(SetAttribute(
                 layerID: 4, attributeID: "view.alpha", value: .double(0.5))))),
             // No value sets nil.
             ("09-c2s-clear-background.bin", Frame(requestID: 5, body: .setAttribute(SetAttribute(
-                layerID: 4, attributeID: "layer.backgroundColor", value: nil)))),
+                layerID: 4, attributeID: "view.backgroundColor", value: nil)))),
         ]
         for (file, expected) in requests {
             XCTAssertEqual(try decode("set-attribute", file), expected, file)
@@ -38,7 +38,7 @@ final class EditingFixtureDecodingTests: XCTestCase {
             ("04-s2c-result.bin", 2, 3, ExpectedAttributes.layer3(
                 text: "Welcome back", alignment: 2, alignmentName: "right")),
             ("06-s2c-result.bin", 3, 4, ExpectedAttributes.layer4(opacity: 1, background: Self.blue)),
-            // view.alpha took layer.opacity with it.
+            // Layer 4 backs a view: view.alpha alone holds its opacity (P-ATTR-11).
             ("08-s2c-result.bin", 4, 4, ExpectedAttributes.layer4(opacity: 0.5, background: Self.blue)),
             // Back to nil; the kind is still given.
             ("10-s2c-result.bin", 5, 4, ExpectedAttributes.layer4(opacity: 0.5, background: nil)),
@@ -60,18 +60,22 @@ final class EditingFixtureDecodingTests: XCTestCase {
                 layerID: 3, attributeID: "layer.frame",
                 value: .rect(Rect(origin: Point(x: 0, y: 0), size: Size(width: 100, height: 24))))),
             ("05-c2s-set-wrong-kind.bin", SetAttribute(
-                layerID: 3, attributeID: "layer.opacity", value: .string("half"))),
+                layerID: 3, attributeID: "view.alpha", value: .string("half"))),
             ("07-c2s-set-nil.bin", SetAttribute(
                 layerID: 3, attributeID: "label.numberOfLines", value: nil)),
+            ("09-c2s-set-opacity-out-of-range.bin", SetAttribute(
+                layerID: 3, attributeID: "view.alpha", value: .double(1.5))),
         ]
         let errors: [(String, ServerError)] = [
             ("02-s2c-error.bin", ServerError(code: .layerNotFound, message: "no layer with id 99")),
             ("04-s2c-error.bin", ServerError(
                 code: .attributeNotEditable, message: "layer.frame is read-only")),
             ("06-s2c-error.bin", ServerError(
-                code: .invalidAttributeValue, message: "layer.opacity takes a DoubleValue")),
+                code: .invalidAttributeValue, message: "view.alpha takes a DoubleValue")),
             ("08-s2c-error.bin", ServerError(
                 code: .invalidAttributeValue, message: "label.numberOfLines cannot be nil")),
+            ("10-s2c-error.bin", ServerError(
+                code: .invalidAttributeValue, message: "view.alpha must be between 0 and 1")),
         ]
         for (index, (file, request)) in requests.enumerated() {
             XCTAssertEqual(
@@ -83,6 +87,27 @@ final class EditingFixtureDecodingTests: XCTestCase {
                 try decode("set-attribute-rejected", file),
                 Frame(requestID: UInt32(index + 1), body: .error(error)), file)
         }
+        // The layer's attribute of a pair, on a layer that backs a view (P-ATTR-11).
+        XCTAssertEqual(
+            try decode("set-attribute-rejected", "13-c2s-set-paired-layer-attribute.bin"),
+            Frame(requestID: 7, body: .setAttribute(SetAttribute(
+                layerID: 3, attributeID: "layer.opacity", value: .double(0.5)))))
+        XCTAssertEqual(
+            try decode("set-attribute-rejected", "14-s2c-error.bin"),
+            Frame(requestID: 7, body: .error(ServerError(
+                code: .attributeNotEditable,
+                message: "layer 3 backs a view; set view.alpha instead of layer.opacity"))))
+        // The background is a pair too (P-ATTR-11).
+        XCTAssertEqual(
+            try decode("set-attribute-rejected", "15-c2s-set-paired-layer-background.bin"),
+            Frame(requestID: 8, body: .setAttribute(SetAttribute(
+                layerID: 3, attributeID: "layer.backgroundColor",
+                value: .color(Color(red: 1, green: 0.5, blue: 0, alpha: 1))))))
+        XCTAssertEqual(
+            try decode("set-attribute-rejected", "16-s2c-error.bin"),
+            Frame(requestID: 8, body: .error(ServerError(
+                code: .attributeNotEditable,
+                message: "layer 3 backs a view; set view.backgroundColor instead of layer.backgroundColor"))))
     }
 
     func test_C_WIRE_05_subtree() throws {
@@ -126,13 +151,13 @@ final class EditingFixtureDecodingTests: XCTestCase {
             return
         }
         let attributes = chunk.details[0].attributeGroups.flatMap(\.attributes)
-        XCTAssertEqual(attributes.count, 12)
+        XCTAssertEqual(attributes.count, 19)
 
         XCTAssertEqual(attributes.filter { !$0.editable }.map(\.id), ["layer.frame"])
         XCTAssertEqual(
             attributes.filter(\.acceptsNil).map(\.id),
-            ["layer.backgroundColor", "layer.borderColor", "label.text"])
-        let background = try XCTUnwrap(attributes.first { $0.id == "layer.backgroundColor" })
+            ["layer.borderColor", "label.text", "view.backgroundColor", "view.tintColor"])
+        let background = try XCTUnwrap(attributes.first { $0.id == "view.backgroundColor" })
         XCTAssertNil(background.value)
         XCTAssertEqual(background.valueKind, .color)
         for attribute in attributes {
@@ -191,7 +216,7 @@ final class EditingFixtureDecodingTests: XCTestCase {
 
     func test_C_WIRE_05_setAttributeToNilWritesNoValue() throws {
         let frame = Frame(requestID: 7, body: .setAttribute(SetAttribute(
-            layerID: 4, attributeID: "layer.backgroundColor", value: nil)))
+            layerID: 4, attributeID: "view.backgroundColor", value: nil)))
         let encoded = FrameCodec.encode(frame)
         var buffer = ByteBuffer(data: encoded)
         let wire: Cutaway_Wire_Frame = try getCheckedRoot(byteBuffer: &buffer, fileId: "CTWY")

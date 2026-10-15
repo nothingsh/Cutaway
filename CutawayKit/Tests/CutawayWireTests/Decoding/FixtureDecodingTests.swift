@@ -25,12 +25,12 @@ final class FixtureDecodingTests: XCTestCase {
         XCTAssertEqual(
             try decode("handshake", "01-c2s-hello.bin"),
             Frame(requestID: 0, body: .hello(Hello(
-                protocolVersion: Version(major: 1, minor: 0), role: .client,
+                protocolVersion: Version(major: 1, minor: 1), role: .client,
                 client: Self.cutawayClient, app: nil))))
         XCTAssertEqual(
             try decode("handshake", "02-s2c-hello.bin"),
             Frame(requestID: 0, body: .hello(Hello(
-                protocolVersion: Version(major: 1, minor: 0), role: .server,
+                protocolVersion: Version(major: 1, minor: 1), role: .server,
                 client: nil, app: Self.demoApp))))
         XCTAssertEqual(
             try decode("handshake", "03-s2c-app-state.bin"),
@@ -106,7 +106,8 @@ final class FixtureDecodingTests: XCTestCase {
             _ id: UInt64, parent: UInt64, layer: String, view: String?, viewDisplay: String? = nil,
             bounds: Rect, position: Point, anchor: Point = Point(x: 0.5, y: 0.5),
             transform: Transform3D = .identity, hidden: Bool = false, opacity: Float = 1,
-            masks: Bool = false, controller: Bool = false, members: [MemberReference] = []
+            masks: Bool = false, controller: Bool = false, members: [MemberReference] = [],
+            appView: Bool = false, viewBase: String? = nil, layerBase: String? = nil
         ) -> LayerNode {
             LayerNode(
                 id: id, parentID: parent, className: layer, displayClassName: layer,
@@ -115,7 +116,18 @@ final class FixtureDecodingTests: XCTestCase {
                 zPosition: 0, isHidden: hidden, opacity: opacity, masksToBounds: masks,
                 viewControllerClassName: controller ? "Demo.HomeViewController" : nil,
                 viewControllerDisplayClassName: controller ? "HomeViewController" : nil,
-                memberReferences: members)
+                memberReferences: members,
+                // Protocol 1.1 (P-HIER-14): the formulas of Protocol/fixtures/README.md.
+                layerAddress: 0x6000_03B4_C000 + 0x40 * (id - 1),
+                viewAddress: view == nil ? nil : 0x1_0380_6800 + 0x200 * id,
+                viewControllerAddress: controller ? 0x1_0300_7A00 : nil,
+                // P-HIER-16 to 18: "Origins, base classes and
+                // visibility" in Protocol/fixtures/README.md.
+                layerClassOrigin: .system,
+                viewClassOrigin: view == nil ? .unknown : appView ? .app : .system,
+                viewControllerClassOrigin: controller ? .app : .unknown,
+                layerBaseClassName: layerBase, viewBaseClassName: viewBase,
+                viewControllerVisibility: controller ? .shown : .unknown)
         }
         // Protocol 0.2 (P-HIER-07 to P-HIER-09; Protocol/fixtures/README.md).
         func home(_ name: String) -> MemberReference {
@@ -135,16 +147,17 @@ final class FixtureDecodingTests: XCTestCase {
         return Hierarchy(
             nodes: [
                 node(1, parent: 0, layer: "UIWindowLayer", view: "UIWindow",
-                     bounds: rect(0, 0, 393, 852), position: Point(x: 196.5, y: 426)),
+                     bounds: rect(0, 0, 393, 852), position: Point(x: 196.5, y: 426),
+                     viewBase: "UIWindow"),
                 node(2, parent: 1, layer: "CALayer", view: "UIView",
                      bounds: rect(0, 0, 393, 852), position: Point(x: 196.5, y: 426),
                      controller: true),
                 node(3, parent: 2, layer: "_UILabelLayer", view: "UILabel",
                      bounds: rect(0, 0, 200, 24), position: Point(x: 196.5, y: 120),
-                     members: [home("titleLabel")]),
+                     members: [home("titleLabel")], viewBase: "UILabel"),
                 node(4, parent: 2, layer: "CALayer", view: "Demo.CardView", viewDisplay: "CardView",
                      bounds: rect(0, 0, 300, 180), position: Point(x: 196.5, y: 300),
-                     transform: rotation, masks: true, members: [home("cardView")]),
+                     transform: rotation, masks: true, members: [home("cardView")], appView: true),
                 node(5, parent: 4, layer: "CAShapeLayer", view: nil,
                      bounds: rect(0, 0, 40, 40), position: Point(x: 40, y: 40),
                      hidden: true, opacity: 0.5,
@@ -153,12 +166,14 @@ final class FixtureDecodingTests: XCTestCase {
                              ownerClassName: "Demo.CardView", ownerDisplayClassName: "CardView",
                              name: "badgeLayer"),
                          home("cardBadge"),
-                     ]),
+                     ],
+                     layerBase: "CAShapeLayer"),
                 node(6, parent: 2, layer: "CALayer", view: "UIScrollView",
                      bounds: rect(0, 100, 300, 200), position: Point(x: 196.5, y: 600), masks: true,
-                     members: [home("scrollView")]),
+                     members: [home("scrollView")], viewBase: "UIScrollView"),
                 node(7, parent: 6, layer: "_UILabelLayer", view: "UILabel",
-                     bounds: rect(0, 0, 100, 40), position: Point(x: 150, y: 150)),
+                     bounds: rect(0, 0, 100, 40), position: Point(x: 150, y: 150),
+                     viewBase: "UILabel"),
                 node(8, parent: 2, layer: "CALayer", view: nil,
                      bounds: rect(0, 0, 60, 30), position: Point(x: 10, y: 10),
                      anchor: Point(x: 0, y: 0),
@@ -256,11 +271,16 @@ final class FixtureDecodingTests: XCTestCase {
                         id: "layer.frame", title: "Frame",
                         value: .rect(Rect(
                             origin: Point(x: 300, y: 700), size: Size(width: 0, height: 0))),
-                        editable: false, valueKind: .rect),
+                        editable: false, valueKind: .rect, section: .layout,
+                        cluster: AttributeCluster(name: "geometry", slot: "frame"), unit: .points),
+                ], className: "CALayer"),
+                // Layer 9 backs a view: view.isHidden rather than layer.hidden (P-ATTR-11).
+                AttributeGroup(id: "view", title: "View", attributes: [
                     Attribute(
-                        id: "layer.hidden", title: "Hidden", value: .bool(false), editable: true,
-                        valueKind: .bool),
-                ]),
+                        id: "view.isHidden", title: "Hidden", value: .bool(false), editable: true,
+                        valueKind: .bool, section: .appearance,
+                        cluster: AttributeCluster(name: "visibility", slot: "hidden")),
+                ], className: "UIView"),
             ]))
 
         // Layer 7: nothing was requested.
@@ -370,8 +390,9 @@ final class FixtureDecodingTests: XCTestCase {
             return
         }
         let background = try XCTUnwrap(
-            chunk.details[0].attributeGroups[0].attributes.first { $0.id == "layer.backgroundColor" })
-        XCTAssertEqual(background.title, "Background Color")
+            chunk.details[0].attributeGroups.flatMap(\.attributes)
+                .first { $0.id == "view.backgroundColor" })
+        XCTAssertEqual(background.title, "Background")
         XCTAssertNil(background.value)
 
         // Absent sub-tables and vectors.

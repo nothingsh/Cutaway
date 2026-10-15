@@ -17,7 +17,7 @@ final class RoundTripTests: XCTestCase {
                 count += 1
             }
         }
-        XCTAssertEqual(count, 52)
+        XCTAssertEqual(count, 60)
     }
 
     func test_C_WIRE_04_aFrameWithoutABodyRoundTrips() throws {
@@ -66,8 +66,10 @@ final class RoundTripTests: XCTestCase {
             }
         }
         // Hello x2, GetAppIcon, GetHierarchy x2, GetLayerDetails x4, Cancel; protocol 0.3:
-        // SetAttribute x9, GetSubtree x2; protocol 0.4: GetLayerDetails x1.
-        XCTAssertEqual(count, 22)
+        // SetAttribute x9, GetSubtree x2; protocol 0.4: GetLayerDetails x1; protocol 1.1:
+        // SetAttribute x2 outside the limits, x1 for the layer's attribute of a pair and x1 for
+        // the layer's background.
+        XCTAssertEqual(count, 26)
     }
 
     func test_C_WIRE_04_aNodeWithoutAControllerOrMembersRoundTripsWithout() throws {

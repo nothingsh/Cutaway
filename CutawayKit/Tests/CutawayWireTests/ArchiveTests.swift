@@ -113,6 +113,97 @@ final class ArchiveTests: XCTestCase {
         XCTAssertEqual(try decoder.chunk(at: 2).details.map(\.layerID), [3, 4, 9, 8, 99])
     }
 
+    func test_C_WIRE_10_anArchiveKeepsWhatOnePointOneAppended() throws {
+        let decoder = try ArchiveDecoder(try archive(try fixturePayloads()))
+        XCTAssertEqual(decoder.manifest.protocolVersion, Version(major: 1, minor: 1))
+        let node3 = try XCTUnwrap(decoder.hierarchy.nodes.first { $0.id == 3 })
+        XCTAssertEqual(node3.layerAddress, 0x6000_03B4_C080)
+        XCTAssertEqual(node3.viewAddress, 0x1_0380_6E00)
+        let attributes = try decoder.chunk(at: 0).details[0].attributeGroups.flatMap(\.attributes)
+        XCTAssertEqual(attributes.first { $0.id == "view.tag" }?.section, .identity)
+        XCTAssertEqual(
+            attributes.first { $0.id == "view.alpha" }?.limits, [NumberLimit(minimum: 0, maximum: 1)])
+    }
+
+    func test_C_WIRE_10_anArchiveFromOnePointOhReadsWithoutTheNewFields() throws {
+        guard case .hierarchy(let hierarchy) = try FrameCodec.decode(try fixture("hierarchy", "02-s2c-hierarchy.bin"))
+            .body,
+            case .layerDetailsChunk(var chunk) = try FrameCodec
+            .decode(try fixture("layer-details", "02-s2c-chunk-0.bin")).body
+        else {
+            XCTFail("the fixtures are not what this test expects")
+            return
+        }
+        chunk.details = chunk.details.map {
+            var detail = $0
+            detail.attributeGroups = Fixtures.withoutProtocol11(detail.attributeGroups)
+            return detail
+        }
+        let payloads = [
+            try fixture("handshake", "02-s2c-hello.bin"),
+            try fixture("app-icon", "02-s2c-app-icon.bin"),
+            FrameCodec.encode(Frame(requestID: 2, body: .hierarchy(Fixtures.withoutProtocol11(hierarchy)))),
+            FrameCodec.encode(Frame(requestID: 3, body: .layerDetailsChunk(chunk))),
+        ]
+        let old = ArchiveManifest(
+            protocolVersion: Version(major: 1, minor: 0), cutawayVersion: "1.0.0",
+            savedAt: manifest.savedAt)
+        let decoder = try ArchiveDecoder(try archive(payloads, manifest: old))
+        XCTAssertTrue(decoder.hierarchy.nodes.allSatisfy { $0.layerAddress == nil && $0.viewAddress == nil })
+        let attributes = try decoder.chunk(at: 0).details[0].attributeGroups.flatMap(\.attributes)
+        XCTAssertEqual(attributes.count, 19)
+        XCTAssertTrue(attributes.allSatisfy { $0.section == .unspecified && $0.limits == nil })
+    }
+
+    func test_C_WIRE_11_anArchiveKeepsTheOptionalFields() throws {
+        let decoder = try ArchiveDecoder(try archive(try fixturePayloads()))
+        let node4 = try XCTUnwrap(decoder.hierarchy.nodes.first { $0.id == 4 })
+        XCTAssertEqual(node4.viewClassOrigin, .app)
+        let node5 = try XCTUnwrap(decoder.hierarchy.nodes.first { $0.id == 5 })
+        XCTAssertEqual(node5.layerBaseClassName, "CAShapeLayer")
+        let node2 = try XCTUnwrap(decoder.hierarchy.nodes.first { $0.id == 2 })
+        XCTAssertEqual(node2.viewControllerVisibility, .shown)
+        let groups = try decoder.chunk(at: 0).details[0].attributeGroups
+        XCTAssertEqual(groups.map(\.className), ["CALayer", "UILabel", "UIView"])
+        let attributes = groups.flatMap(\.attributes)
+        XCTAssertEqual(
+            attributes.first { $0.id == "view.alpha" }?.cluster,
+            AttributeCluster(name: "visibility", slot: "opacity"))
+        XCTAssertEqual(attributes.first { $0.id == "view.alpha" }?.unit, .fraction)
+        XCTAssertEqual(attributes.first { $0.id == "layer.borderColor" }?.inactiveCause, "layer.borderWidth")
+        XCTAssertEqual(attributes.first { $0.id == "view.tintColor" }?.systemColorName, "systemBlue")
+    }
+
+    func test_C_WIRE_11_anArchiveWithoutTheOptionalFieldsReads() throws {
+        guard case .hierarchy(let hierarchy) = try FrameCodec.decode(try fixture("hierarchy", "02-s2c-hierarchy.bin"))
+            .body,
+            case .layerDetailsChunk(var chunk) = try FrameCodec
+            .decode(try fixture("layer-details", "02-s2c-chunk-0.bin")).body
+        else {
+            XCTFail("the fixtures are not what this test expects")
+            return
+        }
+        chunk.details = chunk.details.map {
+            var detail = $0
+            detail.attributeGroups = Fixtures.withoutTheOptionalFields(detail.attributeGroups)
+            return detail
+        }
+        let payloads = [
+            try fixture("handshake", "02-s2c-hello.bin"),
+            try fixture("app-icon", "02-s2c-app-icon.bin"),
+            FrameCodec.encode(Frame(requestID: 2, body: .hierarchy(Fixtures.withoutTheOptionalFields(hierarchy)))),
+            FrameCodec.encode(Frame(requestID: 3, body: .layerDetailsChunk(chunk))),
+        ]
+        let decoder = try ArchiveDecoder(try archive(payloads))
+        XCTAssertTrue(decoder.hierarchy.nodes.allSatisfy {
+            $0.layerClassOrigin == .unknown && $0.viewBaseClassName == nil
+                && $0.viewControllerVisibility == .unknown && $0.layerAddress != nil
+        })
+        let attributes = try decoder.chunk(at: 0).details[0].attributeGroups.flatMap(\.attributes)
+        XCTAssertTrue(attributes.allSatisfy { $0.cluster == nil && $0.unit == .unspecified })
+        XCTAssertEqual(attributes.first { $0.id == "view.tag" }?.section, .identity)
+    }
+
     func test_C_ARCH_01_anArchiveWithoutDetailsReadsBack() throws {
         let payloads = Array(try fixturePayloads().prefix(3))
         let decoder = try ArchiveDecoder(try archive(payloads))
