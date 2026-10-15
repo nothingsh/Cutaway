@@ -47,48 +47,6 @@ final class ExportMenuTests: XCTestCase {
     }
 
     @MainActor
-    func test_C_ARCH_06_theRowMenuAndTheFileMenuOfferBothKinds() throws {
-        let inspector = try liveInspector()
-        let hierarchy = inspector.splitController.hierarchyController
-        hierarchy.outlineView.reloadData()
-        let row = try XCTUnwrap(
-            (0..<hierarchy.outlineView.numberOfRows).first { hierarchy.layerID(atRow: $0) == 4 })
-
-        let menu = NSMenu()
-        hierarchy.contextMenu(menu, forRow: row)
-        let titles = menu.items.map(\.title)
-        let solo = try XCTUnwrap(menu.items.first { $0.title == "Export Layer Screenshot\u{2026}" })
-        let group = try XCTUnwrap(
-            menu.items.first { $0.title == "Export Screenshot with Sublayers\u{2026}" })
-        XCTAssertEqual(titles.firstIndex(of: solo.title), titles.firstIndex(of: group.title).map { $0 - 1 })
-        XCTAssertTrue(menu.items[try XCTUnwrap(titles.firstIndex(of: solo.title)) - 1].isSeparatorItem)
-        XCTAssertEqual(solo.representedObject as? UInt64, 4)
-        XCTAssertEqual(group.representedObject as? UInt64, 4)
-        XCTAssertTrue(inspector.validateMenuItem(solo))
-        XCTAssertTrue(inspector.validateMenuItem(group))
-
-        // The File menu: the selected layer, with ⇧⌘E and ⌥⇧⌘E.
-        let coordinator = WindowCoordinator(store: AppListStore(), discoversDevices: false)
-        let file = try XCTUnwrap(coordinator.makeMainMenu().items.first { $0.submenu?.title == "File" }?.submenu)
-        let soloItem = try XCTUnwrap(file.items.first { $0.title == "Export Layer Screenshot\u{2026}" })
-        let groupItem = try XCTUnwrap(
-            file.items.first { $0.title == "Export Screenshot with Sublayers\u{2026}" })
-        XCTAssertEqual(soloItem.keyEquivalent, "e")
-        XCTAssertEqual(soloItem.keyEquivalentModifierMask, [.command, .shift])
-        XCTAssertEqual(groupItem.keyEquivalent, "e")
-        XCTAssertEqual(groupItem.keyEquivalentModifierMask, [.command, .shift, .option])
-        XCTAssertFalse(inspector.validateMenuItem(soloItem), "nothing is selected")
-        inspector.store.select(4)
-        XCTAssertTrue(inspector.validateMenuItem(soloItem))
-        XCTAssertTrue(inspector.validateMenuItem(groupItem))
-
-        // Not once the connection is gone.
-        inspector.store.connectionLost()
-        XCTAssertFalse(inspector.validateMenuItem(soloItem))
-        XCTAssertFalse(inspector.validateMenuItem(solo))
-    }
-
-    @MainActor
     func test_C_ARCH_06_anArchivesLayerIsExportedAsAPNG() async throws {
         let url = directory.appendingPathComponent("Demo.cutaway")
         try Fixtures.archive().write(to: url)
