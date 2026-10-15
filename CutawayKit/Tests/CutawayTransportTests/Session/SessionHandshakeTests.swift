@@ -19,7 +19,7 @@ final class SessionHandshakeTests: XCTestCase {
 
         let outcome = try await session.handshake()
         XCTAssertEqual(
-            outcome, .ready(Harness.demoApp, negotiated: Version(major: 1, minor: 0)))
+            outcome, .ready(Harness.demoApp, negotiated: Version(major: 1, minor: 1)))
 
         // What the client sent is exactly the fixture's Hello.
         let received = await server.receivedFrames
@@ -69,17 +69,18 @@ final class SessionHandshakeTests: XCTestCase {
             XCTFail("not a Hello")
             return
         }
-        body.protocolVersion = Version(major: 0, minor: 0)
+        // A 1.0 server, and this client speaks a later 1.x.
+        XCTAssertGreaterThan(ProtocolVersion.current.minor, 0)
+        body.protocolVersion = Version(major: 1, minor: 0)
         hello.body = .hello(body)
         let server = try await MockServer.start(script: MockScript(steps: [
             .expect(.hello, as: 0), .send(hello),
         ]))
-        let session = try await Harness.session(
-            for: server, protocolVersion: Fixtures.zeroMajorProtocol)
+        let session = try await Harness.session(for: server)
 
         let outcome = try await session.handshake()
         XCTAssertEqual(
-            outcome, .ready(Harness.demoApp, negotiated: Version(major: 0, minor: 0)))
+            outcome, .ready(Harness.demoApp, negotiated: Version(major: 1, minor: 0)))
 
         await session.close()
         await server.stop()
