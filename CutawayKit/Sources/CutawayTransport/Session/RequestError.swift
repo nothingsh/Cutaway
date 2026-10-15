@@ -20,7 +20,7 @@ public enum RequestError: Error, Equatable {
     case attributeNotEditable(message: String?)
     /// The server rejected the value (P-SET-03). Protocol 0.3.
     case invalidAttributeValue(message: String?)
-    /// The negotiated protocol version does not have this request (P-HELLO-04). Nothing was
-    /// sent.
+    /// The source of the frames cannot answer this kind of request at all. Nothing was sent.
+    /// A session never throws it; a source that stands in for one may.
     case unsupported
 }
