@@ -1,10 +1,11 @@
 import AppKit
 import DeclarativeAppKit
 
-/// The Constraints section of the attribute panel (C-LAYOUT-02), after the app's groups: a
-/// header that folds it away as theirs do, then one row to a constraint, in the server's
-/// order. The constraints UIKit made are folded into one last row that opens to list them.
-/// Names in the accent colour select their layer (C-LAYOUT-03).
+/// The constraints of the attribute panel (C-LAYOUT-02), at the end of the Layout section and
+/// folded with it: a heading that says how many there are, then one row to a constraint, in
+/// the server's order. The constraints UIKit made are folded into one last row that opens to list them.
+/// The other ends are chips that hover and select their layers (C-LAYOUT-03, C-LAYOUT-06).
+/// Pointing at a row, or at the folded UIKit ones, marks their other ends (C-LAYOUT-07).
 final class ConstraintsSectionView: NSView {
     static let headerIdentifier = "constraints.header"
     static let emptyIdentifier = "constraints.empty"
@@ -13,22 +14,13 @@ final class ConstraintsSectionView: NSView {
     let list: ConstraintList
     /// The rows of the app's constraints, then those of UIKit's.
     let rows: [ConstraintRowView]
-    var onToggle: (Bool) -> Void = { _ in }
     var onToggleGenerated: (Bool) -> Void = { _ in }
-    private(set) var isCollapsed: Bool {
-        didSet { apply() }
-    }
-
     private(set) var showsGenerated: Bool {
         didSet { apply() }
     }
 
-    private(set) lazy var header: NSButton = .init().configure {
-        $0.isBordered = false
-        $0.imageHugsTitle = true
-        $0.target = self
-        $0.action = #selector(toggle(_:))
-    }
+    /// The heading: the constraints' icon, "Constraints" and how many.
+    private(set) lazy var header = NSTextField(labelWithString: "")
 
     private(set) lazy var generatedButton: NSButton = .init().configure {
         $0.isBordered = false
@@ -39,25 +31,33 @@ final class ConstraintsSectionView: NSView {
         $0.action = #selector(toggleGenerated(_:))
     }
 
+    /// The row that folds UIKit's constraints away; pointing at it points at all of them.
+    private(set) var generatedBox: PointingBox?
+
     private let body: VStack
     private let generatedRows: VStack
 
     init(
-        rows: [ConstraintRow], isCollapsed: Bool, showsGenerated: Bool,
-        onShowLayer: @escaping (UInt64) -> Void
+        rows: [ConstraintRow], showsGenerated: Bool,
+        onShowLayer: @escaping (UInt64) -> Void,
+        onHoverEnd: @escaping (ConstraintRow.End?) -> Void = { _ in },
+        onPoint: @escaping (ConstraintPointer) -> Void = { _ in }
     ) {
         let list = ConstraintList(rows)
         self.list = list
-        self.isCollapsed = isCollapsed
         self.showsGenerated = showsGenerated
         let generated = list.generated
         let ownRows = list.own.map {
-            ConstraintRowView($0, showsClass: false, onShowLayer: onShowLayer)
+            ConstraintRowView($0, showsClass: false, onShowLayer: onShowLayer, onHoverEnd: onHoverEnd)
         }
         let generatedRowViews = generated.map {
-            ConstraintRowView($0, showsClass: true, onShowLayer: onShowLayer)
+            ConstraintRowView($0, showsClass: true, onShowLayer: onShowLayer, onHoverEnd: onHoverEnd)
         }
         self.rows = ownRows + generatedRowViews
+        for row in self.rows {
+            row.onPoint = onPoint
+        }
+        let generatedIndices = generated.map(\.index)
         generatedRows = VStack(alignment: .fill, spacing: 0) { generatedRowViews }
             .padding(top: 0, leading: Theme.Spacing.medium, bottom: 0, trailing: 0)
         body = VStack(alignment: .fill, spacing: 0) {}
@@ -67,13 +67,19 @@ final class ConstraintsSectionView: NSView {
             ownRows
             if !generated.isEmpty {
                 VStack(alignment: .fill) {
-                    NSBox().configure {
+                    PointingBox().configure {
                         $0.boxType = .custom
                         $0.borderWidth = 0
                         $0.cornerRadius = Theme.Radius.control
                         $0.fillColor = .quaternarySystemFill
                         $0.titlePosition = .noTitle
                         $0.contentViewMargins = NSSize(width: 6, height: 3)
+                        generatedBox = $0
+                        $0.onHover = { inside in
+                            onPoint(inside
+                                ? .entered(generatedIndices, stresses: false)
+                                : .left(generatedIndices))
+                        }
                         $0.contentView?.addContent(HStack(alignment: .center) {
                             generatedButton
                                 .buttonType(.momentaryChange)
@@ -101,20 +107,16 @@ final class ConstraintsSectionView: NSView {
                 .padding(horizontal: Theme.Spacing.large + 4, vertical: 2)
             }
         })
-        addVStack(alignment: .fill, spacing: 4) {
-            HStack(alignment: .center) {
+        addVStack(alignment: .fill, spacing: 2) {
+            VStack(alignment: .fill) {
                 header
-                    .buttonType(.momentaryChange)
-                    .imagePosition(.imageLeading)
-                    .alignment(.left)
-                    .contentTintColor(.secondaryLabelColor)
+                    .lineBreakMode(.byTruncatingTail)
+                    .compressionResistancePriority(Theme.textGivesWay, for: .horizontal)
                     .accessibilityIdentifier(Self.headerIdentifier)
-                Spacer()
             }
-            .padding(horizontal: Theme.Spacing.large - 2, vertical: 0)
+            .padding(top: 8, leading: Theme.Spacing.large, bottom: 2, trailing: Theme.Spacing.large)
             body
         }
-        .padding(top: 10, leading: 0, bottom: 10, trailing: 0)
         apply()
     }
 
@@ -123,9 +125,12 @@ final class ConstraintsSectionView: NSView {
         fatalError("init(coder:) is not supported")
     }
 
-    @objc func toggle(_ sender: Any?) {
-        isCollapsed.toggle()
-        onToggle(isCollapsed)
+    /// The heading's title, which a filter matches (C-ATTR-14).
+    var title: String { localized("constraints.header") }
+
+    /// The heading as shown, without the icon.
+    var headerText: String {
+        header.attributedStringValue.string.replacingOccurrences(of: "\u{FFFC}", with: "")
     }
 
     @objc func toggleGenerated(_ sender: Any?) {
@@ -134,27 +139,23 @@ final class ConstraintsSectionView: NSView {
     }
 
     private func apply() {
-        body.isHidden = isCollapsed
-        header.image = Theme.symbol(
-            isCollapsed ? "chevron.right" : "chevron.down", size: 9, weight: .bold)
-        let title = NSMutableAttributedString(
-            string: " " + localized("constraints.header"),
-            attributes: [
-                .font: Theme.Font.captionEmphasized,
-                .foregroundColor: NSColor.secondaryLabelColor,
-            ])
+        // The icon in the colour of the marks on the preview (C-ATTR-17), like a section's.
+        let heading = NSMutableAttributedString()
+        let icon = NSTextAttachment()
+        let side: CGFloat = 12
+        icon.image = ConstraintIconImage.section(side: side)
+        let font = NSFont.systemFont(ofSize: 10.5, weight: .semibold)
+        icon.bounds = NSRect(x: 0, y: ((font.capHeight - side) / 2).rounded(), width: side, height: side)
+        heading.append(NSAttributedString(attachment: icon))
+        heading.append(NSAttributedString(
+            string: " " + title, attributes: [.font: font, .foregroundColor: NSColor.tertiaryLabelColor]))
         if !list.rows.isEmpty {
-            title.append(NSAttributedString(
+            heading.append(NSAttributedString(
                 string: "  \(list.count)",
-                attributes: [
-                    .font: Theme.Font.captionDigits,
-                    .foregroundColor: NSColor.tertiaryLabelColor,
-                ]))
+                attributes: [.font: Theme.Font.captionDigits, .foregroundColor: NSColor.tertiaryLabelColor]))
         }
-        header.attributedTitle = title
-        header.setAccessibilityLabel(localized("constraints.header"))
-        header.setAccessibilityValue(
-            isCollapsed ? localized("disclosure.collapsed") : localized("disclosure.expanded"))
+        header.attributedStringValue = heading
+        header.setAccessibilityLabel(title)
 
         generatedRows.isHidden = !showsGenerated
         generatedButton.image = Theme.symbol(
@@ -174,5 +175,42 @@ final class ConstraintsSectionView: NSView {
         generatedButton.setAccessibilityLabel(label)
         generatedButton.setAccessibilityValue(
             showsGenerated ? localized("disclosure.expanded") : localized("disclosure.collapsed"))
+    }
+}
+
+/// A box that says when the pointer enters and leaves it.
+final class PointingBox: NSBox {
+    var onHover: (Bool) -> Void = { _ in }
+    private(set) var isHovered = false {
+        didSet {
+            if isHovered != oldValue { onHover(isHovered) }
+        }
+    }
+
+    private var trackingArea: NSTrackingArea?
+
+    /// Puts the pointer on the box, or off it, as the mouse does. For tests.
+    func point(_ inside: Bool) {
+        isHovered = inside
+    }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let trackingArea { removeTrackingArea(trackingArea) }
+        let area = NSTrackingArea(
+            rect: .zero, options: [.mouseEnteredAndExited, .activeInActiveApp, .inVisibleRect],
+            owner: self)
+        addTrackingArea(area)
+        trackingArea = area
+    }
+
+    override func mouseEntered(with event: NSEvent) {
+        super.mouseEntered(with: event)
+        isHovered = true
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        super.mouseExited(with: event)
+        isHovered = false
     }
 }

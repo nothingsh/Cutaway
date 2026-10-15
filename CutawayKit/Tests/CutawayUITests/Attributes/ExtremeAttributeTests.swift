@@ -46,11 +46,11 @@ final class ExtremeAttributeTests: XCTestCase {
         return window
     }
 
-    /// The row and the open editor for a value, laid out in windows.
+    /// The read-only row and the open editor for a value, laid out in windows.
     private func showAndEdit(
         _ value: AttributeValue, _ kind: AttributeValueKind
-    ) -> AttributeValueView {
-        let row = AttributeValueView(value: value)
+    ) -> AttributeRowView {
+        let row = AttributeRowView(title: "A", value: value, kind: kind)
         _ = window(showing: row)
         let attribute = Attribute(
             id: "a", title: "A", value: value, editable: true, valueKind: kind)
@@ -64,10 +64,15 @@ final class ExtremeAttributeTests: XCTestCase {
             let row = showAndEdit(value, kind)
             XCTAssertFalse(row.plainText.isEmpty, "\(value)")
         }
-        XCTAssertEqual(AttributeValueView(value: .double(.nan)).plainText, "nan")
-        XCTAssertEqual(AttributeValueView(value: .double(.infinity)).plainText, "inf")
-        XCTAssertEqual(AttributeValueView(value: .double(-.infinity)).plainText, "-inf")
-        XCTAssertEqual(AttributeValueView(value: .integer(.min)).plainText, "\(Int64.min)")
+        XCTAssertEqual(showAndEdit(.double(.nan), .double).plainText, "nan")
+        XCTAssertEqual(showAndEdit(.double(.infinity), .double).plainText, "inf")
+        XCTAssertEqual(showAndEdit(.double(-.infinity), .double).plainText, "-inf")
+        XCTAssertEqual(showAndEdit(.integer(.min), .integer).plainText, "\(Int64.min)")
+        // Shown in the read-only field as written.
+        let field = AppListViewTests.descendants(
+            of: showAndEdit(.double(.nan), .double), identifier: AttributeEditorView.fieldIdentifier)
+            .first as? NSTextField
+        XCTAssertEqual(field?.stringValue, "nan")
     }
 
     func test_C_ATTR_09_extremeColoursAreShown() {
@@ -78,7 +83,8 @@ final class ExtremeAttributeTests: XCTestCase {
             let color = Color(
                 red: components[0], green: components[1], blue: components[2], alpha: components[3])
             let row = showAndEdit(.color(color), .color)
-            XCTAssertNotNil(row.swatchColor, "the swatch is shown")  // NaN is not equal to itself
+            XCTAssertNotNil(
+                AppListViewTests.firstDescendant(of: row) { $0 is NSColorWell }, "the well is shown")
             if components.prefix(3).contains(where: { !$0.isFinite || $0 < 0 || $0 > 1 }) {
                 XCTAssertNil(AttributeText.hexRGB(of: color), "not written as a hexadecimal code")
             }
@@ -105,44 +111,31 @@ final class ExtremeAttributeTests: XCTestCase {
         }
     }
 
-    func test_C_ATTR_09_aLongStringIsCutAndWholeInItsToolTip() throws {
+    /// A string of 1 MiB is shown whole in its field of four lines, which scrolls through it.
+    func test_C_ATTR_09_aLongStringIsShownWholeAndScrolls() throws {
         let long = String(repeating: "abcdefghij", count: 104_858)  // a little over 1 MiB
         let start = ContinuousClock.now
         let row = showAndEdit(.string(long), .string)
         XCTAssertLessThan(ContinuousClock.now - start, .seconds(10), "a generous bound")
         XCTAssertEqual(row.plainText, long, "Copy Value copies the whole of it")
-        let label = try XCTUnwrap(
-            AppListViewTests.descendants(of: row).compactMap { $0 as? NSTextField }.first)
-        XCTAssertEqual(label.stringValue.count, AttributeValueView.longestShownString + 1)
-        XCTAssertTrue(label.stringValue.hasSuffix("\u{2026}"))
-        XCTAssertEqual(label.toolTip, long)
-
-        // A string up to the limit is shown whole, without a tooltip of its own.
-        let short = String(repeating: "x", count: AttributeValueView.longestShownString)
-        let shortLabel = try XCTUnwrap(
-            AppListViewTests.descendants(of: AttributeValueView(value: .string(short)))
-                .compactMap { $0 as? NSTextField }.first)
-        XCTAssertEqual(shortLabel.stringValue, short)
-        XCTAssertNil(shortLabel.toolTip)
+        let area = try XCTUnwrap(
+            AppListViewTests.firstDescendant(of: row) { $0 is AttributeTextArea } as? AttributeTextArea)
+        XCTAssertEqual(area.textView.string, long)
+        XCTAssertEqual(area.shownLines, AttributeTextArea.maximumLines)
     }
 
-    func test_C_ATTR_09_aNonFiniteValueCannotBeScrubbed() {
+    /// A number that is not finite is shown as it is, and can only be typed over.
+    @MainActor
+    func test_C_ATTR_09_aNonFiniteValueCanOnlyBeTypedOver() {
         for start in [Double.nan, .infinity, -.infinity] {
             let field = NumberFieldView(letter: "X", isInteger: false)
             var sent: [Double] = []
-            field.onSet = { value, _ in sent.append(value) }
+            field.onSet = { sent.append($0) }
             field.show(start)
-            field.scrub(by: 10, modifiers: [], ended: false)
-            field.scrub(by: 20, modifiers: [], ended: true)
-            XCTAssertEqual(sent, [], "\(start)")
+            XCTAssertEqual(field.field.stringValue, AttributeText.number(start))
+            XCTAssertEqual(field.commit("8"), .accepted)
+            XCTAssertEqual(sent, [8], "\(start)")
         }
-        // A finite number still is.
-        let field = NumberFieldView(letter: "X", isInteger: false)
-        var sent: [Double] = []
-        field.onSet = { value, _ in sent.append(value) }
-        field.show(5)
-        field.scrub(by: 3, modifiers: [], ended: true)
-        XCTAssertEqual(sent, [8])
     }
 
     func test_C_ATTR_09_aThousandAttributesAreShown() async throws {
@@ -185,9 +178,9 @@ final class ExtremeAttributeTests: XCTestCase {
         model.select(3)
         let shown = await Wait.untilOnMain(within: .seconds(20)) {
             window.layoutIfNeeded()
-            return controller.groupViews.flatMap(\.rows).count == 1_000
+            return controller.attributeRows.map(\.row).count == 1_000
         }
-        XCTAssertTrue(shown, "\(controller.groupViews.flatMap(\.rows).count) rows")
+        XCTAssertTrue(shown, "\(controller.attributeRows.map(\.row).count) rows")
         print("C-ATTR-09: 1,000 attributes were shown in \(ContinuousClock.now - start)")
         model.leave()
         await session.close()
