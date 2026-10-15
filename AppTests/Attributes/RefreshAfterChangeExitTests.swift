@@ -56,18 +56,18 @@ final class RefreshAfterChangeExitTests: XCTestCase {
             AppWindows.views(identifier: "hierarchy.outline").first as? NSOutlineView)
         outline.selectRowIndexes([2], byExtendingSelection: false)
         var deadline = Date().addingTimeInterval(5)
-        var field: NSTextField?
-        while field == nil, Date() < deadline {
-            field = AppWindows.views(identifier: "attributes.editor.field")
-                .compactMap { $0 as? NSTextField }.first { $0.stringValue == "Hello" }
+        // The label's text, in its text area of several lines (C-ATTR-05).
+        var area: NSTextView?
+        while area == nil, Date() < deadline {
+            area = AppWindows.views(identifier: "attributes.editor.text")
+                .compactMap { $0 as? NSTextView }.first { $0.string == "Hello" }
             try await Task.sleep(for: .milliseconds(50))
         }
-        let text = try XCTUnwrap(field, "the label's text field")
+        let text = try XCTUnwrap(area, "the label's text")
         let window = try XCTUnwrap(text.window)
         XCTAssertTrue(window.makeFirstResponder(text))
-        let editor = try XCTUnwrap(text.currentEditor() as? NSTextView)
-        editor.string = "Welcome back"
-        editor.didChangeText()
+        text.string = "Welcome back"
+        text.didChangeText()
         window.makeFirstResponder(nil)
 
         deadline = Date().addingTimeInterval(5)

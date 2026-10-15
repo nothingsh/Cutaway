@@ -38,16 +38,13 @@ final class RefreshReconnectExitTests: XCTestCase {
             Pixel(blue: 0, green: 255, red: 0, alpha: 255), at: 4, in: preview)
         XCTAssertTrue(arrived, "layer 4's screenshot did not appear")
 
-        // Refresh from the toolbar (C-DET-05).
+        // Refresh from the toolbar's capsule (C-DET-05, C-WIN-06).
         let first = try XCTUnwrap(inspector())
-        let item = try XCTUnwrap(first.window?.toolbar?.items.first {
-            $0.itemIdentifier == NSToolbarItem.Identifier("inspector.refresh")
-        })
-        // Asked itself: on a small screen it is in the toolbar's overflow menu, which
-        // validateVisibleItems() passes over.
-        item.validate()
-        XCTAssertTrue(item.isEnabled)
-        XCTAssertTrue(NSApp.sendAction(try XCTUnwrap(item.action), to: item.target, from: item))
+        let refresh = try XCTUnwrap(first.window?.toolbar?.items.compactMap(\.view).lazy.compactMap {
+            AppWindows.views(in: $0, identifier: "toolbar.capsule.refresh").first as? NSButton
+        }.first)
+        XCTAssertTrue(refresh.isEnabled)
+        refresh.performClick(nil)
         var deadline = Date().addingTimeInterval(5)
         while await Self.count(.getLayerDetails, server) < 2, Date() < deadline {
             try await Task.sleep(for: .milliseconds(50))

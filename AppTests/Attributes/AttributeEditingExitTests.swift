@@ -34,7 +34,10 @@ final class AttributeEditingExitTests: XCTestCase {
         else { throw NotFound(what: title) }
         var current = label.superview
         while let candidate = current {
-            if candidate.accessibilityIdentifier() == "attributes.row" { return candidate }
+            // A row of its own, or a compound one (C-ATTR-19).
+            if ["attributes.row", "attributes.compound"].contains(candidate.accessibilityIdentifier()) {
+                return candidate
+            }
             current = candidate.superview
         }
         throw NotFound(what: "the row of \(title)")
@@ -61,6 +64,17 @@ final class AttributeEditingExitTests: XCTestCase {
     /// Types into a field of a row and leaves it, as Return does.
     @MainActor
     private func type(_ text: String, into title: String, field index: Int = 0) throws {
+        // A text is typed into a text view of several lines (C-ATTR-05).
+        if let area = AppWindows.views(in: try row(title), identifier: "attributes.editor.text")
+            .first as? NSTextView
+        {
+            let window = try inspectorWindow()
+            XCTAssertTrue(window.makeFirstResponder(area), title)
+            area.string = text
+            area.didChangeText()
+            window.makeFirstResponder(nil)
+            return
+        }
         let fields = AppWindows.views(in: try row(title), identifier: "attributes.editor.field")
             .compactMap { $0 as? NSTextField }
         guard let field = fields.dropFirst(index).first else { throw NotFound(what: title) }
@@ -73,7 +87,11 @@ final class AttributeEditingExitTests: XCTestCase {
     /// The value of a row's first field, or of its value text when it has no editor.
     @MainActor
     private func fieldText(_ title: String) throws -> String? {
-        (AppWindows.views(in: try row(title), identifier: "attributes.editor.field").first
+        let row = try row(title)
+        if let area = AppWindows.views(in: row, identifier: "attributes.editor.text").first as? NSTextView {
+            return area.string
+        }
+        return (AppWindows.views(in: row, identifier: "attributes.editor.field").first
             as? NSTextField)?.stringValue
     }
 
@@ -85,7 +103,8 @@ final class AttributeEditingExitTests: XCTestCase {
     }
 
     /// Types a value the app does not take into a row: once the app's answer has come in, the
-    /// row shows `value` again, without a warning sign.
+    /// row shows `value` again, and a warning sign says the app did not accept it (C-ATTR-06,
+    /// changed on 2026-10-12).
     @MainActor
     private func expectRejected(_ text: String, into title: String, backTo value: String) async throws {
         try type(text, into: title)
@@ -93,7 +112,7 @@ final class AttributeEditingExitTests: XCTestCase {
         XCTAssertTrue(try sending(title), title)
         let back = try await waitUntil { try !self.sending(title) && self.fieldText(title) == value }
         XCTAssertTrue(back, title)
-        XCTAssertNil(try failure(title), title)
+        XCTAssertEqual(try failure(title), "The app did not accept this value.", title)
     }
 
     /// Whether a row shows a change on its way.
@@ -152,11 +171,14 @@ final class AttributeEditingExitTests: XCTestCase {
         var loaded = try await waitUntil { outline.numberOfRows == AppWindows.fixtureRowsAtFirst }
         XCTAssertTrue(loaded)
 
-        // Layer 3: its frame is read-only, its text and alignment are not (C-ATTR-04).
+        // Layer 3: its frame is read-only, its text and alignment are not (C-ATTR-04). The
+        // frame leads the geometry's compound row (C-ATTR-19).
         outline.selectRowIndexes([2], byExtendingSelection: false)
         loaded = try await waitUntil { try self.fieldText("Text") == "Hello" }
         XCTAssertTrue(loaded, "layer 3's attributes, with editors")
-        XCTAssertTrue(AppWindows.views(in: try row("Frame"), identifier: "attributes.editor").isEmpty)
+        let frame = try XCTUnwrap(
+            AppWindows.views(in: try row("Frame"), identifier: "attributes.editor.field").first as? NSTextField)
+        XCTAssertFalse(frame.isEditable)
         try type("Welcome back", into: "Text")
         var answered = try await waitUntil {
             try self.fieldText("Text") == "Welcome back"
@@ -172,35 +194,35 @@ final class AttributeEditingExitTests: XCTestCase {
         XCTAssertTrue(answered)
         try await waitForRefresh(2, details: 6, of: server)
 
-        // Layer 4: a colour where there was none, the alpha (the opacity follows).
+        // Layer 4: a colour where there was none, the opacity (`view.alpha`; layer 4 backs a
+        // view, so it has no `layer.opacity`, P-ATTR-11).
         outline.selectRowIndexes([3], byExtendingSelection: false)
-        loaded = try await waitUntil { try self.fieldText("Alpha") == "1" }
+        loaded = try await waitUntil { try self.fieldText("Opacity") == "100" }
         XCTAssertTrue(loaded, "layer 4's attributes")
-        let hex = try one("attributes.editor.hex", in: try row("Background Color"), as: NSTextField.self)
+        let hex = try one("attributes.editor.hex", in: try row("Background"), as: NSTextField.self)
         XCTAssertEqual(hex.stringValue, "")
         let window = try inspectorWindow()
         XCTAssertTrue(window.makeFirstResponder(hex))
         Self.typeKeys("#3366CC", into: hex)
         window.makeFirstResponder(nil)
-        answered = try await waitUntil { hex.stringValue == "#3366CC" }
+        answered = try await waitUntil { hex.stringValue == "3366CC" }
         XCTAssertTrue(answered)
         try await waitForRefresh(3, details: 9, of: server)
-        try type("0.5", into: "Alpha")
-        answered = try await waitUntil { try self.fieldText("Opacity") == "0.5" }
-        XCTAssertTrue(answered, "the opacity read back with the alpha")
+        try type("50", into: "Opacity")
+        answered = try await waitUntil { try self.fieldText("Opacity") == "50" }
+        XCTAssertTrue(answered, "the opacity read back")
         try await waitForRefresh(4, details: 11, of: server)
 
-        // Three failures; the value from before stays. One the attribute cannot take is said
-        // by a warning sign; a value the app does not take just goes back, without one.
-        try type("1", into: "Corner Radius")
-        var said = try await waitUntil { try self.failure("Corner Radius") == "This attribute cannot be changed." }
+        // Three failures; the value from before stays, and a warning sign says why.
+        try type("1", into: "Corners")
+        var said = try await waitUntil { try self.failure("Corners") == "This attribute cannot be changed." }
         XCTAssertTrue(said)
-        XCTAssertEqual(try fieldText("Corner Radius"), "12")
-        try await expectRejected("0.4", into: "Opacity", backTo: "0.5")
-        try await expectRejected("0.4", into: "Alpha", backTo: "0.5")
+        XCTAssertEqual(try fieldText("Corners"), "12")
+        try await expectRejected("40", into: "Opacity", backTo: "50")
+        try await expectRejected("3", into: "Corners", backTo: "12")
 
         // The layer is gone: the panel says so (C-ATTR-06, as C-DET-03).
-        try type("2", into: "Corner Radius")
+        try type("2", into: "Corners")
         said = try await waitUntil {
             (AppWindows.views(identifier: "attributes.message").first as? NSTextField)?
                 .stringValue == "Layer Not Found"
@@ -244,7 +266,10 @@ final class AttributeEditingExitTests: XCTestCase {
                 attributeGroups: try Fixtures.layerFourBeforeEditing())],
             as: 60)
         steps += change(2) + change(3)  // layer 4: a colour, the alpha
-        steps += rejections.dropFirst(2)  // not editable, rejected, rejected
+        // Not editable, rejected, rejected; without the two values outside the limits (1.1),
+        // which the client never sends (P-SET-07), and the layer's attribute of a pair, which
+        // the panel never shows on a layer that backs a view (P-ATTR-11).
+        steps += rejections.dropFirst(2).dropLast(8)
         steps += rejections.prefix(2)  // the layer is gone
         return MockScript(steps: steps)
     }

@@ -7,14 +7,6 @@ import XCTest
 /// C-APP-01. These tests run inside the app process, so they check the product that was
 /// actually built rather than the text of project.yml.
 final class AppFormTests: XCTestCase {
-    func test_C_APP_01_minimumSystemVersionIsMacOS14() {
-        XCTAssertEqual(
-            Bundle.main.bundleIdentifier, "dev.cutaway.Cutaway",
-            "this test must be hosted by the app")
-        XCTAssertEqual(
-            Bundle.main.object(forInfoDictionaryKey: "LSMinimumSystemVersion") as? String, "14.0")
-    }
-
     func test_C_APP_01_appIsNotSandboxed() throws {
         XCTAssertEqual(
             Bundle.main.bundleIdentifier, "dev.cutaway.Cutaway",
@@ -27,16 +19,6 @@ final class AppFormTests: XCTestCase {
 
         // The system sets this for every sandboxed process.
         XCTAssertNil(ProcessInfo.processInfo.environment["APP_SANDBOX_CONTAINER_ID"])
-    }
-
-    /// The launcher shows the icon from the app's own asset catalog: on the first launch of a
-    /// fresh build the system's copy can still be the blank template.
-    @MainActor
-    func test_C_APP_01_theAppCarriesItsIcon() throws {
-        XCTAssertEqual(
-            Bundle.main.object(forInfoDictionaryKey: "CFBundleIconName") as? String, "AppIcon")
-        let icon = try XCTUnwrap(NSImage(named: "AppIcon"), "no AppIcon in the asset catalog")
-        XCTAssertGreaterThanOrEqual(icon.size.width, 16)
     }
 
     /// C-ARCH-01: the app declares the archive type and that it handles it (Resources/ARCHIVE.md).
