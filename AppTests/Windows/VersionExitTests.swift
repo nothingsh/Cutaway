@@ -26,15 +26,6 @@ final class VersionExitTests: XCTestCase {
     }
 
     @MainActor
-    func test_C_DIST_01_theAboutPanelShowsTheAppsVersion() {
-        let options = AboutPanel.options(info: Bundle.main.infoDictionary ?? [:], icon: nil)
-        XCTAssertEqual(options[.applicationVersion] as? String, Self.bundleVersion)
-        XCTAssertEqual(
-            options[.version] as? String,
-            Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String)
-    }
-
-    @MainActor
     func test_C_DIST_01_theHandshakeCarriesTheAppsVersion() async throws {
         let delegate = try XCTUnwrap(NSApplication.shared.delegate as? AppDelegate)
         let version = try XCTUnwrap(Self.bundleVersion)

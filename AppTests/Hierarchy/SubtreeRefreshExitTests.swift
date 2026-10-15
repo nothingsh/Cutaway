@@ -61,7 +61,7 @@ final class SubtreeRefreshExitTests: XCTestCase {
         let item = try XCTUnwrap(
             NSApp.mainMenu?.items.compactMap(\.submenu).flatMap(\.items)
                 .first { $0.title == "Refresh Selected Subtree" })
-        XCTAssertTrue(inspector.validateMenuItem(item), "the server speaks 0.3")
+        XCTAssertTrue(inspector.validateMenuItem(item), "an app sends subtrees")
         XCTAssertTrue(NSApp.sendAction(try XCTUnwrap(item.action), to: inspector, from: item))
 
         deadline = Date().addingTimeInterval(5)

@@ -118,8 +118,9 @@ echo "generated Cutaway.xcodeproj from project.yml"
 
 step "app build and app tests"
 # A module left in the built products by an earlier build can be found before the one this
-# build makes, so the products are built afresh.
-rm -rf DerivedData/Build/Products
+# build makes, so the products are built afresh. So are the eager linking stubs: Xcode does
+# not always make them again, and a stale one lacks what a framework added since.
+rm -rf DerivedData/Build/Products DerivedData/Build/Intermediates.noindex/EagerLinkingTBDs
 xcodebuild test -project Cutaway.xcodeproj -scheme Cutaway \
   -destination 'platform=macOS' -derivedDataPath DerivedData >"$logs/app-tests.log" 2>&1 || {
   grep -E " error: |^Test Case .* failed" "$logs/app-tests.log" || true

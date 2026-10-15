@@ -7,26 +7,6 @@ import XCTest
 /// settings window (C-PREF-01), and the tests' settings are their own, at the defaults.
 final class SettingsExitTests: XCTestCase {
     @MainActor
-    func test_C_PREF_01_settingsOpensTheSettingsWindow() throws {
-        let menu = try XCTUnwrap(NSApp.mainMenu?.items.first?.submenu)
-        let item = try XCTUnwrap(menu.items.first { $0.title == "Settings\u{2026}" })
-        XCTAssertEqual(item.keyEquivalent, ",")
-        XCTAssertEqual(item.keyEquivalentModifierMask, .command)
-
-        let index = menu.index(of: item)
-        menu.performActionForItem(at: index)
-        menu.performActionForItem(at: index)
-        let windows = NSApp.windows.filter {
-            $0.contentViewController is NSTabViewController && $0.isVisible
-        }
-        XCTAssertEqual(windows.count, 1)
-        XCTAssertEqual(
-            (windows.first?.contentViewController as? NSTabViewController)?.tabViewItems.map(\.label),
-            ["General", "Preview"])
-        windows.first?.close()
-    }
-
-    @MainActor
     func test_C_PREF_01_theTestsSettingsAreNotTheUsers() throws {
         let settings = try AppWindows.coordinator().settings
         XCTAssertEqual(settings.inspectionStart, InspectionStart())

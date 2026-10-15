@@ -22,8 +22,8 @@ final class AppListExitTests: XCTestCase {
         func text(_ identifier: String) -> String? {
             (AppWindows.views(in: row, identifier: identifier).first as? NSTextField)?.stringValue
         }
-        XCTAssertEqual(text("app.bundle"), "dev.cutaway.demo")
-        XCTAssertEqual(text("app.device"), "iPhone 16 · iOS 18.0")
+        // On this Mac the second line names the simulator (C-LIST-04).
+        XCTAssertEqual(text("app.subtitle"), "dev.cutaway.demo · iPhone 16 · iOS 18.0")
 
         // The icon was fetched over the same connection and decoded: 2 by 2 pixels.
         var icon: NSImage?
