@@ -18,7 +18,7 @@ final class ScaleHighlightTests: XCTestCase {
         let projector = PreviewProjector(
             clock: nil, reducesMotion: { true }, keepTextures: { _ in },
             show: { list, _ in shown = list })
-        projector.resize(to: CGSize(width: viewport.width, height: viewport.height))
+        projector.resize(to: viewport)
         projector.follow(layout)
         projector.follow(.threeD)
         projector.follow(PreviewCameras())

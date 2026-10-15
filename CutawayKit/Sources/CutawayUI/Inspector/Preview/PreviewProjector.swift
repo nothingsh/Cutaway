@@ -14,6 +14,8 @@ final class PreviewProjector {
     var selected: UInt64?
     var hovered: UInt64?
     var constraintEnds: [ConstraintEnd] = []
+    /// The ends whose marks are stressed, the others faded (C-LAYOUT-06, C-LAYOUT-07).
+    var emphasizedEnds: [SceneMark] = []
     /// Whether the preview measures the layer under the pointer against the selected one.
     var measuring = false
     private(set) var mode = PreviewMode.twoD
@@ -84,8 +86,8 @@ final class PreviewProjector {
         project()
     }
 
-    func resize(to size: CGSize) {
-        let new = Viewport(width: size.width, height: size.height)
+    /// The view's size, and what floats over its edges.
+    func resize(to new: Viewport) {
         guard new != viewport else { return }
         viewport = new
         project()
@@ -243,7 +245,7 @@ final class PreviewProjector {
         let basis = StillBasis(
             layoutRevision: layoutRevision, lens: lens, viewport: viewport, marks: marks,
             measured: measured)
-        let list: DrawList
+        var list: DrawList
         if let moving = layoutTransition {
             projectionCount += 1
             list = moving.transition.project(
@@ -259,6 +261,8 @@ final class PreviewProjector {
                 lens: lens, viewport: viewport, selected: selected, hovered: hovered,
                 marks: marks, measuring: measured)
         }
+        // Which mark is stressed changes no projection either.
+        list = list.emphasizing(emphasizedEnds)
         lastStill = isInTransition ? nil : (basis, list)
         // A change that shows at once may have ended the last transition: no tick is due.
         if !isInTransition { stopTicking() }

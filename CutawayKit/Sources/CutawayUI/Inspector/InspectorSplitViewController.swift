@@ -41,7 +41,25 @@ final class InspectorSplitViewController: NSSplitViewController {
             tree: store.$tree.eraseToAnyPublisher(),
             connection: store.$connection.eraseToAnyPublisher(),
             onRetry: { [weak store] in store?.retryAttributes() },
-            onShowLayer: { [weak store] id in store?.showConstraintEnd(id) })
+            onShowLayer: { [weak store] id in store?.showLayer(id) },
+            onHoverLayer: { [weak store] id in
+                // Not once the connection is gone, as in the list.
+                guard let store, !store.connection.isLost else { return }
+                store.hover(id)
+            },
+            onHoverConstraintEnd: { [weak store] end in
+                guard let store, !store.connection.isLost else { return }
+                store.hoverConstraintEnd(end?.mark, layerID: end?.layerID)
+            },
+            onPointConstraints: { [weak store] pointer in
+                guard let store, !store.connection.isLost else { return }
+                switch pointer {
+                case .entered(let indices, let stresses):
+                    store.pointConstraints(indices, stresses: stresses)
+                case .left(let indices):
+                    store.leaveConstraints(indices)
+                }
+            })
         super.init(nibName: nil, bundle: nil)
     }
 
@@ -61,6 +79,9 @@ final class InspectorSplitViewController: NSSplitViewController {
 
         let content = NSSplitViewItem(viewController: containerController)
         content.minimumThickness = Self.minimumPreviewWidth
+        // The preview runs up under the toolbar and its capsules float over it (C-WIN-06):
+        // no line between them.
+        content.titlebarSeparatorStyle = .none
 
         let inspector = NSSplitViewItem(inspectorWithViewController: attributesController)
         inspector.minimumThickness = Self.minimumInspectorWidth

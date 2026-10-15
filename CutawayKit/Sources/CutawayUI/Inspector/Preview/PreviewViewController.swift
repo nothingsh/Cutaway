@@ -106,7 +106,7 @@ final class PreviewViewController: NSViewController {
             self.layerMenu.fill(menu, for: id)
             return menu.items.isEmpty ? nil : menu
         }
-        preview.onResize = { [weak self] size in self?.projector?.resize(to: size) }
+        preview.onResize = { [weak self] viewport in self?.projector?.resize(to: viewport) }
         preview.onMeasuringChange = { [weak self] measuring in
             self?.projector?.measuring = measuring
             self?.projector?.project()
@@ -133,14 +133,12 @@ final class PreviewViewController: NSViewController {
     /// How much View › Zoom In and Zoom Out change the zoom (C-MENU-02).
     static let zoomStep = 1.25
 
-    /// Zooms about the middle of the preview, keeping what is there where it is (C-MENU-02,
+    /// Zooms about the middle of the preview between what floats over it, keeping what is there where it is (C-MENU-02,
     /// C-PREV-05). Nothing before the preview has a size, or once it no longer takes input.
     func zoomAboutCentre(by factor: Double) {
         guard let projector, takesInput else { return }
         let viewport = projector.viewport
-        store.zoom(
-            by: factor, about: ScenePoint(x: viewport.width / 2, y: viewport.height / 2),
-            in: viewport)
+        store.zoom(by: factor, about: viewport.middle, in: viewport)
     }
 
     /// What the preview shows follows the store.
@@ -174,6 +172,12 @@ final class PreviewViewController: NSViewController {
                 self?.projector?.project()
             }
             .store(in: &cancellables)
+        store.$emphasizedConstraintEnds
+            .sink { [weak self] marks in
+                self?.projector?.emphasizedEnds = marks
+                self?.projector?.project()
+            }
+            .store(in: &cancellables)
         store.$previewMode
             .sink { [weak self] mode in self?.projector?.follow(mode) }
             .store(in: &cancellables)
@@ -182,8 +186,11 @@ final class PreviewViewController: NSViewController {
         store.$cameras
             .sink { [weak self] cameras in self?.projector?.follow(cameras) }
             .store(in: &cancellables)
-        store.$showsBorders
-            .sink { [weak self] shows in self?.preview?.style.drawsBorders = shows }
+        store.$borders
+            .sink { [weak self] options in self?.preview?.borders.options = options }
+            .store(in: &cancellables)
+        store.$tree
+            .sink { [weak self] tree in self?.preview?.borders.tree = tree }
             .store(in: &cancellables)
     }
 

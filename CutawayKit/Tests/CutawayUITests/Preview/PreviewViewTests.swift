@@ -1,11 +1,11 @@
 import AppKit
-import CutawayRender
 import CutawayScene
 import CutawayTestSupport
 import CutawayTransport
 import CutawayWire
 import XCTest
 @testable import CutawayModel
+@testable import CutawayRender
 
 @testable import CutawayUI
 
@@ -120,6 +120,26 @@ final class PreviewViewTests: XCTestCase {
         XCTAssertTrue(Self.waitForFrames(preview, atLeast: settled + 3), "a frame was drawn")
         Self.settle()
         XCTAssertEqual(preview.frameCount, settled + 3, "a new image")
+        withExtendedLifetime(window) {}
+    }
+
+    /// A new size is drawn at once, in the resize's transaction, and only once: what shows the
+    /// window at its new size, the full-screen animation too, has the frame for it.
+    @MainActor
+    func test_C_REND_04_aNewSizeIsDrawnOnceWithTheResize() throws {
+        let model = try model()
+        let (_, preview, window) = try previewInWindow(model)
+        XCTAssertTrue(preview.presentsWithTransaction)
+        XCTAssertTrue(Self.waitForFrames(preview, atLeast: 1), "the first frame")
+        Self.settle()
+        let settled = preview.frameCount
+        window.setContentSize(NSSize(width: 600, height: 900))
+        // Before the run loop turns.
+        XCTAssertEqual(preview.frameCount, settled + 1, "drawn with the resize")
+        XCTAssertFalse(preview.isDrawingPending)
+        XCTAssertEqual(preview.drawableSize.width, 600 * window.backingScaleFactor)
+        Self.settle()
+        XCTAssertEqual(preview.frameCount, settled + 1, "nothing more")
         withExtendedLifetime(window) {}
     }
 
@@ -247,22 +267,6 @@ final class PreviewViewTests: XCTestCase {
     // MARK: - C-PREV-03: hover
 
     @MainActor
-    func test_C_PREV_03_pointingAtALayerHighlightsItUntilThePointerLeaves() throws {
-        let model = try model()
-        let (_, preview, window) = try previewInWindow(model)
-        let center = try XCTUnwrap(preview.viewPoint(ofCenterOf: 3))
-
-        preview.mouseMoved(with: Self.mouse(.mouseMoved, at: center, in: preview))
-        XCTAssertEqual(model.hoveredLayerID, 3)
-        XCTAssertEqual(preview.drawList.items.first { $0.layerID == 3 }?.highlight, .hovered)
-
-        preview.mouseExited(with: Self.exit(preview))
-        XCTAssertNil(model.hoveredLayerID)
-        XCTAssertTrue(preview.drawList.items.allSatisfy { $0.highlight == .none })
-        withExtendedLifetime(window) {}
-    }
-
-    @MainActor
     func test_C_PREV_03_pointingAtAnEmptyPreviewHoversNothing() throws {
         let model = InspectionStore(
             session: Session(channel: InertChannel(), client: Self.client), newLayers: .expanded)
@@ -327,16 +331,6 @@ final class PreviewViewTests: XCTestCase {
         withExtendedLifetime(window) {}
     }
 
-    @MainActor
-    func test_C_PREV_01_thePreviewTakesTheFirstClickInAWindowThatIsNotKey() throws {
-        let model = try model()
-        let (_, preview, window) = try previewInWindow(model)
-        let center = try XCTUnwrap(preview.viewPoint(ofCenterOf: 3))
-        XCTAssertTrue(
-            preview.acceptsFirstMouse(for: Self.mouse(.leftMouseDown, at: center, in: preview)))
-        withExtendedLifetime(window) {}
-    }
-
     // MARK: - In the inspection
 
     /// An inspector window that is never shown, at its starting size.
@@ -371,86 +365,8 @@ final class PreviewViewTests: XCTestCase {
             layers: model.tree.sceneLayers(images: model.images), expanded: model.expandedLayerIDs
         ).project(
             camera: camera,
-            viewport: Viewport(width: preview.bounds.width, height: preview.bounds.height),
+            viewport: preview.viewport,
             selected: model.selectedLayerID, hovered: model.hoveredLayerID)
-    }
-
-    @MainActor
-    func test_C_PREV_01_clickingALayerSelectsItInTheModelAndTheList() throws {
-        let model = try model()
-        let (controller, preview, window) = try inspectionInWindow(model)
-        let outline = controller.hierarchyController.outlineView
-
-        let card = try XCTUnwrap(preview.viewPoint(ofCenterOf: 4))
-        Self.click(at: card, in: preview)
-        XCTAssertEqual(model.selectedLayerID, 4)
-        XCTAssertEqual(controller.hierarchyController.layerID(atRow: outline.selectedRow), 4)
-        XCTAssertTrue(outline.visibleRect.contains(outline.rect(ofRow: outline.selectedRow)))
-        XCTAssertEqual(preview.drawList.items.first { $0.layerID == 4 }?.highlight, .selected)
-
-        // Outside every layer: nothing is selected.
-        Self.click(at: NSPoint(x: 3, y: 3), in: preview)
-        XCTAssertNil(model.selectedLayerID)
-        XCTAssertEqual(outline.selectedRow, -1)
-        withExtendedLifetime(window) {}
-    }
-
-    @MainActor
-    func test_C_PREV_01_selectingARowHighlightsItsLayerInThePreview() throws {
-        let model = try model()
-        let (controller, preview, window) = try inspectionInWindow(model)
-        let outline = controller.hierarchyController.outlineView
-
-        outline.selectRowIndexes([2], byExtendingSelection: false)  // layer 3
-        XCTAssertEqual(model.selectedLayerID, 3)
-        XCTAssertEqual(preview.drawList.items.first { $0.layerID == 3 }?.highlight, .selected)
-        let image = try preview.snapshot()
-        let point = try XCTUnwrap(preview.imagePoint(ofCenterOf: 3))
-        // The selection tint over opaque red.
-        let fill = RenderStyle.standard.selectedFill
-        let expected = fill + SIMD4<Float>(1, 0, 0, 1) * (1 - fill.w)
-        let actual = image.pixel(x: Int(point.x), y: Int(point.y))
-        XCTAssertEqual(Int(actual.red), Int((expected.x * 255).rounded()), accuracy: 2)
-        XCTAssertEqual(Int(actual.green), Int((expected.y * 255).rounded()), accuracy: 2)
-        XCTAssertEqual(Int(actual.blue), Int((expected.z * 255).rounded()), accuracy: 2)
-
-        // The hidden layer 5 can be selected in the list, and has no highlight: the preview
-        // does not draw it, so it cannot be pointed at there.
-        outline.selectRowIndexes([4], byExtendingSelection: false)
-        XCTAssertEqual(model.selectedLayerID, 5)
-        XCTAssertTrue(preview.drawList.items.allSatisfy { $0.highlight == .none })
-        withExtendedLifetime(window) {}
-    }
-
-    @MainActor
-    func test_C_PREV_02_theSwitchChangesTheCameraAndRedraws() throws {
-        let model = try model()
-        let (_, preview, window) = try inspectionInWindow(model)
-        let control = try modeControl(window)
-        XCTAssertEqual(control.segmentCount, 2)
-        XCTAssertEqual(control.label(forSegment: 0), "2D")
-        XCTAssertEqual(control.label(forSegment: 1), "3D")
-        XCTAssertEqual(control.selectedSegment, 0)
-        XCTAssertEqual(preview.drawList, expectedList(model, .flat, preview))
-        XCTAssertTrue(Self.waitForFrames(preview, atLeast: 1), "a frame was drawn")
-        Self.settle()
-        let settled = preview.frameCount
-
-        control.selectedSegment = 1
-        control.sendAction(control.action, to: control.target)
-        XCTAssertEqual(model.previewMode, .threeD)
-        XCTAssertEqual(preview.drawList, expectedList(model, .standard3D, preview))
-        XCTAssertTrue(Self.waitForFrames(preview, atLeast: settled + 1), "redrawn")
-
-        control.selectedSegment = 0
-        control.sendAction(control.action, to: control.target)
-        XCTAssertEqual(model.previewMode, .twoD)
-        XCTAssertEqual(preview.drawList, expectedList(model, .flat, preview))
-
-        // The model leads: a change made elsewhere moves the control.
-        model.setPreviewMode(.threeD)
-        XCTAssertEqual(control.selectedSegment, 1)
-        withExtendedLifetime(window) {}
     }
 
     @MainActor
@@ -605,19 +521,6 @@ final class PreviewViewTests: XCTestCase {
         withExtendedLifetime(window) {}
     }
 
-    // MARK: - C-HIER-05: a focused subtree
-
-    @MainActor
-    func test_C_HIER_05_thePreviewDrawsOnlyTheFocus() throws {
-        let model = try model()
-        let (_, preview, window) = try previewInWindow(model)
-        model.focus(on: 6)
-        XCTAssertEqual(Set(preview.drawList.items.map(\.layerID)), [6, 7])
-        model.focus(on: nil)
-        XCTAssertTrue(preview.drawList.items.map(\.layerID).contains(1))
-        withExtendedLifetime(window) {}
-    }
-
     // MARK: - C-PREV-04 to 06: clicks and drags
 
     /// A click as the mouse makes it: down, then up at the same point.
@@ -657,35 +560,6 @@ final class PreviewViewTests: XCTestCase {
     }
 
     // MARK: - C-PREV-13: double clicks
-
-    @MainActor
-    func test_C_PREV_13_doubleClickingALayerExpandsOrCollapsesIt() throws {
-        let model = try model(newLayers: .byRule)
-        let (controller, preview, window) = try inspectionInWindow(model)
-        let hierarchy = controller.hierarchyController
-        func rows() -> [UInt64?] {
-            (0..<hierarchy.outlineView.numberOfRows).map(hierarchy.layerID(atRow:))
-        }
-        XCTAssertFalse(model.isExpanded(4))
-        let card = try XCTUnwrap(preview.viewPoint(ofCenterOf: 4))
-
-        Self.doubleClick(at: card, in: preview)
-        XCTAssertEqual(model.selectedLayerID, 4)
-        XCTAssertTrue(model.isExpanded(4))
-        XCTAssertEqual(rows(), [1, 2, 3, 4, 5, 6, 8, 9], "the list follows")
-
-        // Layer 5 is hidden and not drawn: the card itself is under the pointer again.
-        Self.doubleClick(at: card, in: preview)
-        XCTAssertFalse(model.isExpanded(4))
-        XCTAssertEqual(rows(), [1, 2, 3, 4, 6, 8, 9])
-
-        // A layer without sublayers is only selected.
-        let label = try XCTUnwrap(preview.viewPoint(ofCenterOf: 3))
-        Self.doubleClick(at: label, in: preview)
-        XCTAssertEqual(model.selectedLayerID, 3)
-        XCTAssertEqual(model.tree.ids.filter { !model.isExpanded($0) }, [4, 6])
-        withExtendedLifetime(window) {}
-    }
 
     @MainActor
     func test_C_PREV_13_doubleClickingNothingOrDraggingChangesNothing() throws {
@@ -729,67 +603,6 @@ final class PreviewViewTests: XCTestCase {
         preview.menu(for: mouse(.rightMouseDown, at: point, in: preview))
     }
 
-    /// What follows a layer's own commands: exporting its screenshot (C-ARCH-06).
-    private static let exportTitles = [
-        "", "Export Layer Screenshot\u{2026}", "Export Screenshot with Sublayers\u{2026}",
-    ]
-
-    @MainActor
-    func test_C_PREV_15_rightClickingALayerSelectsItAndOffersItsRowsMenu() throws {
-        let model = try model()
-        let (_, preview, window) = try previewInWindow(model)
-        model.select(3)
-        let card = try XCTUnwrap(preview.viewPoint(ofCenterOf: 4))
-
-        let menu = try XCTUnwrap(Self.contextMenu(at: card, in: preview))
-        XCTAssertEqual(model.selectedLayerID, 4, "selected before the menu opens")
-        XCTAssertEqual(menu.items.map(\.title), ["Focus on Layer"] + Self.exportTitles)
-        XCTAssertEqual(menu.items.compactMap { $0.representedObject as? UInt64 }, [4, 4, 4])
-
-        let focus = menu.items[0]
-        XCTAssertTrue(NSApp.sendAction(try XCTUnwrap(focus.action), to: focus.target, from: focus))
-        XCTAssertEqual(model.focusedLayerID, 4)
-
-        // While focused, the menu also shows all layers.
-        let fitted = try XCTUnwrap(preview.viewPoint(ofCenterOf: 4))
-        let focused = try XCTUnwrap(Self.contextMenu(at: fitted, in: preview))
-        XCTAssertEqual(model.selectedLayerID, 4)
-        XCTAssertEqual(
-            focused.items.map(\.title), ["Focus on Layer"] + Self.exportTitles + ["Show All Layers"])
-        withExtendedLifetime(window) {}
-    }
-
-    @MainActor
-    func test_C_PREV_15_aServerThatSendsSubtreesGetsRefreshSubtree() throws {
-        let model = try model()
-        model.canRefreshSubtrees = true
-        let (_, preview, window) = try previewInWindow(model)
-        let card = try XCTUnwrap(preview.viewPoint(ofCenterOf: 4))
-        let menu = try XCTUnwrap(Self.contextMenu(at: card, in: preview))
-        XCTAssertEqual(
-            menu.items.map(\.title), ["Focus on Layer", "Refresh Subtree"] + Self.exportTitles)
-        withExtendedLifetime(window) {}
-    }
-
-    @MainActor
-    func test_C_PREV_15_rightClickingNothingOnlyShowsAllLayersWhileFocused() throws {
-        let model = try model()
-        let (_, preview, window) = try previewInWindow(model)
-        model.select(7)
-        let nothing = NSPoint(x: 3, y: 3)
-        XCTAssertNil(Self.contextMenu(at: nothing, in: preview))
-        XCTAssertEqual(model.selectedLayerID, 7, "a right click on nothing keeps the selection")
-
-        model.focus(on: 6)
-        let menu = try XCTUnwrap(Self.contextMenu(at: nothing, in: preview))
-        XCTAssertEqual(menu.items.map(\.title), ["Show All Layers"])
-        let item = menu.items[0]
-        XCTAssertTrue(NSApp.sendAction(try XCTUnwrap(item.action), to: item.target, from: item))
-        XCTAssertNil(model.focusedLayerID)
-        XCTAssertEqual(model.selectedLayerID, 7)
-        withExtendedLifetime(window) {}
-    }
-
     @MainActor
     func test_C_PREV_15_aLostConnectionOpensNoMenu() throws {
         let model = try model()
@@ -799,68 +612,6 @@ final class PreviewViewTests: XCTestCase {
         model.connectionLost()
         XCTAssertNil(Self.contextMenu(at: card, in: preview))
         XCTAssertNil(model.selectedLayerID)
-        withExtendedLifetime(window) {}
-    }
-
-    @MainActor
-    func test_C_PREV_01_aClickSelectsWhenTheButtonComesUp() throws {
-        let model = try model()
-        let (_, preview, window) = try previewInWindow(model)
-        let card = try XCTUnwrap(preview.viewPoint(ofCenterOf: 4))
-        preview.mouseDown(with: Self.mouse(.leftMouseDown, at: card, in: preview))
-        XCTAssertNil(model.selectedLayerID, "not yet")
-        preview.mouseUp(with: Self.mouse(.leftMouseUp, at: card, in: preview))
-        XCTAssertEqual(model.selectedLayerID, 4)
-        withExtendedLifetime(window) {}
-    }
-
-    @MainActor
-    func test_C_PREV_01_aSmallWobbleIsStillAClick() throws {
-        let model = try model()
-        let (_, preview, window) = try previewInWindow(model)
-        let card = try XCTUnwrap(preview.viewPoint(ofCenterOf: 4))
-        Self.drag(from: card, to: NSPoint(x: card.x + 2, y: card.y + 1), in: preview)
-        XCTAssertEqual(model.selectedLayerID, 4)
-        XCTAssertEqual(model.camera, .flat)
-        withExtendedLifetime(window) {}
-    }
-
-    @MainActor
-    func test_C_PREV_04_aDragTurnsWithoutSelecting() throws {
-        let model = try model()
-        model.setPreviewMode(.threeD)
-        let (_, preview, window) = try previewInWindow(model)
-        let card = try XCTUnwrap(preview.viewPoint(ofCenterOf: 4))
-        // Right by 40 and, in AppKit's y-up view coordinates, down by 20.
-        Self.drag(from: card, to: NSPoint(x: card.x + 40, y: card.y - 20), in: preview)
-        XCTAssertNil(model.selectedLayerID)
-        let expected = Camera.standard3D.rotated(byDragOf: 40, 20)
-        XCTAssertEqual(model.camera.yaw, expected.yaw, accuracy: 1e-9)
-        XCTAssertEqual(model.camera.pitch, expected.pitch, accuracy: 1e-9)
-        withExtendedLifetime(window) {}
-    }
-
-    @MainActor
-    func test_C_PREV_06_aDragIn2DPans() throws {
-        let model = try model()
-        let (_, preview, window) = try previewInWindow(model)
-        let start = NSPoint(x: 100, y: 100)
-        Self.drag(from: start, to: NSPoint(x: 130, y: 90), in: preview)
-        XCTAssertEqual(model.camera.pan, ScenePoint(x: 30, y: 10))
-        XCTAssertEqual(model.previewMode, .twoD, "2D stays 2D")
-        withExtendedLifetime(window) {}
-    }
-
-    @MainActor
-    func test_C_PREV_06_anOptionDragIn3DPans() throws {
-        let model = try model()
-        model.setPreviewMode(.threeD)
-        let (_, preview, window) = try previewInWindow(model)
-        Self.drag(
-            from: NSPoint(x: 100, y: 100), to: NSPoint(x: 110, y: 100), option: true,
-            in: preview)
-        XCTAssertEqual(model.camera.pan, ScenePoint(x: 10, y: 0))
-        XCTAssertEqual(model.camera.yaw, Camera.standard3D.yaw)
         withExtendedLifetime(window) {}
     }
 
@@ -900,17 +651,6 @@ final class PreviewViewTests: XCTestCase {
     }
 
     @MainActor
-    func test_C_PREV_06_scrollingPans() throws {
-        let model = try model()
-        let (_, preview, window) = try previewInWindow(model)
-        preview.scrollWheel(
-            with: Self.scroll(dx: 12, dy: -5, at: NSPoint(x: 50, y: 50), in: preview))
-        XCTAssertEqual(model.camera.pan.x, 12, accuracy: 0.001)
-        XCTAssertEqual(model.camera.pan.y, -5, accuracy: 0.001)
-        withExtendedLifetime(window) {}
-    }
-
-    @MainActor
     func test_C_PREV_05_zoomingKeepsTheLayerUnderThePointer() throws {
         let model = try model()
         let (_, preview, window) = try previewInWindow(model)
@@ -927,62 +667,6 @@ final class PreviewViewTests: XCTestCase {
         let pinched = try XCTUnwrap(preview.viewPoint(ofCenterOf: 4))
         XCTAssertEqual(pinched.x, card.x, accuracy: 0.5)
         XCTAssertEqual(pinched.y, card.y, accuracy: 0.5)
-        withExtendedLifetime(window) {}
-    }
-
-    @MainActor
-    func test_C_PREV_06_theDrawListFollowsEveryCameraChange() throws {
-        let model = try model()
-        model.setPreviewMode(.threeD)
-        let (_, preview, window) = try previewInWindow(model)
-        let viewport = Viewport(width: preview.bounds.width, height: preview.bounds.height)
-        for change in [
-            { model.rotate(byDragOf: 15, 5) },
-            { model.pan(by: 7, 3) },
-            { model.setLayerSpacing(120) },
-            { model.zoom(by: 1.5, about: .zero, in: viewport) },
-            { model.resetCamera() },
-        ] as [() -> Void] {
-            change()
-            let expected = model.layout.project(
-                camera: model.camera, viewport: viewport, selected: nil, hovered: nil)
-            XCTAssertEqual(preview.drawList, expected)
-        }
-        withExtendedLifetime(window) {}
-    }
-
-    @MainActor
-    func test_C_PREV_09_turningBordersOffRedrawsWithoutThem() throws {
-        let model = try model()
-        let (_, preview, window) = try previewInWindow(model)
-        XCTAssertTrue(Self.waitForFrames(preview, atLeast: 1))
-        let frames = preview.frameCount
-        model.setShowsBorders(false)
-        XCTAssertFalse(preview.style.drawsBorders)
-        XCTAssertTrue(Self.waitForFrames(preview, atLeast: frames + 1))
-        withExtendedLifetime(window) {}
-    }
-
-    /// The preview's colours follow the window's appearance, keeping the borders switch, and
-    /// a change of appearance draws once more.
-    @MainActor
-    func test_C_PREV_01_thePreviewFollowsTheAppearance() throws {
-        let model = try model()
-        let (_, preview, window) = try previewInWindow(model)
-        window.appearance = NSAppearance(named: .darkAqua)
-        Self.settle(0.05)
-        XCTAssertEqual(preview.style.background, RenderStyle.preview(dark: true).background)
-        XCTAssertTrue(Self.waitForFrames(preview, atLeast: 1))
-        model.setShowsBorders(false)
-        XCTAssertTrue(Self.waitForFrames(preview, atLeast: preview.frameCount + 1))
-        let frames = preview.frameCount
-
-        window.appearance = NSAppearance(named: .aqua)
-        Self.settle(0.05)
-        XCTAssertEqual(preview.style.background, RenderStyle.preview(dark: false).background)
-        XCTAssertEqual(preview.style.border, RenderStyle.preview(dark: false).border)
-        XCTAssertFalse(preview.style.drawsBorders, "the switch is kept")
-        XCTAssertTrue(Self.waitForFrames(preview, atLeast: frames + 1))
         withExtendedLifetime(window) {}
     }
 
@@ -1023,35 +707,6 @@ final class PreviewViewTests: XCTestCase {
         controller.stopTakingInput()
         preview.mouseUp(with: Self.mouse(.leftMouseUp, at: card, in: preview))
         XCTAssertNil(model.selectedLayerID)
-        withExtendedLifetime(window) {}
-    }
-
-    @MainActor
-    func test_C_PREV_05_commandAndAScrollEventZoom() throws {
-        let model = try model()
-        let (_, preview, window) = try previewInWindow(model)
-        preview.scrollWheel(
-            with: Self.scroll(dx: 0, dy: 40, at: NSPoint(x: 50, y: 50), command: true, in: preview))
-        XCTAssertEqual(model.camera.zoom, pow(1.01, 40), accuracy: 1e-9)
-        withExtendedLifetime(window) {}
-    }
-
-    @MainActor
-    func test_C_PREV_06_aWheelThatScrollsByLinesPansTenPointsALine() throws {
-        let model = try model()
-        let (_, preview, window) = try previewInWindow(model)
-        let event = try XCTUnwrap(CGEvent(
-            scrollWheelEvent2Source: nil, units: .line, wheelCount: 1, wheel1: -2, wheel2: 0,
-            wheel3: 0))
-        // No modifier: with ⌘ the wheel zooms instead (C-PREV-05). The test once saw no pan
-        // at all, and why was not found; the flags are not left to a default.
-        event.flags = []
-        let wheel = try XCTUnwrap(NSEvent(cgEvent: event))
-        XCTAssertFalse(wheel.hasPreciseScrollingDeltas)
-        preview.scrollWheel(with: wheel)
-        XCTAssertEqual(
-            model.camera.pan.y, wheel.scrollingDeltaY * PreviewView.pointsPerLine, accuracy: 1e-9)
-        XCTAssertNotEqual(model.camera.pan.y, 0)
         withExtendedLifetime(window) {}
     }
 

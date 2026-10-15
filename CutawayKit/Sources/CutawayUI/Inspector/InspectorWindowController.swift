@@ -14,11 +14,8 @@ public final class InspectorWindowController: NSWindowController {
     /// What the window undoes while nothing can be changed: nothing.
     private let idleUndoManager = UndoManager()
     static let modeIdentifier = "inspection.mode"
-    static let appIconItem = NSToolbarItem.Identifier("inspector.appIcon")
+    static let capsuleItem = NSToolbarItem.Identifier("inspector.capsule")
     static let modeItem = NSToolbarItem.Identifier("inspector.mode")
-    static let appsItem = NSToolbarItem.Identifier("inspector.apps")
-    static let refreshItem = NSToolbarItem.Identifier("inspector.refresh")
-    static let saveArchiveItem = NSToolbarItem.Identifier("inspector.saveArchive")
     static let archiveTagItem = NSToolbarItem.Identifier("inspector.archiveTag")
     static let size = NSSize(width: 1200, height: 760)
     /// Room for the three panes at their least: 220 + 320 + 260 points, and the dividers.
@@ -35,6 +32,13 @@ public final class InspectorWindowController: NSWindowController {
     let appIcon: NSImage?
     /// The toolbar's 2D / 3D switch, once the toolbar has made it.
     var modeControl: NSSegmentedControl?
+    /// The toolbar's app capsule, once the toolbar has made it (C-WIN-06).
+    var appCapsule: AppCapsuleView?
+    /// The title and subtitle the window is given; the capsule shows them.
+    let windowTitle: InspectorWindowTitle
+    /// How long the capsule says "Saved" before it goes back (C-WIN-06).
+    private let savedNoticeDuration: Duration
+    private var savedDismissal: Task<Void, Never>?
     /// Whether the connection to the app is gone (C-WIN-03), as the store last said: read
     /// inside the store's own publishing, before the store itself has changed.
     public private(set) var isDisconnected = false
@@ -60,11 +64,12 @@ public final class InspectorWindowController: NSWindowController {
     /// The window of an app over a connection.
     convenience init(
         location: AppLocation, entry: AppEntry?, store: InspectionStore,
-        paneWidths: PaneWidths? = nil
+        paneWidths: PaneWidths? = nil, savedNoticeDuration: Duration = .seconds(4)
     ) {
         self.init(
             location: location, archiveURL: nil, info: entry?.info, icon: entry?.icon,
-            title: InspectorWindowTitle(app: entry?.info), store: store, paneWidths: paneWidths)
+            title: InspectorWindowTitle(app: entry?.info), store: store, paneWidths: paneWidths,
+            savedNoticeDuration: savedNoticeDuration)
     }
 
     /// The window of an archive (C-ARCH-05): its file's name is the title; the app, its
@@ -74,18 +79,21 @@ public final class InspectorWindowController: NSWindowController {
             location: nil, archiveURL: archive.url, info: archive.app, icon: archive.icon,
             title: InspectorWindowTitle(
                 archive: archive.url, app: archive.app, savedAt: archive.manifest.savedAt),
-            store: store, paneWidths: paneWidths)
+            store: store, paneWidths: paneWidths, savedNoticeDuration: .seconds(4))
     }
 
     private init(
         location: AppLocation?, archiveURL: URL?, info: AppInfo?, icon: Bitmap?,
-        title: InspectorWindowTitle, store: InspectionStore, paneWidths: PaneWidths?
+        title: InspectorWindowTitle, store: InspectionStore, paneWidths: PaneWidths?,
+        savedNoticeDuration: Duration
     ) {
         self.location = location
         self.archiveURL = archiveURL
         // An archive's app is not waited for (C-WIN-04).
         self.identity = archiveURL == nil ? info.flatMap(AppIdentity.init) : nil
         self.store = store
+        windowTitle = title
+        self.savedNoticeDuration = savedNoticeDuration
         let name = AppEntryPresentation.name(of: info)
         appName = name
         splitController = InspectorSplitViewController(
@@ -98,8 +106,13 @@ public final class InspectorWindowController: NSWindowController {
             backing: .buffered,
             defer: false)
         window.isReleasedWhenClosed = false
+        // The capsule shows them (C-WIN-06); the Window menu and Mission Control still read
+        // them.
         window.title = title.title
         window.subtitle = title.subtitle
+        window.titleVisibility = .hidden
+        // No band behind the toolbar: its capsules float over the preview (C-WIN-06).
+        window.titlebarAppearsTransparent = true
         window.representedURL = archiveURL
         window.toolbarStyle = .unified
         // View › Enter Full Screen (C-MENU-02); a window has no full screen unless it asks.
@@ -131,12 +144,9 @@ public final class InspectorWindowController: NSWindowController {
         window.layoutIfNeeded()
         // The arrow keys and typing go to the list from the start.
         window.initialFirstResponder = splitController.hierarchyController.outlineView
-        // Saving starts and ends without an event; the toolbar is checked after events only.
-        // On the next turn: the store publishes before its state has changed.
         store.$archiveSave
             .receive(on: DispatchQueue.main)
             .sink { [weak self] state in
-                self?.window?.toolbar?.validateVisibleItems()
                 if case .saved(let url) = state { self?.onArchiveSaved(url) }
             }
             .store(in: &cancellables)
@@ -154,7 +164,15 @@ public final class InspectorWindowController: NSWindowController {
 
     /// Which commands can be used now: asked anew each time, so that it reads the store then.
     var commands: InspectorCommands {
-        InspectorCommands(store: store, isArchive: isArchive, isDisconnected: isDisconnected)
+        InspectorCommands(
+            store: store, isArchive: isArchive, isDisconnected: isDisconnected,
+            isEditingText: isEditingText)
+    }
+
+    /// Whether the keyboard is in text being edited: a text field's or the attribute panel's
+    /// text area. A text view that only shows text, as a constraint's equation, does not count.
+    var isEditingText: Bool {
+        (window?.firstResponder as? NSTextView)?.isEditable ?? false
     }
 
     @available(*, unavailable)
@@ -176,9 +194,29 @@ public final class InspectorWindowController: NSWindowController {
     private func connectionWasLost() {
         guard !isDisconnected else { return }
         isDisconnected = true
-        // Toolbar items are checked after events; the loss of a connection is none.
-        window?.toolbar?.validateVisibleItems()
         modeControl?.isEnabled = false
+    }
+
+    /// The capsule follows the inspection: the screenshots, a save and the connection
+    /// (C-WIN-06). "Saved" goes after a few seconds, unless another save took its place.
+    func followStatus() {
+        guard !isArchive else { return }
+        AppCapsuleState.publisher(for: store, subtitle: windowTitle.subtitle)
+            .sink { [weak self] state in self?.appCapsule?.show(state) }
+            .store(in: &cancellables)
+        store.$archiveSave
+            .sink { [weak self] state in
+                guard let self else { return }
+                self.savedDismissal?.cancel()
+                guard case .saved(let url) = state else { return }
+                self.savedDismissal = Task { [weak self, savedNoticeDuration] in
+                    guard (try? await Task.sleep(for: savedNoticeDuration)) != nil,
+                          let store = self?.store, store.archiveSave == .saved(url)
+                    else { return }
+                    store.dismissArchiveSave()
+                }
+            }
+            .store(in: &cancellables)
     }
 
     // MARK: - Actions
@@ -283,9 +321,30 @@ public final class InspectorWindowController: NSWindowController {
         store.setShowsHiddenLayers(!store.showsHiddenLayers)
     }
 
-    /// Outlines the layers or not (C-PREV-09).
+    /// Turns the borders off, or back to the style they last had (C-PREV-09, C-PREV-17).
     @objc func toggleBorders(_ sender: Any?) {
-        store.setShowsBorders(!store.showsBorders)
+        store.toggleBorders()
+    }
+
+    /// One colour for every border (C-PREV-17).
+    @objc func showPlainBorders(_ sender: Any?) {
+        store.setBorderStyle(.plain)
+    }
+
+    /// Each border in its layer's kind's colour (C-PREV-17).
+    @objc func showBordersByKind(_ sender: Any?) {
+        store.setBorderStyle(.byKind)
+    }
+
+    /// Outlines only the app's own classes, or every layer (C-PREV-17).
+    @objc func toggleOnlyAppClasses(_ sender: Any?) {
+        store.setOnlyAppClasses(!store.borders.onlyAppClasses)
+    }
+
+    /// Marks every other end of the selected layer's constraints, or only those pointed at
+    /// (C-PREV-18).
+    @objc func toggleConstraintEnds(_ sender: Any?) {
+        store.toggleConstraintEnds()
     }
 
     /// View › Show Inspector while the window itself is the first responder, as it is once
@@ -308,6 +367,16 @@ public final class InspectorWindowController: NSWindowController {
     /// Puts the camera of the mode shown back as it starts (C-PREV-07).
     @objc func resetView(_ sender: Any?) {
         store.resetCamera()
+    }
+
+    /// View › Select Parent Layer (C-ATTR-16).
+    @objc func selectParentLayer(_ sender: Any?) {
+        store.selectParent()
+    }
+
+    /// View › Select First Child Layer (C-ATTR-16).
+    @objc func selectFirstChildLayer(_ sender: Any?) {
+        store.selectFirstChild()
     }
 
     @objc func focusOnSelectedLayer(_ sender: Any?) {
@@ -368,12 +437,28 @@ extension InspectorWindowController: NSMenuItemValidation {
         case #selector(toggleBorders(_:)):
             menuItem.state = commands.isShowingBorders ? .on : .off
             return commands.canChangePreview
+        case #selector(showPlainBorders(_:)):
+            menuItem.state = commands.borderStyle == .plain ? .on : .off
+            return commands.canChangePreview
+        case #selector(showBordersByKind(_:)):
+            menuItem.state = commands.borderStyle == .byKind ? .on : .off
+            return commands.canChangePreview
+        case #selector(toggleOnlyAppClasses(_:)):
+            menuItem.state = commands.isOutliningOnlyAppClasses ? .on : .off
+            return commands.canChangePreview
+        case #selector(toggleConstraintEnds(_:)):
+            menuItem.state = commands.isShowingConstraintEnds ? .on : .off
+            return commands.canChangePreview
         case #selector(toggleInspector(_:)):
             return splitController.validateUserInterfaceItem(menuItem)
         case #selector(resetView(_:)), #selector(zoomIn(_:)), #selector(zoomOut(_:)):
             return commands.canChangePreview
         case #selector(findLayer(_:)):
             return commands.canFindLayer
+        case #selector(selectParentLayer(_:)):
+            return commands.canSelectParent
+        case #selector(selectFirstChildLayer(_:)):
+            return commands.canSelectFirstChild
         case #selector(focusOnSelectedLayer(_:)):
             return commands.canFocusOnSelectedLayer
         case #selector(showAllLayers(_:)):
