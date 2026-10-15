@@ -11,6 +11,8 @@ struct InspectorCommands {
     let isArchive: Bool
     /// Whether the connection to the app is gone (C-WIN-03).
     let isDisconnected: Bool
+    /// Whether the keyboard is in text being edited, which keeps the keys it uses (C-ATTR-16).
+    let isEditingText: Bool
 
     /// The commands as the store stands now.
     init(store: InspectionStore) {
@@ -18,10 +20,11 @@ struct InspectorCommands {
     }
 
     /// Tests say what the window knows.
-    init(store: InspectionStore, isArchive: Bool, isDisconnected: Bool) {
+    init(store: InspectionStore, isArchive: Bool, isDisconnected: Bool, isEditingText: Bool = false) {
         self.store = store
         self.isArchive = isArchive
         self.isDisconnected = isDisconnected
+        self.isEditingText = isEditingText
     }
 
     // MARK: - Asking the app
@@ -60,7 +63,13 @@ struct InspectorCommands {
 
     var isShowingHiddenLayers: Bool { store.showsHiddenLayers }
 
-    var isShowingBorders: Bool { store.showsBorders }
+    var isShowingBorders: Bool { store.borders.showsBorders }
+
+    var borderStyle: BorderStyle { store.borders.style }
+
+    var isOutliningOnlyAppClasses: Bool { store.borders.onlyAppClasses }
+
+    var isShowingConstraintEnds: Bool { store.showsAllConstraintEnds }
 
     // MARK: - The list
 
@@ -78,6 +87,17 @@ struct InspectorCommands {
     /// C-HIER-05: while there is a focus.
     var canShowAllLayers: Bool {
         !isDisconnected && store.focusedLayerID != nil
+    }
+
+    /// C-ATTR-16: a selected layer with a parent, while connected; not while text is edited,
+    /// where ⌘↑ goes to the start of the text.
+    var canSelectParent: Bool {
+        !isDisconnected && !isEditingText && store.selectedParentID != nil
+    }
+
+    /// C-ATTR-16: a selected layer with a child the list shows; as `canSelectParent`.
+    var canSelectFirstChild: Bool {
+        !isDisconnected && !isEditingText && store.selectedFirstChildID != nil
     }
 
     /// C-HIER-06: layers to expand or collapse, and no search.

@@ -5,11 +5,6 @@ import Foundation
 enum PreviewPaneText {
     // MARK: - The panels
 
-    /// "Saved “Demo 2026-10-06 08.30”": the archive's name without its extension.
-    static func savedText(_ url: URL) -> String {
-        localized("preview.saved", url.deletingPathExtension().lastPathComponent)
-    }
-
     /// Why a screenshot was not exported (C-ARCH-06).
     static func screenshotFailureText(
         _ failure: ScreenshotExportFailure, appName: String
