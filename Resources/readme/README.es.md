@@ -45,13 +45,14 @@ hagas en los atributos se aplican a la app en ejecución.
 
 **Trabajar con los detalles**
 
-- Los atributos de la capa y la vista seleccionadas, agrupados tal como los reporta la app. Los
-  atributos editables tienen controles: texto, números que puedes arrastrar, interruptores,
-  selectores de color, menús desplegables para enumeraciones. Los cambios se aplican en la app en
-  ejecución al instante, y ⌘Z los deshace.
+- Los atributos de la capa y la vista seleccionadas, en cinco secciones según su propósito, con los
+  atributos relacionados, como el ancho y el color de un borde, en una misma fila. Los atributos
+  editables tienen controles: texto, números, casillas, campos de color, menús desplegables y
+  controles segmentados para enumeraciones. Los cambios se aplican en la app en ejecución al
+  instante, y ⌘Z los deshace.
 - Las restricciones de Auto Layout que hacen referencia a la vista seleccionada, con marcas en las que
-  no se cumplen, y con el otro extremo de cada restricción marcado en la vista previa. Haz clic en el
-  otro extremo para ir a él.
+  no se cumplen. Apunta a una restricción para marcar su otro extremo en la vista previa, o márcalos
+  todos. Haz clic en el otro extremo para ir a él.
 - Busca en el árbol, enfoca un subárbol, expande hasta una profundidad dada, actualiza solo un
   subárbol.
 
@@ -115,7 +116,9 @@ compilar Cutaway desde el código fuente; consulta [Desarrollo](#development).
 La barra lateral muestra las capas de cada ventana como un árbol. Una fila muestra la clase de la
 capa, la vista a la que respalda, el view controller cuya vista raíz es, y la variable miembro que la
 contiene, como `HomeViewController.titleLabel`. Las filas atenuadas están ocultas o son totalmente
-transparentes.
+transparentes. El icono indica el tipo de capa, relleno para las clases propias de la app y en
+contorno para las del sistema. Mientras te desplazas, los ancestros de la fila superior quedan
+fijados encima de ella.
 
 - **Filtra** el árbol con el campo de la parte superior: se quedan las filas cuyo título o clase
   contiene el texto, con sus ancestros.
@@ -140,27 +143,41 @@ llega el árbol y luego a medida que llega cada captura.
 - **La separación entre capas** en 3D es el control deslizante bajo la vista previa, de 0 a 200
   puntos.
 - **Show Hidden Layers** (mostrar capas ocultas, ⇧⌘H) dibuja también las capas ocultas o
-  transparentes, con su propio estilo. **Show Borders** (mostrar bordes, ⇧⌘B) perfila cada capa. Ambos
-  interruptores están también bajo la vista previa.
+  transparentes, con su propio estilo. Los **Borders** (bordes) perfilan las capas en un solo color
+  o según su tipo, con los colores de los iconos de la lista, y pueden limitarse a las clases propias
+  de la app; **Show Borders** (mostrar bordes, ⇧⌘B) los desactiva y los vuelve a activar.
+  **Show Constraint Ends** (mostrar extremos de restricciones, ⇧⌘K) marca todos los otros extremos
+  de las restricciones de la vista seleccionada. Estos controles están también bajo la vista previa.
 - **Medir**: con una capa seleccionada, mantén pulsada ⌥ y apunta a otra capa. Las distancias entre
   las dos se dibujan con sus valores en puntos, en 2D y en 3D.
 - Haz clic en una capa para seleccionarla; la lista y los atributos la siguen. La capa bajo el puntero
-  se resalta.
+  se resalta. Una etiqueta junto a la capa seleccionada muestra su nombre y su tamaño.
 
 ### Atributos
 
-El inspector de la derecha muestra los atributos de la capa seleccionada y de su vista en los grupos
-que reporta la app, como `layer`, `view` y `label`. Cutaway no tiene una lista propia: lo que aparece
-es lo que envía [CutawayServer](https://github.com/nothingsh/CutawayServer), de modo que muestra lo que conozca la versión del servidor que lleva la
+El inspector de la derecha muestra la capa seleccionada y su vista. Bajo el nombre de la capa, sus
+ancestros más cercanos suben por el árbol; **Select Parent Layer** (seleccionar la capa padre, ⌘↑) y
+**Select First Child Layer** (seleccionar la primera capa hija, ⌘↓) se mueven a lo largo de él. Los
+atributos siguen en cinco secciones según su propósito: Content (contenido), Appearance
+(apariencia), Layout, Behavior (comportamiento) y Object (objeto). Los atributos que van juntos
+comparten una fila, como Frame, Border, Shadow y Corners. Cutaway no tiene una lista propia: lo que
+aparece es lo que envía [CutawayServer](https://github.com/nothingsh/CutawayServer), de modo que muestra lo que conozca la versión del servidor que lleva la
 app.
 
+- **Filtra** los atributos por título o ID con el campo sobre la lista. Las secciones se pliegan; la
+  cabecera de la que está arriba sigue a la vista mientras te desplazas, y hacer ⌥-clic en una
+  cabecera las pliega o despliega todas.
 - Los atributos que la app marca como editables tienen controles: un campo de texto, un campo
-  numérico que puedes arrastrar, un interruptor, un selector de color con opacidad, un menú
-  desplegable para enumeraciones, y campos por componente para puntos, tamaños, rectángulos, insets y
-  transformaciones.
-- Un cambio se envía en cuanto lo confirmas, o de forma continua mientras arrastras. La app responde
-  con los atributos de la capa, de modo que un atributo que cambia junto con otro (como la opacidad
-  de una capa con el alpha de su vista) también se actualiza.
+  numérico, una casilla, un campo de color con su valor hexadecimal y su opacidad, un menú
+  desplegable o un control segmentado para enumeraciones, y campos por componente para puntos,
+  tamaños, rectángulos, insets y transformaciones. Las longitudes se indican en puntos; las
+  proporciones como la opacidad se muestran y se escriben como porcentajes, y la opacidad tiene
+  además un control deslizante.
+- Un cambio se envía en cuanto lo confirmas, o de forma continua mientras arrastras el control
+  deslizante de la opacidad o usas el selector de color. Un valor fuera del rango que acepta la app
+  no se envía, y el campo explica por qué. La app responde con los atributos de la capa, de modo que
+  un atributo que cambia junto con otro (como la opacidad de una capa con el alpha de su vista)
+  también se actualiza.
 - ⌘Z deshace el último cambio y ⇧⌘Z lo rehace, mientras dure la inspección.
 - Un cambio que la app rechaza se explica en la fila, y vuelve el valor anterior.
 
@@ -168,12 +185,13 @@ Después de un cambio, Cutaway actualiza las capturas de las capas a las que pod
 
 ### Restricciones
 
-Debajo de los atributos, las restricciones de Auto Layout de una vista se listan tal como las reporta
+En la sección Layout, las restricciones de Auto Layout de una vista se listan tal como las reporta
 la app: `self.leading = Safe Area of UIView.leading + 16`, con la prioridad cuando es inferior a 1000
 y el identificador cuando lo hay. Las restricciones que no se cumplen aparecen atenuadas y marcadas;
 las que genera UIKit se pliegan en una sola fila. Haz clic en el otro extremo de una restricción para
-seleccionar esa vista. En la vista previa, los otros extremos de las restricciones de la vista
-seleccionada están marcados.
+seleccionar esa vista. Apunta a una restricción para marcar su otro extremo en la vista previa;
+**Show Constraint Ends** (mostrar extremos de restricciones, ⇧⌘K) marca todos los otros extremos a
+la vez.
 
 ### Actualizar
 
@@ -199,10 +217,11 @@ la capa.
 
 ### Ajustes
 
-**Settings…** (ajustes, ⌘,) tiene dos páginas. **General** elige el idioma: el del sistema, o uno de
-los cinco. **Preview** (vista previa) elige cómo empieza una nueva inspección: 2D o 3D, la separación
-entre capas, y si se muestran las capas ocultas y los bordes. Las ventanas ya abiertas conservan su
-aspecto.
+**Settings…** (ajustes, ⌘,) tiene dos páginas. **General** elige el idioma, el del sistema o uno de
+los cinco, y la apariencia: la del sistema, clara u oscura. **Preview** (vista previa) elige cómo
+empieza una nueva inspección: 2D o 3D, la separación entre capas, si se muestran las capas ocultas,
+el estilo de los bordes y si se marcan todos los extremos de las restricciones. Las ventanas ya
+abiertas conservan su aspecto.
 
 ### Atajos de teclado
 
@@ -216,7 +235,8 @@ aspecto.
 | Actualizar todo / el subárbol seleccionado | ⌘R / ⇧⌘R |
 | 2D / 3D | ⌘1 / ⌘2 |
 | Acercar / alejar / restablecer la vista | ⌘= / ⌘- / ⌘0 |
-| Mostrar capas ocultas / mostrar bordes | ⇧⌘H / ⇧⌘B |
+| Mostrar capas ocultas / mostrar bordes / mostrar extremos de restricciones | ⇧⌘H / ⇧⌘B / ⇧⌘K |
+| Seleccionar la capa padre / la primera capa hija | ⌘↑ / ⌘↓ |
 | Enfocar la capa seleccionada / mostrar todas las capas | ⌥⌘↓ / ⌥⌘↑ |
 | Expandir todo / contraer todo | ⌥⌘→ / ⌥⌘← |
 | Mostrar u ocultar la barra lateral / el inspector | ⌃⌘S / ⌥⌘I |
@@ -275,8 +295,6 @@ Cómo lo consigue:
 Estas son las direcciones previstas después de la 1.0, compartidas con [CutawayServer](https://github.com/nothingsh/CutawayServer). El orden y el
 alcance pueden cambiar.
 
-- **Protocolo 1.0.** Congelar el [protocolo de Cutaway](https://github.com/nothingsh/CutawayProtocol), de modo que las funciones posteriores solo le
-  añadan cosas.
 - **Análisis de interacción.** Mostrar los gesture recognizers y los pares target–action; activar y
   desactivar gestos; llamar a métodos de objetos.
 - **API de extensión para apps anfitrionas.** Atributos personalizados, nodos hijos virtuales y
