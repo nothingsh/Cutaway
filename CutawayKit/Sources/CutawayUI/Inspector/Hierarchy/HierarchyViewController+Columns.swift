@@ -11,7 +11,10 @@ extension HierarchyViewController {
     /// the rows change: a reload, and every expansion and collapse. Titles are measured once each.
     func sizeColumnToRows() {
         isColumnSizingPending = false
-        guard outlineView.numberOfRows > 0 else { return }
+        guard outlineView.numberOfRows > 0 else {
+            rowsDidChange()
+            return
+        }
         // What the outline view puts around the title of a row at level 0; the first row is
         // always at level 0 (a root, or the focus).
         let columnRect = outlineView.rect(ofColumn: 0)
@@ -28,6 +31,7 @@ extension HierarchyViewController {
         }
         titlesWidth = (around + widest).rounded(.up)
         fitColumn()
+        rowsDidChange()
     }
 
     /// The column is as wide as the titles need, and at least as wide as the list: what is
