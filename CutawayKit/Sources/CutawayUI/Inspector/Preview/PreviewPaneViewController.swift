@@ -6,44 +6,31 @@ import CutawayScene
 import DeclarativeAppKit
 import DeclarativeCombine
 
-/// The preview and the panels that float over it: a notice at the top (C-DET-04), the
-/// screenshots' progress at the top right (C-DET-02), "Loading layers…" in the middle while
-/// there is no tree yet, the notice of a lost connection (C-WIN-03), the layer under the
-/// pointer at the bottom left, and at the bottom right the controls of what the preview shows
-/// (C-PREV-07 to C-PREV-09). Under them all is the canvas, which runs up under the toolbar in
+/// The preview and the panels that float over it: a notice at the top (C-DET-04),
+/// "Loading layers…" in the middle while
+/// there is no tree yet, the notice of a lost connection (C-WIN-03), and at the bottom right
+/// the controls of what the preview shows (C-PREV-07 to C-PREV-09, C-PREV-17). Under them all is the canvas, which runs
+/// up under the toolbar in
 /// the preview's colour.
 final class PreviewPaneViewController: NSViewController {
     static let noticeIdentifier = "preview.notice"
-    static let progressIdentifier = "preview.progress"
-    static let progressBarIdentifier = "preview.progressBar"
     static let loadingIdentifier = "preview.loading"
     static let disconnectedIdentifier = "preview.disconnected"
     static let showAppsIdentifier = "preview.showApps"
     static let disconnectedTextIdentifier = "preview.disconnected.text"
     static let shieldIdentifier = "preview.shield"
-    static let readoutIdentifier = "preview.readout"
-    static let readoutTitleIdentifier = "preview.readout.title"
-    static let readoutSizeIdentifier = "preview.readout.size"
     static let controlsIdentifier = "preview.controls"
     static let showHiddenIdentifier = "preview.showHidden"
-    static let showBordersIdentifier = "preview.showBorders"
+    static let bordersIdentifier = "preview.borders"
     static let spacingIdentifier = "preview.spacing"
     static let resetIdentifier = "preview.reset"
     static let canvasIdentifier = "preview.canvas"
-    static let archiveProgressIdentifier = "preview.archiveProgress"
-    static let archiveCountIdentifier = "preview.archiveProgress.count"
-    static let archiveCancelIdentifier = "preview.archiveProgress.cancel"
-    static let archiveSavedIdentifier = "preview.archiveSaved"
-    static let archiveSavedTextIdentifier = "preview.archiveSaved.text"
-    static let showInFinderIdentifier = "preview.archiveSaved.showInFinder"
     static let archiveFailedIdentifier = "preview.archiveFailed"
     static let archiveFailedTextIdentifier = "preview.archiveFailed.text"
     static let archiveFailedOKIdentifier = "preview.archiveFailed.ok"
     static let screenshotFailedIdentifier = "preview.screenshotFailed"
     static let screenshotFailedTextIdentifier = "preview.screenshotFailed.text"
     static let screenshotFailedOKIdentifier = "preview.screenshotFailed.ok"
-    /// The least width the readout keeps beside the controls; it cuts its title short to fit.
-    private static let readoutMinimumWidth: CGFloat = 120
     /// How far the panels keep from the preview's edges.
     static let inset: CGFloat = 12
     /// The widest the notice gets before its text wraps.
@@ -56,11 +43,6 @@ final class PreviewPaneViewController: NSViewController {
     let viewModel: PreviewPaneViewModel
     /// Called by the button of the lost connection's notice.
     var onShowApps: () -> Void = {}
-    /// The readout beside the controls, on the bottom edge.
-    private var besideControls: [NSLayoutConstraint] = []
-    /// The readout on a row above the controls, for a narrow preview.
-    private var aboveControls: [NSLayoutConstraint] = []
-    private var controlsPanel: NSView?
     /// The notice's text. A wrapping label has no width of its own in a window, so it is given
     /// the width to wrap at.
     private let noticeLabel = NSTextField(wrappingLabelWithString: "")
@@ -68,13 +50,17 @@ final class PreviewPaneViewController: NSViewController {
     private let archiveFailedLabel = NSTextField(wrappingLabelWithString: "")
     /// The failed export's text, likewise.
     private let screenshotFailedLabel = NSTextField(wrappingLabelWithString: "")
+    /// The borders' pull-down among the controls (C-PREV-17).
+    let bordersButton = BordersButton.make()
     private var cancellables = Set<AnyCancellable>()
+    /// The controls at the bottom: the layers keep clear of them at zoom 1.
+    private weak var controlsPanel: NSView?
+    /// Follows the toolbar's height.
+    private var layoutRectObservation: NSKeyValueObservation?
 
-    /// `savedNoticeDuration` is how long "Saved" stays before it fades.
-    init(store: InspectionStore, appName: String, savedNoticeDuration: Duration = .seconds(4)) {
+    init(store: InspectionStore, appName: String) {
         self.store = store
-        self.viewModel = PreviewPaneViewModel(
-            store: store, appName: appName, savedNoticeDuration: savedNoticeDuration)
+        self.viewModel = PreviewPaneViewModel(store: store, appName: appName)
         self.previewController = PreviewViewController(store: store)
         super.init(nibName: nil, bundle: nil)
     }
@@ -90,14 +76,14 @@ final class PreviewPaneViewController: NSViewController {
         // the toolbar and the preview are one surface.
         root.addContent(CanvasView().accessibilityIdentifier(Self.canvasIdentifier))
         addChild(previewController)
-        // Below the toolbar: the preview fits the layers into what can be seen of it.
-        root.addContent(previewController.view, safeArea: .top)
+        // Under the toolbar too: the toolbar's capsules float over the layers (C-WIN-06). The
+        // panels keep below the toolbar.
+        root.addContent(previewController.view)
 
         let noticePanel = makeNoticePanel()
-        let progressPanel = makeProgressPanel()
         let loadingPanel = makeLoadingPanel()
-        let readoutPanel = makeReadoutPanel()
         let controlsPanel = makeControlsPanel()
+        self.controlsPanel = controlsPanel
 
         // Over everything else: once the connection is lost the preview takes no more clicks.
         let shield = ClickShieldView()
@@ -106,10 +92,8 @@ final class PreviewPaneViewController: NSViewController {
 
         let disconnectedPanel = makeDisconnectedPanel()
 
-        // Saving an archive (C-ARCH-02): its progress at the top right, above the screenshots';
-        // "Saved" there when it is done; why it was not saved at the top.
-        let archiveProgressPanel = makeArchiveProgressPanel()
-        let archiveSavedPanel = makeArchiveSavedPanel()
+        // Why an archive was not saved, at the top (C-ARCH-02); its progress and "Saved" are
+        // the toolbar's (C-WIN-06).
         let archiveFailedPanel = makeArchiveFailedPanel()
         let screenshotFailedPanel = makeScreenshotFailedPanel()
 
@@ -120,16 +104,8 @@ final class PreviewPaneViewController: NSViewController {
         failures.spacing = Theme.Spacing.small
         failures.detachesHiddenViews = true
 
-        // Top right, one under the other; a hidden panel takes no room.
-        let topRight = PassThroughStackView(
-            views: [archiveProgressPanel, archiveSavedPanel, progressPanel])
-        topRight.orientation = .vertical
-        topRight.alignment = .trailing
-        topRight.spacing = Theme.Spacing.small
-        topRight.detachesHiddenViews = true
-
         for panel in [
-            noticePanel, readoutPanel, topRight, controlsPanel, loadingPanel, shield,
+            noticePanel, controlsPanel, loadingPanel, shield,
             disconnectedPanel, failures,
         ] as [NSView] {
             panel.translatesAutoresizingMaskIntoConstraints = false
@@ -143,10 +119,6 @@ final class PreviewPaneViewController: NSViewController {
             noticePanel.widthAnchor.constraint(lessThanOrEqualToConstant: Self.noticeMaximumWidth),
             noticePanel.leadingAnchor.constraint(
                 greaterThanOrEqualTo: root.leadingAnchor, constant: inset),
-
-            readoutPanel.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: inset),
-            topRight.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -inset),
-            topRight.topAnchor.constraint(equalTo: safe.topAnchor, constant: inset),
 
             failures.centerXAnchor.constraint(equalTo: root.centerXAnchor),
             archiveFailedPanel.widthAnchor.constraint(
@@ -172,10 +144,12 @@ final class PreviewPaneViewController: NSViewController {
             disconnectedPanel.leadingAnchor.constraint(
                 greaterThanOrEqualTo: root.leadingAnchor, constant: inset),
         ])
-        placeReadout(readoutPanel, by: controlsPanel, in: root)
         placeFailures(failures, under: noticePanel, or: disconnectedPanel, in: root)
-        self.controlsPanel = controlsPanel
         view = root
+        // The tags name the selected and the hovered layer on the preview (C-PREV-16).
+        viewModel.tags
+            .sink { [weak self] tags in self?.previewController.preview?.tags = tags }
+            .store(in: &cancellables)
         // After the panels: they show the loss first, as the store publishes it.
         store.$connection
             .sink { [weak self] connection in
@@ -183,29 +157,6 @@ final class PreviewPaneViewController: NSViewController {
                 self?.connectionWasLost()
             }
             .store(in: &cancellables)
-    }
-
-    /// The readout goes beside the controls, or above them when the preview is narrow.
-    private func placeReadout(_ readoutPanel: NSView, by controlsPanel: NSView, in root: NSView) {
-        let inset = Self.inset
-        let gap = Theme.Spacing.small
-        besideControls = [
-            readoutPanel.bottomAnchor.constraint(equalTo: root.bottomAnchor, constant: -inset),
-            readoutPanel.trailingAnchor.constraint(
-                lessThanOrEqualTo: controlsPanel.leadingAnchor, constant: -gap),
-        ]
-        aboveControls = [
-            readoutPanel.bottomAnchor.constraint(equalTo: controlsPanel.topAnchor, constant: -gap),
-            readoutPanel.trailingAnchor.constraint(
-                lessThanOrEqualTo: root.trailingAnchor, constant: -inset),
-        ]
-        // Weaker than what sizes the preview (the window, and the split view's holding
-        // priorities of 250 and 260): they must never make the preview wider than it is, or it
-        // would never be narrow enough to put the readout above the controls.
-        for constraint in [besideControls[1], aboveControls[1]] {
-            constraint.priority = NSLayoutConstraint.Priority(rawValue: 240)
-        }
-        NSLayoutConstraint.activate(besideControls)
     }
 
     /// The failures go under whichever of the notice and the lost connection shows.
@@ -255,31 +206,6 @@ final class PreviewPaneViewController: NSViewController {
             .bind(\.isHidden, to: notice.map { $0 == nil })
     }
 
-    /// At the top right: how many screenshots have come (C-DET-02).
-    private func makeProgressPanel() -> HUDView {
-        HUDView(content: HStack(alignment: .center, spacing: Theme.Spacing.small) {
-            NSTextField(labelWithString: localized("preview.screenshots"))
-                .font(.systemFont(ofSize: 12))
-            ProgressBarView()
-                .accessibilityIdentifier(Self.progressBarIdentifier)
-                .bind(\.fraction, to: viewModel.fraction)
-                .frame(width: ProgressBarView.size.width, height: ProgressBarView.size.height)
-            NSTextField(labelWithString: "")
-                .font(.monospacedDigitSystemFont(ofSize: 12, weight: .regular))
-                .textColor(.secondaryLabelColor)
-                .accessibilityIdentifier(Self.progressIdentifier)
-                // The last count stays while the panel fades out.
-                .bind(\.stringValue, to: viewModel.progress.compactMap { $0 })
-        }
-        .padding(horizontal: Theme.Spacing.medium, vertical: 7))
-            .configure { $0.isHidden = true }
-            // Every screenshot settled: it fades out. A notice or a lost connection takes its
-            // place at once.
-            .onReceive(viewModel.progressShown) { panel, state in
-                Self.setShown(panel, state.0, fades: !state.1)
-            }
-    }
-
     /// In the middle while there is no tree yet.
     private func makeLoadingPanel() -> HUDView {
         let isLoading = viewModel.isLoading
@@ -299,33 +225,6 @@ final class PreviewPaneViewController: NSViewController {
         .padding(horizontal: Theme.Spacing.medium, vertical: Theme.Spacing.small))
             .accessibilityIdentifier(Self.loadingIdentifier)
             .bind(\.isHidden, to: isLoading.map { !$0 })
-    }
-
-    /// At the bottom left: the layer under the pointer, or the selected one.
-    private func makeReadoutPanel() -> HUDView {
-        let readout = viewModel.readout
-        return HUDView(content: HStack(alignment: .center, spacing: Theme.Spacing.small) {
-            NSImageView()
-                .bind(\.image, to: readout.map { $0.flatMap { Theme.symbol($0.symbol, size: 12) } })
-            NSTextField(labelWithString: "")
-                .font(.systemFont(ofSize: 12, weight: .semibold))
-                .lineBreakMode(.byTruncatingTail)
-                // Weaker than the constraints that keep the readout beside the controls (240):
-                // a long title is cut short rather than slid under them.
-                .compressionResistancePriority(
-                    NSLayoutConstraint.Priority(rawValue: 230), for: .horizontal)
-                .accessibilityIdentifier(Self.readoutTitleIdentifier)
-                .bind(\.stringValue, to: readout.map { $0?.title ?? "" })
-            NSTextField(labelWithString: "")
-                .font(.monospacedDigitSystemFont(ofSize: 12, weight: .regular))
-                .textColor(.secondaryLabelColor)
-                .accessibilityIdentifier(Self.readoutSizeIdentifier)
-                .bind(\.stringValue, to: readout.map { $0?.size ?? "" })
-                .bind(\.isHidden, to: readout.map { $0?.size == nil })
-        }
-        .padding(horizontal: Theme.Spacing.medium, vertical: 8))
-            .accessibilityIdentifier(Self.readoutIdentifier)
-            .bind(\.isHidden, to: readout.map { $0 == nil })
     }
 
     /// At the bottom right: what the preview shows (C-PREV-07 to C-PREV-09).
@@ -349,16 +248,16 @@ final class PreviewPaneViewController: NSViewController {
                 .sink(\.statePublisher) { [weak store] state in
                     store?.setShowsHiddenLayers(state == .on)
                 }
-            NSButton()
-                .configure { $0.isBordered = false }
-                .buttonType(.toggle)
-                .image(Theme.symbol(Theme.Symbol.borders, size: 13, description: localized("preview.showBorders")))
-                .toolTip(localized("preview.showBorders"))
-                .accessibilityIdentifier(Self.showBordersIdentifier)
-                .bind(\.state, to: store.$showsBorders.map { $0 ? .on : .off })
+            bordersButton
+                .accessibilityIdentifier(Self.bordersIdentifier)
+                .onReceive(store.$borders.combineLatest(store.$showsAllConstraintEnds)) {
+                    button, shown in
+                    BordersButton.show(shown.0, showsConstraintEnds: shown.1, on: button)
+                }
                 .bind(\.isEnabled, to: isConnected)
-                .sink(\.statePublisher) { [weak store] state in
-                    store?.setShowsBorders(state == .on)
+                .sink(\.indexOfSelectedItemPublisher) { [weak self] index in
+                    guard let self else { return }
+                    BordersButton.choose(index, of: self.bordersButton, in: self.store)
                 }
             NSBox().configure { $0.boxType = .separator }
                 .frame(width: 1, height: 16)
@@ -437,59 +336,6 @@ final class PreviewPaneViewController: NSViewController {
             .bind(\.isHidden, to: viewModel.isDisconnected.map { !$0 })
     }
 
-    /// At the top right: how far saving the archive is (C-ARCH-02).
-    private func makeArchiveProgressPanel() -> HUDView {
-        HUDView(content: HStack(alignment: .center, spacing: Theme.Spacing.small) {
-            NSTextField(labelWithString: localized("preview.savingArchive"))
-                .font(.systemFont(ofSize: 12))
-            ProgressBarView()
-                .bind(\.fraction, to: viewModel.archiveFraction)
-                .frame(width: ProgressBarView.size.width, height: ProgressBarView.size.height)
-            NSTextField(labelWithString: "")
-                .font(.monospacedDigitSystemFont(ofSize: 12, weight: .regular))
-                .textColor(.secondaryLabelColor)
-                .accessibilityIdentifier(Self.archiveCountIdentifier)
-                .bind(\.stringValue, to: viewModel.archiveCount)
-            NSButton()
-                .title(localized("preview.cancel"))
-                .bezelStyle(.rounded)
-                .controlSize(.small)
-                .accessibilityIdentifier(Self.archiveCancelIdentifier)
-                .sink(\.clickPublisher) { [weak store] in store?.cancelArchiveSave() }
-        }
-        .padding(top: 5, leading: Theme.Spacing.medium, bottom: 5, trailing: 5))
-            .configure { $0.takesPointer = true }
-            .accessibilityIdentifier(Self.archiveProgressIdentifier)
-            .bind(\.isHidden, to: viewModel.saving.map { $0 == nil })
-    }
-
-    /// At the top right: "Saved", for a few seconds (C-ARCH-02).
-    private func makeArchiveSavedPanel() -> HUDView {
-        Self.makeTextPanel(
-            symbol: Self.tinted(Theme.Symbol.archiveSaved, .systemGreen),
-            text: NSTextField(labelWithString: "")
-                .font(.systemFont(ofSize: 12))
-                .lineBreakMode(.byTruncatingMiddle)
-                .compressionResistancePriority(.defaultLow, for: .horizontal)
-                .accessibilityIdentifier(Self.archiveSavedTextIdentifier)
-                // The last name stays while the panel fades out.
-                .bind(\.stringValue, to: viewModel.savedText),
-            button: NSButton()
-                .title(localized("preview.showInFinder"))
-                .accessibilityIdentifier(Self.showInFinderIdentifier)
-                .sink(\.clickPublisher) { [weak store] in
-                    guard case .saved(let url) = store?.archiveSave else { return }
-                    NSWorkspace.shared.activateFileViewerSelecting([url])
-                    store?.dismissArchiveSave()
-                },
-            identifier: Self.archiveSavedIdentifier)
-            .configure { $0.isHidden = true }
-            .onReceive(viewModel.savedURL) { [weak self] panel, url in
-                Self.setShown(panel, url != nil, fades: true)
-                self?.viewModel.dismissSaved(after: url)
-            }
-    }
-
     /// At the top: why the archive was not saved (C-ARCH-02).
     private func makeArchiveFailedPanel() -> HUDView {
         let failure = viewModel.failure
@@ -530,10 +376,10 @@ final class PreviewPaneViewController: NSViewController {
             identifier: identifier)
     }
 
-    /// Puts the readout beside the controls when there is room for it at its least width,
-    /// above them otherwise.
+    /// Wraps the notices at the room they have, and keeps the layers clear of the controls.
     override func viewDidLayout() {
         super.viewDidLayout()
+        keepLayersClearOfControls()
         // The notice wraps at the room it has: at most its widest, within the insets.
         let room = min(Self.noticeMaximumWidth, view.bounds.width - 2 * Self.inset)
         let wrapWidth = max(room - Self.noticeChrome, 0)
@@ -547,12 +393,33 @@ final class PreviewPaneViewController: NSViewController {
         {
             label.preferredMaxLayoutWidth = failedWrap
         }
-        guard let controlsPanel else { return }
-        let beside = view.bounds.width >= controlsPanel.fittingSize.width
-            + Self.readoutMinimumWidth + 2 * Self.inset + Theme.Spacing.small
-        guard beside != besideControls.first?.isActive else { return }
-        NSLayoutConstraint.deactivate(beside ? aboveControls : besideControls)
-        NSLayoutConstraint.activate(beside ? besideControls : aboveControls)
+    }
+
+    /// The toolbar's capsules float over the top of the preview and the controls over its
+    /// bottom: at zoom 1 the layers fit between them (C-WIN-06). The toolbar is what the
+    /// window's content layout rect leaves out; it changes without a layout of the pane, as
+    /// the toolbar hides in full screen.
+    private func keepLayersClearOfControls() {
+        guard let controlsPanel, let preview = previewController.preview else { return }
+        var top = 0.0
+        if let window = preview.window {
+            let visible = preview.convert(window.contentLayoutRect, from: nil)
+            top = max(preview.bounds.maxY - visible.maxY, 0)
+        }
+        let bottom = controlsPanel.isHidden ? 0 : controlsPanel.frame.height + Self.inset
+        preview.overlayInsets = Viewport.Insets(top: top, bottom: bottom)
+    }
+
+    override func viewWillAppear() {
+        super.viewWillAppear()
+        layoutRectObservation = view.window?.observe(\.contentLayoutRect) { [weak self] _, _ in
+            MainActor.assumeIsolated { self?.keepLayersClearOfControls() }
+        }
+    }
+
+    override func viewDidDisappear() {
+        super.viewDidDisappear()
+        layoutRectObservation = nil
     }
 
     /// The connection is gone: the notice and its button have replaced the other panels, and
@@ -565,31 +432,6 @@ final class PreviewPaneViewController: NSViewController {
         // regardless, so the hover is cut off here.
         previewController.stopHovering()
         store.hover(nil)
-    }
-
-    /// Shows a panel at once; hides it at once or by fading it out over 0.3 seconds. Shown
-    /// again while it fades, it stays.
-    private static func setShown(_ panel: NSView, _ shows: Bool, fades: Bool) {
-        guard !shows else {
-            panel.alphaValue = 1
-            panel.isHidden = false
-            return
-        }
-        guard !panel.isHidden else { return }
-        guard fades else {
-            panel.isHidden = true
-            return
-        }
-        NSAnimationContext.runAnimationGroup { context in
-            context.duration = 0.3
-            panel.animator().alphaValue = 0
-        } completionHandler: { [weak panel] in
-            MainActor.assumeIsolated {
-                // Not when it was shown again while it faded.
-                guard let panel, panel.alphaValue == 0 else { return }
-                panel.isHidden = true
-            }
-        }
     }
 
     private static func tinted(_ name: String, _ color: NSColor) -> NSImage? {

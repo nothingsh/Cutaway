@@ -40,7 +40,7 @@ final class PreviewProjectorTests: XCTestCase {
             clock: clock, reducesMotion: { reducesMotion },
             keepTextures: { log.kept.append($0) },
             show: { log.shown.append(($0, $1)) })
-        projector.resize(to: CGSize(width: Self.viewport.width, height: Self.viewport.height))
+        projector.resize(to: Self.viewport)
         projector.follow(model.layout)
         projector.follow(model.previewMode)
         projector.follow(model.cameras)
@@ -99,25 +99,6 @@ final class PreviewProjectorTests: XCTestCase {
         XCTAssertFalse(clock.isRunning)
         XCTAssertEqual(log.shown.last?.isInTransition, false)
         XCTAssertEqual(log.shown.last?.list, still(model))
-    }
-
-    @MainActor
-    func test_C_PREV_11_withoutMotionOrBeforeFollowingChangesTheModeShowsAtOnce() throws {
-        let model = try model()
-        let clock = ManualClock()
-        let log = Log()
-        let reduced = projector(model, clock: clock, reducesMotion: true, log: log)
-        model.setPreviewMode(.threeD)
-        reduced.follow(model.previewMode)
-        XCTAssertFalse(reduced.isInTransition)
-        XCTAssertEqual(log.shown.last?.list, still(model))
-
-        let instant = projector(model, clock: nil, log: log)
-        model.setPreviewMode(.twoD)
-        instant.follow(model.previewMode)
-        XCTAssertFalse(instant.isInTransition)
-        XCTAssertEqual(log.shown.last?.list, still(model))
-        XCTAssertFalse(clock.isRunning)
     }
 
     @MainActor

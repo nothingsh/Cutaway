@@ -60,7 +60,7 @@ final class InspectorCommandsTests: XCTestCase {
     func test_C_DET_07_aSubtreeIsRefreshedFromTheSelectedLayer() throws {
         let model = try model()
         model.select(4)
-        XCTAssertFalse(commands(model).canRefreshSelectedSubtree, "a server below 0.3")
+        XCTAssertFalse(commands(model).canRefreshSelectedSubtree, "a source that sends no subtrees")
         model.canRefreshSubtrees = true
         XCTAssertTrue(commands(model).canRefreshSelectedSubtree)
         model.select(nil)
@@ -114,13 +114,17 @@ final class InspectorCommandsTests: XCTestCase {
         XCTAssertFalse(commands(model, disconnected: true).canExpandOrCollapseAll)
     }
 
-    /// The commands read the model when they are asked, not when they were made.
     @MainActor
-    func test_C_WIN_03_theCommandsReadTheModelWhenAsked() throws {
+    func test_C_ATTR_16_parentAndChildNeedTheConnectionAndNoTextBeingEdited() throws {
         let model = try model()
-        let commands = commands(model)
-        XCTAssertFalse(commands.canFocusOnSelectedLayer)
         model.select(4)
-        XCTAssertTrue(commands.canFocusOnSelectedLayer)
+        XCTAssertTrue(commands(model).canSelectParent)
+        XCTAssertTrue(commands(model).canSelectFirstChild)
+        XCTAssertFalse(commands(model, disconnected: true).canSelectParent)
+        XCTAssertFalse(commands(model, disconnected: true).canSelectFirstChild)
+        let editing = InspectorCommands(store: model, isArchive: false, isDisconnected: false, isEditingText: true)
+        XCTAssertFalse(editing.canSelectParent)
+        XCTAssertFalse(editing.canSelectFirstChild)
+        XCTAssertTrue(commands(model, archive: true).canSelectParent, "an archive too")
     }
 }

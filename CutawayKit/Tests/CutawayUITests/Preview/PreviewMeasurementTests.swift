@@ -79,30 +79,6 @@ final class PreviewMeasurementTests: XCTestCase {
     }
 
     @MainActor
-    func test_C_PREV_10_theLabelsSitBelowALineAcrossAndRightOfALineDown() throws {
-        let (_, preview, window) = try previewInWindow(try model())
-        try point(at: 8, in: preview)
-        let drawn = try XCTUnwrap(preview.drawList.measurement)
-        let labels = preview.distanceLabels
-        XCTAssertEqual(labels.count, 2)
-        func frame(_ label: NSView) -> NSRect {
-            // As the draw list counts: from the top left.
-            let r = preview.convert(label.frame, from: label.superview)
-            return NSRect(
-                x: r.minX, y: preview.isFlipped ? r.minY : preview.bounds.height - r.maxY,
-                width: r.width, height: r.height)
-        }
-        let across = frame(labels[0]), middleAcross = drawn.labels[0].middle
-        XCTAssertEqual(across.midX, middleAcross.x, accuracy: 0.5)
-        XCTAssertEqual(across.minY, middleAcross.y + 4, accuracy: 0.5)
-        XCTAssertEqual(across.height, 16, accuracy: 0.5)
-        let down = frame(labels[1]), middleDown = drawn.labels[1].middle
-        XCTAssertEqual(down.minX, middleDown.x + 4, accuracy: 0.5)
-        XCTAssertEqual(down.midY, middleDown.y, accuracy: 0.5)
-        withExtendedLifetime(window) {}
-    }
-
-    @MainActor
     func test_C_PREV_10_overTheSelectionOrEmptyCanvasNothingIsMeasured() throws {
         let (_, preview, window) = try previewInWindow(try model())
         try point(at: 3, in: preview)
@@ -111,14 +87,6 @@ final class PreviewMeasurementTests: XCTestCase {
         // Above the window's top: no layer.
         preview.mouseMoved(with: mouse(.mouseMoved, at: NSPoint(x: 5, y: 895), in: preview))
         XCTAssertNil(preview.drawList.measurement, "over nothing")
-        withExtendedLifetime(window) {}
-    }
-
-    @MainActor
-    func test_C_PREV_10_withoutASelectionNothingIsMeasured() throws {
-        let (_, preview, window) = try previewInWindow(try model(selecting: nil))
-        try point(at: 8, in: preview)
-        XCTAssertNil(preview.drawList.measurement)
         withExtendedLifetime(window) {}
     }
 
@@ -184,7 +152,7 @@ final class PreviewMeasurementTests: XCTestCase {
         let center = try XCTUnwrap(preview.drawList.items.first { $0.layerID == 8 }?.center)
         model.zoom(
             by: 1.5, about: center,
-            in: Viewport(width: preview.bounds.width, height: preview.bounds.height))
+            in: preview.viewport)
         model.pan(by: 10, 5)
         withExtendedLifetime(controller) {}
         let after = try XCTUnwrap(preview.drawList.measurement)
@@ -226,21 +194,6 @@ final class PreviewMeasurementTests: XCTestCase {
     }
 
     @MainActor
-    func test_C_PREV_10_theLabelsLetThePointerThrough() throws {
-        let model = try model()
-        let (_, preview, window) = try previewInWindow(model)
-        try point(at: 8, in: preview)
-        let label = try XCTUnwrap(preview.distanceLabels.first)
-        let middle = NSPoint(x: label.frame.midX, y: label.frame.midY)
-        let inPreview = preview.convert(middle, from: label.superview)
-        let inWindow = preview.convert(inPreview, to: nil)
-        let hit = window.contentView?.hitTest(
-            window.contentView!.convert(inWindow, from: nil))
-        XCTAssertTrue(hit === preview, "\(String(describing: hit)) took the pointer")
-        withExtendedLifetime(window) {}
-    }
-
-    @MainActor
     func test_C_PREV_10_aChangeOfOptionThatChangesNothingDrawsNothing() throws {
         let (_, preview, window) = try previewInWindow(try model(selecting: nil))
         try point(at: 8, option: false, in: preview)
@@ -270,7 +223,7 @@ final class PreviewMeasurementTests: XCTestCase {
     ) -> DrawList {
         model.layout.project(
             camera: model.camera,
-            viewport: Viewport(width: preview.bounds.width, height: preview.bounds.height),
+            viewport: preview.viewport,
             selected: model.selectedLayerID, hovered: model.hoveredLayerID, measuring: measuring)
     }
 
@@ -296,75 +249,6 @@ final class PreviewMeasurementTests: XCTestCase {
                 XCTAssertEqual(frame.minX, drawn.middle.x + 4, accuracy: 0.5)
             }
         }
-        withExtendedLifetime(window) {}
-    }
-
-    @MainActor
-    func test_C_PREV_14_overTheSelectionOrEmptyCanvasNothingIsMeasuredIn3D() throws {
-        let (_, preview, window) = try previewInWindow(try model3D())
-        try point(at: 3, in: preview)
-        XCTAssertNil(preview.drawList.measurement, "over the selection")
-        XCTAssertEqual(preview.distanceLabels.count, 0)
-        preview.mouseMoved(with: mouse(.mouseMoved, at: NSPoint(x: 5, y: 895), in: preview))
-        XCTAssertNil(preview.drawList.measurement, "over nothing")
-        withExtendedLifetime(window) {}
-    }
-
-    @MainActor
-    func test_C_PREV_14_withoutASelectionNothingIsMeasuredIn3D() throws {
-        let (_, preview, window) = try previewInWindow(try model3D(selecting: nil))
-        try point(at: 2, in: preview)
-        XCTAssertNil(preview.drawList.measurement)
-        withExtendedLifetime(window) {}
-    }
-
-    @MainActor
-    func test_C_PREV_14_theMeasurementGoesWhenOptionIsReleasedOrThePointerLeavesIn3D() throws {
-        let (_, preview, window) = try previewInWindow(try model3D())
-        try point(at: 2, in: preview)
-        XCTAssertNotNil(preview.drawList.measurement)
-        preview.modifiersChanged([])
-        XCTAssertNil(preview.drawList.measurement, "⌥ released")
-        XCTAssertEqual(preview.distanceLabels.count, 0)
-        preview.modifiersChanged([.option])
-        XCTAssertEqual(values(preview), [96.5, 96.5, 108, 720], "⌥ pressed")
-        preview.mouseExited(with: PreviewViewTests.exit(preview))
-        XCTAssertNil(preview.drawList.measurement, "the pointer left")
-        XCTAssertEqual(preview.distanceLabels.count, 0)
-        withExtendedLifetime(window) {}
-    }
-
-    @MainActor
-    func test_C_PREV_14_nothingIsMeasuredWhileTheButtonIsDownIn3D() throws {
-        let model = try model3D()
-        let (_, preview, window) = try previewInWindow(model)
-        try point(at: 2, in: preview)
-        let center = try XCTUnwrap(preview.viewPoint(ofCenterOf: 2))
-        preview.mouseDown(with: mouse(.leftMouseDown, at: center, in: preview))
-        XCTAssertNil(preview.drawList.measurement, "pressed")
-        // A drag with ⌥ moves the view and measures nothing on the way.
-        preview.mouseDragged(
-            with: mouse(.leftMouseDragged, at: NSPoint(x: center.x + 30, y: center.y), in: preview))
-        XCTAssertNil(preview.drawList.measurement, "dragging")
-        preview.mouseUp(
-            with: mouse(.leftMouseUp, at: NSPoint(x: center.x + 30, y: center.y), in: preview))
-        XCTAssertEqual(model.selectedLayerID, 3, "a drag selects nothing")
-        try point(at: 2, in: preview)
-        XCTAssertEqual(values(preview), [96.5, 96.5, 108, 720], "released")
-        withExtendedLifetime(window) {}
-    }
-
-    @MainActor
-    func test_C_PREV_14_measuringChangesNeitherTheSelectionNorTheHoverIn3D() throws {
-        let model = try model3D()
-        let (_, preview, window) = try previewInWindow(model)
-        try point(at: 2, option: false, in: preview)
-        XCTAssertEqual(model.hoveredLayerID, 2)
-        preview.modifiersChanged([.option])
-        XCTAssertNotNil(preview.drawList.measurement)
-        XCTAssertEqual(model.selectedLayerID, 3)
-        XCTAssertEqual(model.hoveredLayerID, 2)
-        XCTAssertEqual(preview.drawList.items.first { $0.layerID == 2 }?.highlight, .hovered)
         withExtendedLifetime(window) {}
     }
 

@@ -3,10 +3,9 @@ import CutawayModel
 import Foundation
 
 /// What the panels over the preview show, derived from the inspection: the notice
-/// (C-DET-04), the screenshots' progress (C-DET-02), "Loading layers…", the layer under the
-/// pointer, whether the controls can be used (C-PREV-07), saving an archive and why it was
-/// not saved (C-ARCH-02), why a screenshot was not exported (C-ARCH-06), and the notice of a
-/// lost connection (C-WIN-03, C-WIN-04). It also takes "Saved" away after a while.
+/// (C-DET-04), "Loading layers…", the layers the tags name (C-PREV-16), whether the controls
+/// can be used (C-PREV-07), why an archive was not saved (C-ARCH-02), why a screenshot was not
+/// exported (C-ARCH-06), and the notice of a lost connection (C-WIN-03, C-WIN-04).
 ///
 /// It only builds publishers when asked; the container subscribes to them where it lays its
 /// panels out.
@@ -27,9 +26,6 @@ final class PreviewPaneViewModel {
 
     let store: InspectionStore
     let appName: String
-    /// How long "Saved" stays before it fades.
-    let savedNoticeDuration: Duration
-    private var savedDismissal: Task<Void, Never>?
 
     /// Whether the connection is gone (C-WIN-03).
     var isDisconnected: AnyPublisher<Bool, Never> {
@@ -47,13 +43,12 @@ final class PreviewPaneViewModel {
             .eraseToAnyPublisher()
     }
 
-    init(store: InspectionStore, appName: String, savedNoticeDuration: Duration = .seconds(4)) {
+    init(store: InspectionStore, appName: String) {
         self.store = store
         self.appName = appName
-        self.savedNoticeDuration = savedNoticeDuration
     }
 
-    // MARK: - The notice and the screenshots' progress
+    // MARK: - The notice
 
     var notice: AnyPublisher<String?, Never> {
         Publishers.CombineLatest(store.$notice, isDisconnected)
@@ -76,35 +71,6 @@ final class PreviewPaneViewModel {
             .eraseToAnyPublisher()
     }
 
-    var progress: AnyPublisher<String?, Never> {
-        Publishers.CombineLatest3(
-            store.$notice, store.$detailProgress, isDisconnected
-        )
-        .map { notice, progress, isDisconnected in
-            // A notice says why loading stopped; the progress would only repeat it.
-            notice == nil && !isDisconnected
-                ? PreviewPaneText.progressText(progress) : nil
-        }
-        .removeDuplicates()
-        .eraseToAnyPublisher()
-    }
-
-    var fraction: AnyPublisher<Double, Never> {
-        store.$detailProgress
-            .map { $0.total > 0 ? Double($0.completed) / Double($0.total) : 0 }
-            .eraseToAnyPublisher()
-    }
-
-    /// Whether the progress's panel shows, and whether a notice or a lost connection took its
-    /// place, in which case it goes at once instead of fading out.
-    var progressShown: AnyPublisher<(Bool, Bool), Never> {
-        Publishers.CombineLatest(
-            progress.map { $0 != nil },
-            Publishers.CombineLatest(store.$notice, isDisconnected)
-                .map { notice, disconnected in notice != nil || disconnected })
-            .eraseToAnyPublisher()
-    }
-
     var isLoading: AnyPublisher<Bool, Never> {
         Publishers.CombineLatest3(store.$loadState, store.$tree, isDisconnected)
             .map { state, tree, isDisconnected in
@@ -114,17 +80,19 @@ final class PreviewPaneViewModel {
             .eraseToAnyPublisher()
     }
 
-    // MARK: - The readout and the controls
+    // MARK: - The tags and the controls
 
-    /// The layer under the pointer, or the selected one when the pointer is over none.
-    var readout: AnyPublisher<LayerSummary?, Never> {
+    /// The layers the preview's tags name (C-PREV-16): the selected one, and the hovered one
+    /// when it is another. None once the connection is gone.
+    var tags: AnyPublisher<(selected: LayerSummary?, hovered: LayerSummary?), Never> {
         Publishers.CombineLatest4(
             store.$hoveredLayerID, store.$selectedLayerID, store.$tree, isDisconnected
         )
         .map { hovered, selected, tree, isDisconnected in
-            isDisconnected ? nil : LayerSummary(tree, hovered) ?? LayerSummary(tree, selected)
+            guard !isDisconnected else { return (nil, nil) }
+            return (LayerSummary(tree, selected), hovered == selected ? nil : LayerSummary(tree, hovered))
         }
-        .removeDuplicates()
+        .removeDuplicates { $0.selected == $1.selected && $0.hovered == $1.hovered }
         .eraseToAnyPublisher()
     }
 
@@ -148,46 +116,7 @@ final class PreviewPaneViewModel {
             .eraseToAnyPublisher()
     }
 
-    // MARK: - Saving an archive and exporting a screenshot
-
-    /// How far the save is, while saving.
-    var saving: AnyPublisher<(completed: Int, total: Int)?, Never> {
-        store.$archiveSave.removeDuplicates()
-            .map { state -> (completed: Int, total: Int)? in
-                if case .saving(let completed, let total) = state { return (completed, total) }
-                return nil
-            }
-            .eraseToAnyPublisher()
-    }
-
-    var archiveFraction: AnyPublisher<Double, Never> {
-        saving.compactMap { $0 }.map {
-            $0.total > 0 ? Double($0.completed) / Double($0.total) : 0
-        }
-        .eraseToAnyPublisher()
-    }
-
-    var archiveCount: AnyPublisher<String, Never> {
-        saving.compactMap { $0 }.map {
-            $0.total > 0 ? PreviewPaneText.countText($0.completed, of: $0.total) : ""
-        }
-        .eraseToAnyPublisher()
-    }
-
-    /// Where the archive was saved, once it is.
-    var savedURL: AnyPublisher<URL?, Never> {
-        store.$archiveSave.removeDuplicates()
-            .map { state -> URL? in
-                if case .saved(let url) = state { return url }
-                return nil
-            }
-            .eraseToAnyPublisher()
-    }
-
-    /// "Saved …"; the last name stays while the panel fades out.
-    var savedText: AnyPublisher<String, Never> {
-        savedURL.compactMap { $0 }.map(PreviewPaneText.savedText).eraseToAnyPublisher()
-    }
+    // MARK: - What was not saved or exported
 
     /// Why the archive was not saved, or nil.
     var failure: AnyPublisher<String?, Never> {
@@ -208,17 +137,5 @@ final class PreviewPaneViewModel {
                     failure, appName: appName)
             }
             .eraseToAnyPublisher()
-    }
-
-    /// "Saved" goes after a few seconds, unless another save took its place meanwhile.
-    func dismissSaved(after url: URL?) {
-        savedDismissal?.cancel()
-        guard let url else { return }
-        savedDismissal = Task { [weak self, savedNoticeDuration] in
-            guard (try? await Task.sleep(for: savedNoticeDuration)) != nil,
-                  let store = self?.store, store.archiveSave == .saved(url)
-            else { return }
-            store.dismissArchiveSave()
-        }
     }
 }

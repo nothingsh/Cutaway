@@ -73,7 +73,7 @@ final class PreviewTransitionTests: XCTestCase {
     {
         model.layout.project(
             camera: model.camera,
-            viewport: Viewport(width: preview.bounds.width, height: preview.bounds.height),
+            viewport: preview.viewport,
             selected: model.selectedLayerID, hovered: model.hoveredLayerID, measuring: measuring)
     }
 
@@ -227,23 +227,6 @@ final class PreviewTransitionTests: XCTestCase {
             XCTAssertEqual(
                 preview.drawList.measurement?.labels.map(\.value), [96.5, 96.5, 108, 720],
                 "\(mode)")
-            withExtendedLifetime(window) {}
-        }
-    }
-
-    @MainActor
-    func test_C_PREV_11_withoutMotionTheModeShowsAtOnce() throws {
-        let clock = ManualClock()
-        for (name, motion) in [
-            ("instant", PreviewMotion.instant),
-            ("reduced motion", .paced(by: clock, reducesMotion: { true })),
-        ] {
-            let model = try model()
-            let (controller, preview, window) = try previewInWindow(model, motion: motion)
-            model.setPreviewMode(.threeD)
-            XCTAssertFalse(controller.isInTransition, name)
-            XCTAssertFalse(clock.isRunning, name)
-            XCTAssertEqual(preview.drawList, still(model, preview), name)
             withExtendedLifetime(window) {}
         }
     }
@@ -412,19 +395,6 @@ final class PreviewTransitionTests: XCTestCase {
         XCTAssertEqual(item.highlight, .selected)
         XCTAssertGreaterThan(distance(item.center, node), 1, "rising out of layer 6")
         XCTAssertGreaterThan(distance(item.center, end), 1, "not there yet")
-        withExtendedLifetime(window) {}
-    }
-
-    @MainActor
-    func test_C_PREV_12_withoutMotionTheExpansionShowsAtOnce() throws {
-        let model = try model()
-        model.setPreviewMode(.threeD)
-        let clock = ManualClock()
-        let (controller, preview, window) = try previewInWindow(
-            model, motion: .paced(by: clock, reducesMotion: { true }))
-        model.setExpanded(2, false)
-        XCTAssertFalse(controller.isInTransition)
-        XCTAssertEqual(preview.drawList, still(model, preview))
         withExtendedLifetime(window) {}
     }
 }

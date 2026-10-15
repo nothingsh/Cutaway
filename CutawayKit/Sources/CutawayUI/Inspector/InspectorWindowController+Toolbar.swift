@@ -4,7 +4,8 @@ import CutawayModel
 import DeclarativeAppKit
 import DeclarativeCombine
 
-// `modeControl` and `appIcon` are internal only so that this file can set and read them.
+// `modeControl`, `appCapsule`, `appIcon`, `windowTitle` and `followStatus()` are internal
+// only so that this file can set and read them.
 extension InspectorWindowController {
     // MARK: - The toolbar's controls
 
@@ -27,15 +28,13 @@ extension InspectorWindowController {
         return control
     }
 
-    /// "Archive", as a tag beside the app's icon (C-ARCH-05). The word sits in the middle of
+    /// "Archive", as a tag beside the capsule (C-ARCH-05). The word sits in the middle of
     /// its border: a label draws its text at the top of its frame, so the border is a view of
     /// its own around it.
     private func makeArchiveTag() -> NSView {
-        NSView().configure {
-            $0.wantsLayer = true
+        SeparatorOutlineView().configure {
             $0.layer?.cornerRadius = 4
             $0.layer?.borderWidth = 1
-            $0.layer?.borderColor = NSColor.separatorColor.cgColor
             $0.addHStack(alignment: .center, spacing: 0) {
                 NSTextField(labelWithString: localized("toolbar.archive.tag"))
                     .font(.systemFont(ofSize: 11, weight: .semibold))
@@ -47,36 +46,35 @@ extension InspectorWindowController {
         .frame(height: 18)
     }
 
-    private func makeAppIconView() -> NSView {
-        let view = NSImageView()
-        view.image = appIcon ?? Theme.symbol(Theme.Symbol.appPlaceholder, size: 18)
-        view.imageScaling = .scaleProportionallyUpOrDown
-        view.wantsLayer = true
-        view.layer?.cornerRadius = 6
-        view.layer?.cornerCurve = .continuous
-        view.layer?.masksToBounds = true
-        view.setAccessibilityLabel(localized("toolbar.app.icon"))
-        return view.frame(width: 26, height: 26)
+    /// The app's capsule (C-WIN-06): its name shows the app list, its buttons refresh and
+    /// save, and it shows the screenshots' and the save's progress.
+    private func makeAppCapsule() -> AppCapsuleView {
+        let capsule = AppCapsuleView(
+            title: windowTitle.title, subtitle: windowTitle.subtitle, icon: appIcon, isArchive: isArchive)
+        capsule.onShowApps = { [weak self] in self?.showApps(nil) }
+        capsule.onRefresh = { [weak self] in self?.refresh(nil) }
+        capsule.onSave = { [weak self] in self?.saveArchive(nil) }
+        capsule.onCancelSave = { [weak self] in self?.store.cancelArchiveSave() }
+        capsule.onReveal = { [weak self] url in
+            NSWorkspace.shared.activateFileViewerSelecting([url])
+            self?.store.dismissArchiveSave()
+        }
+        capsule.show(AppCapsuleState(
+            subtitle: windowTitle.subtitle, detailProgress: .none, notice: nil, archiveSave: .idle,
+            isDisconnected: false))
+        appCapsule = capsule
+        followStatus()
+        return capsule
     }
 }
 
 extension InspectorWindowController: NSToolbarDelegate {
     public func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        // An archive is neither refreshed nor saved again, and has no app list to go back to.
-        if isArchive {
-            return [
-                .toggleSidebar, .sidebarTrackingSeparator, Self.appIconItem, Self.archiveTagItem,
-                .flexibleSpace, Self.modeItem, .inspectorTrackingSeparator, .flexibleSpace,
-                .toggleInspector,
-            ]
-        }
-        return [
-            .toggleSidebar, .sidebarTrackingSeparator, Self.appIconItem, .flexibleSpace,
-            Self.modeItem, Self.refreshItem, Self.saveArchiveItem, Self.appsItem,
-            .inspectorTrackingSeparator,
-            .flexibleSpace,
-            .toggleInspector,
-        ]
+        // The capsule on the left, the mode alone on the right (C-WIN-06); an archive's
+        // capsule has its tag beside it.
+        [.toggleSidebar, .sidebarTrackingSeparator, Self.capsuleItem]
+            + (isArchive ? [Self.archiveTagItem] : [])
+            + [.flexibleSpace, Self.modeItem, .inspectorTrackingSeparator, .flexibleSpace, .toggleInspector]
     }
 
     public func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
@@ -88,14 +86,13 @@ extension InspectorWindowController: NSToolbarDelegate {
         willBeInsertedIntoToolbar flag: Bool
     ) -> NSToolbarItem? {
         switch identifier {
-        case Self.appIconItem:
+        case Self.capsuleItem:
             let item = NSToolbarItem(itemIdentifier: identifier)
-            item.view = makeAppIconView()
+            item.view = makeAppCapsule()
             item.label = localized("toolbar.app.label")
             item.isNavigational = true
-            // On macOS 26 a bordered item sits in the toolbar's shared glass capsule; the icon
-            // stands on its own beside the title.
-            item.isBordered = false
+            // In the toolbar's glass, as the 2D / 3D switch is (C-WIN-06).
+            item.isBordered = true
             return item
         case Self.archiveTagItem:
             let item = NSToolbarItem(itemIdentifier: identifier)
@@ -109,50 +106,28 @@ extension InspectorWindowController: NSToolbarDelegate {
             item.label = localized("toolbar.mode.label")
             item.toolTip = localized("toolbar.mode.tooltip")
             return item
-        case Self.refreshItem:
-            let item = NSToolbarItem(itemIdentifier: identifier)
-            let refresh = localized("toolbar.refresh.label")
-            item.image = Theme.symbol(Theme.Symbol.refresh, size: 14, description: refresh)
-            item.label = refresh
-            item.toolTip = refresh
-            item.isBordered = true
-            item.target = self
-            item.action = #selector(refresh(_:))
-            return item
-        case Self.saveArchiveItem:
-            let item = NSToolbarItem(itemIdentifier: identifier)
-            item.image = Theme.symbol(
-                Theme.Symbol.saveArchive, size: 14, description: localized("toolbar.saveArchive.label"))
-            item.label = localized("toolbar.saveArchive.label")
-            item.toolTip = localized("toolbar.saveArchive.tooltip")
-            item.isBordered = true
-            item.target = self
-            item.action = #selector(saveArchive(_:))
-            return item
-        case Self.appsItem:
-            let item = NSToolbarItem(itemIdentifier: identifier)
-            item.image = Theme.symbol(
-                Theme.Symbol.apps, size: 14, description: localized("toolbar.apps.label"))
-            item.label = localized("toolbar.apps.label")
-            item.toolTip = localized("toolbar.apps.tooltip")
-            item.isBordered = true
-            item.target = self
-            item.action = #selector(showApps(_:))
-            return item
         default:
             return nil
         }
     }
 }
 
-extension InspectorWindowController: NSToolbarItemValidation {
-    /// Refreshing and saving need the connection (C-DET-05, C-ARCH-02), and neither while an
-    /// archive is saved.
-    public func validateToolbarItem(_ item: NSToolbarItem) -> Bool {
-        switch item.itemIdentifier {
-        case Self.refreshItem: commands.canRefresh
-        case Self.saveArchiveItem: commands.canSaveArchive
-        default: true
-        }
+/// A view outlined in the separator colour, taken again when the appearance changes
+/// (C-PREF-03).
+final class SeparatorOutlineView: NSView {
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        wantsLayer = true
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) is not supported")
+    }
+
+    override var wantsUpdateLayer: Bool { true }
+
+    override func updateLayer() {
+        layer?.borderColor = NSColor.separatorColor.cgColor
     }
 }

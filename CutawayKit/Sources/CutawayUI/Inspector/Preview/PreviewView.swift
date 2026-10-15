@@ -32,6 +32,20 @@ public final class PreviewView: MTKView {
         $0.autoresizingMask = [.width, .height]
     }
 
+    /// Holds the tags of the selected and the hovered layer over the drawing (C-PREV-16).
+    private let tagOverlay = PassThroughView(frame: .zero).configure {
+        $0.autoresizingMask = [.width, .height]
+    }
+
+    let selectedTag = LayerTagView(.selected)
+    let hoveredTag = LayerTagView(.hovered)
+
+    /// The layers the tags name: the selected one, and the hovered one when it is another
+    /// (C-PREV-16). Each is placed at its layer as the list draws it.
+    var tags: (selected: LayerSummary?, hovered: LayerSummary?) = (nil, nil) {
+        didSet { placeTags() }
+    }
+
     /// The values shown, in the order of the measurement's distances.
     var distanceLabels: [DistanceLabelView] {
         distanceOverlay.subviews.compactMap { $0 as? DistanceLabelView }
@@ -49,9 +63,17 @@ public final class PreviewView: MTKView {
         }
     }
 
+    /// How the layers are outlined (C-PREV-17); a change sets the style's borders.
+    var borders = PreviewBorders() {
+        didSet { restyle() }
+    }
+
     /// Whether the colours follow the appearance: `RenderStyle.preview` for
-    /// the light or dark one, keeping the borders switch.
+    /// the light or dark one. Else the style given, as dark.
     private let followsAppearance: Bool
+    /// The style given, which the borders are set on when the colours do not follow the
+    /// appearance.
+    private let givenStyle: RenderStyle
     private var trackingArea: NSTrackingArea?
     /// Where the pointer last was over the view, as the draw list counts; nil when it is not
     /// over the view.
@@ -77,7 +99,8 @@ public final class PreviewView: MTKView {
     var onClick: ((UInt64?) -> Void)?
     /// The second click of a double click, after its `onClick`, on the layer under it.
     var onDoubleClick: ((UInt64) -> Void)?
-    var onResize: ((CGSize) -> Void)?
+    /// The view's size or what floats over its edges changed.
+    var onResize: ((Viewport) -> Void)?
     /// The context menu for the layer under a right click or a ⌃ click, or for none; nil for
     /// no menu (C-PREV-15).
     var onContextMenu: ((UInt64?) -> NSMenu?)?
@@ -95,6 +118,7 @@ public final class PreviewView: MTKView {
     init(renderer: Renderer, style: RenderStyle = .standard, followsAppearance: Bool = false) {
         self.renderer = renderer
         self.style = style
+        givenStyle = style
         self.followsAppearance = followsAppearance
         textures = TextureCache(device: renderer.device)
         super.init(frame: .zero, device: renderer.device)
@@ -107,10 +131,20 @@ public final class PreviewView: MTKView {
         clearColor = style.clearColor
         isPaused = true
         enableSetNeedsDisplay = true
+        // A frame goes on screen with the Core Animation transaction it was drawn in, not
+        // whenever the GPU is done: as the window or a side panel resizes the preview, the
+        // layer's new size and the frame drawn for it show together. Otherwise the last frame
+        // is stretched to the new size until the next one is presented, and the layers jump.
+        presentsWithTransaction = true
         setAccessibilityIdentifier(Self.identifier)
         distanceOverlay.frame = bounds
         addSubview(distanceOverlay)
-        followAppearance()
+        tagOverlay.frame = bounds
+        addSubview(tagOverlay)
+        // The selected layer's tag over the hovered one's.
+        tagOverlay.addSubview(hoveredTag)
+        tagOverlay.addSubview(selectedTag)
+        restyle()
     }
 
     @available(*, unavailable)
@@ -129,16 +163,40 @@ public final class PreviewView: MTKView {
         drawList = list
         showings += 1
         needsDisplay = true
+        placeTags()
         if let pointer { reportHover(drawList.layer(at: pointer)) }
     }
 
+    /// Whether something asked for a frame since the last one, or the drawable changed size.
+    private var wantsFrame: Bool { isStale || drawableSize != drawnSize }
+    private var isStale = true
+    /// The drawable's size when the last frame was drawn.
+    private var drawnSize = CGSize.zero
+
+    /// The value set, not the one read back: the view takes it over at once and reads false.
+    override public var needsDisplay: Bool {
+        get { super.needsDisplay }
+        set {
+            if newValue { isStale = true }
+            super.needsDisplay = newValue
+        }
+    }
+
     override public func draw(_ dirtyRect: NSRect) {
+        // A frame drawn at once for a new size leaves the view's own drawing, which the resize
+        // queued, nothing to do.
+        guard wantsFrame else { return }
         guard let pass = currentRenderPassDescriptor, let drawable = currentDrawable else {
             return
         }
+        isStale = false
+        drawnSize = drawableSize
         do {
-            try renderer.commit(
-                drawList, textures: textures, style: style, to: pass, presenting: drawable)
+            let commands = try renderer.commit(
+                drawList, textures: textures, style: style, to: pass, presenting: nil)
+            // Presenting with the transaction (`presentsWithTransaction`): once scheduled.
+            commands.waitUntilScheduled()
+            drawable.present()
             frameCount += 1
             drawnShowing = showings
         } catch {
@@ -156,24 +214,49 @@ public final class PreviewView: MTKView {
             reportHover(nil)
             updateMeasuring()
         }
-        onResize?(newSize)
+        reportViewport()
+    }
+
+    /// What floats over the preview's edges: the toolbar and the controls (C-WIN-06). At zoom
+    /// 1 the layers fit inside them.
+    var overlayInsets = Viewport.Insets.zero {
+        didSet { if overlayInsets != oldValue { reportViewport() } }
+    }
+
+    /// The size, and what floats over the edges. Public for the app tests.
+    public var viewport: Viewport {
+        Viewport(width: bounds.width, height: bounds.height, insets: overlayInsets)
+    }
+
+    /// Tells the new size, and draws for it at once: in the transaction that changes the size,
+    /// so that what shows the window at its new size (a live resize, the full-screen
+    /// animation) has the frame for it, not the last one drawn. The view's own drawing comes
+    /// from a block on the main queue, after the transaction: too late for the full-screen
+    /// animation, which then shows the old frame throughout.
+    private func reportViewport() {
+        onResize?(viewport)
+        guard wantsFrame, window != nil, bounds.width > 0, bounds.height > 0 else { return }
+        draw()
+        // Drawn: the display pass that `show` asked for has nothing left to do.
+        needsDisplay = false
     }
 
     override public func viewDidChangeEffectiveAppearance() {
         super.viewDidChangeEffectiveAppearance()
-        followAppearance()
+        restyle()
     }
 
     override public func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
-        followAppearance()
+        restyle()
     }
 
-    /// Takes the colours of the current appearance; a change draws again.
-    private func followAppearance() {
-        guard followsAppearance else { return }
-        let dark = effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
-        let wanted = RenderStyle.preview(dark: dark, drawsBorders: style.drawsBorders)
+    /// Takes the colours of the current appearance and the borders; a change draws again.
+    private func restyle() {
+        let dark = !followsAppearance
+            || effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+        var wanted = followsAppearance ? RenderStyle.preview(dark: dark) : givenStyle
+        borders.apply(to: &wanted, dark: dark)
         if wanted != style { style = wanted }
     }
 
@@ -262,7 +345,26 @@ public final class PreviewView: MTKView {
         let measuring = optionHeld && over && pressedAt == nil
         guard measuring != isMeasuring else { return }
         isMeasuring = measuring
+        placeTags()
         onMeasuringChange?(measuring)
+    }
+
+    /// Puts each tag at its layer's highest corner as the list draws it (C-PREV-16): upright,
+    /// whatever the camera. No tags while measuring, nor for a layer the list does not draw.
+    private func placeTags() {
+        for (tag, summary) in [(selectedTag, tags.selected), (hoveredTag, tags.hovered)] {
+            let shown = isMeasuring ? nil : summary
+            tag.show(shown)
+            guard let shown, let item = drawList.items.last(where: { $0.layerID == shown.id }) else {
+                tag.isHidden = true
+                continue
+            }
+            let origin = TagPlacement.origin(
+                for: item.points,
+                size: SceneSize(width: tag.frame.width, height: tag.frame.height))
+            tag.setFrameOrigin(NSPoint(x: origin.x, y: origin.y))
+            tag.isHidden = false
+        }
     }
 
     override public func mouseExited(with event: NSEvent) {
