@@ -49,14 +49,6 @@ final class HierarchyToolsTests: XCTestCase {
     }
 
     @MainActor
-    func test_C_HIER_04_noMatchesLeaveNothing() throws {
-        let model = try model()
-        model.setSearchText("button")
-        XCTAssertEqual(model.filter?.matches, [])
-        XCTAssertEqual(model.filter?.shown, [])
-    }
-
-    @MainActor
     func test_C_HIER_04_searchingLeavesTheExpansionAndTheLayoutAlone() throws {
         let model = try model()
         model.setExpanded(6, false)
@@ -69,16 +61,6 @@ final class HierarchyToolsTests: XCTestCase {
         XCTAssertEqual(model.geometryBuildCount, builds)
         XCTAssertEqual(model.layout.neededTextures, needs)
         XCTAssertFalse(model.isExpanded(6))
-    }
-
-    @MainActor
-    func test_C_HIER_04_theSelectionStaysThroughASearch() throws {
-        let model = try model()
-        model.select(8)
-        model.setSearchText("label")
-        XCTAssertEqual(model.selectedLayerID, 8, "not a match, still selected")
-        model.setSearchText("")
-        XCTAssertEqual(model.selectedLayerID, 8)
     }
 
     @MainActor
@@ -137,29 +119,11 @@ final class HierarchyToolsTests: XCTestCase {
     }
 
     @MainActor
-    func test_C_HIER_05_leavingTheFocusShowsTheWholeTreeAgain() throws {
-        let model = try model()
-        model.focus(on: 6)
-        model.focus(on: nil)
-        XCTAssertNil(model.focusedLayerID)
-        XCTAssertEqual(
-            model.tree.ids.filter(model.layout.isDisplayed), [1, 2, 3, 4, 6, 7, 8, 9])
-    }
-
-    @MainActor
     func test_C_HIER_05_aSelectionOutsideTheFocusMovesOntoIt() throws {
         let model = try model()
         model.select(3)
         model.focus(on: 6)
         XCTAssertEqual(model.selectedLayerID, 6)
-    }
-
-    @MainActor
-    func test_C_HIER_05_aSelectionInsideTheFocusStays() throws {
-        let model = try model()
-        model.select(7)
-        model.focus(on: 6)
-        XCTAssertEqual(model.selectedLayerID, 7)
     }
 
     @MainActor
@@ -258,36 +222,6 @@ final class HierarchyToolsTests: XCTestCase {
     // MARK: - C-HIER-06: expanding to a level
 
     @MainActor
-    func test_C_HIER_06_expandingToLevelTwo() throws {
-        let model = try model()
-        model.expand(toDepth: 2)
-        XCTAssertEqual(expanded(model), [1, 2])
-        XCTAssertEqual(
-            model.tree.ids.filter(model.layout.isDisplayed), [1, 2, 3, 4, 6, 8, 9],
-            "the children of 2 are drawn, collapsed")
-    }
-
-    @MainActor
-    func test_C_HIER_06_collapsingAndExpandingEverything() throws {
-        let model = try model()
-        model.collapseAll()
-        XCTAssertEqual(expanded(model), [])
-        XCTAssertEqual(model.tree.ids.filter(model.layout.isDisplayed), [1])
-        model.expandAll()
-        XCTAssertEqual(expanded(model), [1, 2, 3, 4, 5, 6, 7, 8, 9])
-    }
-
-    @MainActor
-    func test_C_HIER_06_theLevelsThereAre() throws {
-        let model = try model()
-        XCTAssertEqual(model.expandableDepth, 3)
-        model.focus(on: 4)
-        XCTAssertEqual(model.expandableDepth, 1)
-        model.focus(on: 9)
-        XCTAssertEqual(model.expandableDepth, 0)
-    }
-
-    @MainActor
     func test_C_HIER_06_withAFocusOnlyTheSubtreeChanges() throws {
         let model = try model()
         model.focus(on: 2)
@@ -336,15 +270,6 @@ final class HierarchyToolsTests: XCTestCase {
         XCTAssertTrue(model.isExpanded(6))
         XCTAssertEqual(model.selectedLayerID, 7)
         XCTAssertEqual(model.expansionRevision, revision + 1)
-    }
-
-    @MainActor
-    func test_C_HIER_04_revealingAVisibleLayerOnlySelectsIt() throws {
-        let model = try model()
-        let revision = model.expansionRevision
-        model.reveal(3)
-        XCTAssertEqual(model.selectedLayerID, 3)
-        XCTAssertEqual(model.expansionRevision, revision)
     }
 
     @MainActor

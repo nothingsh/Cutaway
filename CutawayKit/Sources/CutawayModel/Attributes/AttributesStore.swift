@@ -27,10 +27,9 @@ public final class AttributesStore: ObservableObject {
         /// The selected layer's attributes are on their way and none are held.
         case loading
         /// The selected layer's attributes, in the order they arrived, empty when it has none;
-        /// and its constraints in the server's order (C-LAYOUT-01). `constraints` is nil when
-        /// the server cannot give them (P-HELLO-04). Whether the layer backs a view, and so
-        /// has constraints at all, is for whoever holds the tree to say.
-        case loaded([AttributeGroup], constraints: [LayoutConstraint]? = nil)
+        /// and its constraints in the server's order (C-LAYOUT-01). Whether the layer backs a
+        /// view, and so has constraints at all, is for whoever holds the tree to say.
+        case loaded([AttributeGroup], constraints: [LayoutConstraint] = [])
         /// The app says the selected layer does not exist (P-DET-02).
         case layerGone
         /// The app is not in the foreground (P-APP-01). Asked again when it is.
@@ -41,8 +40,8 @@ public final class AttributesStore: ObservableObject {
 
     /// For the selected layer.
     @Published public private(set) var state: State = .none
-    /// Whether attributes may be changed: the server speaks 0.3 or later (P-HELLO-04) and the
-    /// app is active (P-APP-01). The connection is the window's business (C-WIN-03).
+    /// Whether attributes may be changed: the source is an app (C-ATTR-04) and the app is
+    /// active (P-APP-01). The connection is the window's business (C-WIN-03).
     @Published public private(set) var canEdit = false
     /// The changes under way and the ones that failed, by attribute (C-ATTR-06).
     @Published public private(set) var edits: [AttributeKey: EditStatus] = [:]
@@ -100,8 +99,6 @@ public final class AttributesStore: ObservableObject {
     private(set) var requestsStarted = 0
     /// The round of an answer that is shown but asked for again: no round has this number.
     private static let outdated = UInt64.max
-    /// Whether the server gives constraints: it speaks 0.4 or later (P-HELLO-04).
-    private var constraintsSupported = false
     /// The inspection that owns the store, which the changes go through (C-DET-06).
     weak var delegate: (any AttributesStoreDelegate)?
     /// Sends the changes, one at a time for each attribute, and keeps what can be undone.
@@ -165,24 +162,15 @@ public final class AttributesStore: ObservableObject {
         updateCanEdit()
     }
 
-    /// What the source can do (P-HELLO-04): whether attributes can be changed, and whether
-    /// constraints come.
+    /// What the source can do: whether attributes can be changed.
     func setCapabilities(_ capabilities: InspectionCapabilities) {
         setEditingSupported(capabilities.canEditAttributes)
-        setConstraintsSupported(capabilities.givesConstraints)
     }
 
-    /// Whether the server can change attributes (P-HELLO-04). Tests set it alone.
+    /// Whether the source can change attributes. Tests set it alone.
     func setEditingSupported(_ supported: Bool) {
         editor.setSupported(supported)
         updateCanEdit()
-    }
-
-    /// Whether the server gives constraints (P-HELLO-04). Below 0.4 the session leaves them
-    /// out of the requests, and the state has none. Tests set it alone.
-    func setConstraintsSupported(_ supported: Bool) {
-        constraintsSupported = supported
-        publish()
     }
 
     /// Whether a hierarchy is on its way. Nothing is asked for meanwhile: the new tree starts
@@ -219,18 +207,17 @@ public final class AttributesStore: ObservableObject {
 
     /// Asks for the selected layer's attributes and constraints when it has no answer in this
     /// round, its last request did not fail, nothing is under way, the inspection is open and
-    /// no hierarchy is on its way; with constraints, also not while one of its attributes is
-    /// being changed (C-LAYOUT-01). A failure is cleared by `retry()`, a new selection or a
+    /// no hierarchy is on its way, nor while one of its attributes is being changed
+    /// (C-LAYOUT-01). A failure is cleared by `retry()`, a new selection or a
     /// new round; "not active" also by the app becoming active.
     private func fetchIfNeeded() {
         guard isOpen, !isTreeLoading, fetch == nil, failure == nil, let id = selectedID,
               answers[id]?.round != round,
-              !(constraintsSupported && editor.isChanging(layer: id))
+              !editor.isChanging(layer: id)
         else { return }
         let token = nextToken
         nextToken += 1
         requestsStarted += 1
-        // The session leaves the constraints out for a server below 0.4.
         let request = GetLayerDetails(
             requests: [LayerDetailRequest(
                 layerID: id, wantSolo: false, wantGroup: false, wantAttributes: true,
@@ -313,7 +300,7 @@ public final class AttributesStore: ObservableObject {
             } else {
                 switch answers[id]?.answer {
                 case .details(let groups, let constraints):
-                    new = .loaded(groups, constraints: constraintsSupported ? constraints : nil)
+                    new = .loaded(groups, constraints: constraints)
                 case .gone: new = .layerGone
                 case nil: new = .loading
                 }
@@ -388,13 +375,11 @@ extension AttributesStore: AttributeEditorDelegate {
         // layer's changes are over (C-LAYOUT-01). Without old ones nothing is kept: the layer
         // loads when it is selected, rather than showing it has none. A request under way for
         // the layer was made before this change.
-        if !constraintsSupported {
-            kept[key.layerID] = (round, .details(result.attributeGroups, constraints: []))
-        } else if case .details(_, let held)? = answers[key.layerID]?.answer {
+        if case .details(_, let held)? = answers[key.layerID]?.answer {
             kept[key.layerID] = (Self.outdated, .details(result.attributeGroups, constraints: held))
         }
         answers = kept
-        if constraintsSupported, fetch?.layerID == key.layerID { cancelFetch() }
+        if fetch?.layerID == key.layerID { cancelFetch() }
         // The new attributes first: a row that stops sending shows them, not the old.
         update()
         delegate?.attributesStore(self, didChangeLayer: key.layerID)

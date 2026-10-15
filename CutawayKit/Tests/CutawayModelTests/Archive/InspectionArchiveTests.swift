@@ -204,10 +204,10 @@ final class InspectionArchiveTests: XCTestCase {
         model.rotate(byDragOf: 40, 10)
         model.setLayerSpacing(90)
         model.setShowsHiddenLayers(true)
-        model.setShowsBorders(false)
+        model.setBorderStyle(.off)
         let expected = ArchiveState(
             expanded: model.expandedLayerIDs, selected: 4, focused: 2, previewMode: .threeD,
-            cameras: model.cameras, showsHiddenLayers: true, showsBorders: false)
+            cameras: model.cameras, showsHiddenLayers: true, borders: BorderOptions(style: .off))
         XCTAssertEqual(model.archiveState, expected)
 
         model.saveArchive(to: destination, cutawayVersion: "0.1.0")

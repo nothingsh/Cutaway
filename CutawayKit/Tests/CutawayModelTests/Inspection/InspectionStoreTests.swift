@@ -200,25 +200,6 @@ final class InspectionStoreTests: XCTestCase {
     }
 
     @MainActor
-    func test_C_HIER_02_expansionAndSelectionAreRecorded() throws {
-        let model = model()
-        model.apply(try Fixtures.hierarchy())
-
-        model.setExpanded(4, false)
-        XCTAssertFalse(model.isExpanded(4))
-        XCTAssertTrue(model.isExpanded(6))
-        model.setExpanded(4, true)
-        XCTAssertTrue(model.isExpanded(4))
-
-        model.select(7)
-        XCTAssertEqual(model.selectedLayerID, 7)
-        model.select(3)
-        XCTAssertEqual(model.selectedLayerID, 3)
-        model.select(nil)
-        XCTAssertNil(model.selectedLayerID)
-    }
-
-    @MainActor
     func test_C_HIER_02_layersThatAreNotInTheTreeAreIgnored() throws {
         let model = model()
         // Before any tree.

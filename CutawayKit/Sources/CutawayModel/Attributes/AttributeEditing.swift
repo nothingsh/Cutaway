@@ -32,6 +32,8 @@ public enum EditFailure: Equatable, Sendable {
     case noAnswer
     /// The value has a number that is not finite; it was not sent (C-ATTR-09).
     case notFinite
+    /// A component is outside the attribute's limits; it was not sent (C-ATTR-13, P-SET-07).
+    case outOfRange(LimitViolation)
 }
 
 extension AttributeValue {

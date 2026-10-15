@@ -10,7 +10,7 @@ extension InspectionStore {
         ArchiveState(
             expanded: expandedLayerIDs, selected: selectedLayerID, focused: focusedLayerID,
             previewMode: previewMode, cameras: cameras, showsHiddenLayers: showsHiddenLayers,
-            showsBorders: showsBorders)
+            borders: borders, showsConstraintEnds: showsAllConstraintEnds)
     }
 
     public var isSavingArchive: Bool { saver.isSaving }
@@ -30,10 +30,13 @@ extension InspectionStore {
     }
 
     private func applyArchiveState(_ state: ArchiveState) {
-        let ids = tree.layers(within: nil).map(\.id)
-        // Collapsing first: a selection then lands on the row that stands for it.
-        setExpanded(ids.filter { !state.expanded.contains($0) }, false)
-        setExpanded(ids.filter { state.expanded.contains($0) }, true)
+        // An archive that does not say leaves the expansion the tree came with (C-HIER-09).
+        if let expanded = state.expanded {
+            let ids = tree.layers(within: nil).map(\.id)
+            // Collapsing first: a selection then lands on the row that stands for it.
+            setExpanded(ids.filter { !expanded.contains($0) }, false)
+            setExpanded(ids.filter { expanded.contains($0) }, true)
+        }
         if let focused = state.focused, tree.contains(focused) {
             focus(on: focused)
         } else {
@@ -44,7 +47,7 @@ extension InspectionStore {
     }
 
     /// The parts of a state that do not lay the tree out: the selection, the mode, the
-    /// cameras and the borders.
+    /// cameras, the borders and the constraint ends' switch.
     func applyView(_ state: ArchiveState) {
         select(state.selected.flatMap { tree.contains($0) ? $0 : nil })
         setPreviewMode(state.previewMode)
@@ -53,7 +56,8 @@ extension InspectionStore {
         cameras.twoD = PreviewCameras.limited(state.cameras.twoD, flat: true)
         cameras.threeD = PreviewCameras.limited(state.cameras.threeD, flat: false)
         if cameras != self.cameras { self.cameras = cameras }
-        setShowsBorders(state.showsBorders)
+        setBorders(state.borders)
+        setShowsAllConstraintEnds(state.showsConstraintEnds)
     }
 
     /// Captures the app into an archive at `url` (C-ARCH-02), with the interface state of

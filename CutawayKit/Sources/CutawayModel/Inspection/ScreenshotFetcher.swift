@@ -31,7 +31,9 @@ final class ScreenshotFetcher {
     private let source: any InspectionSource
     /// The longest side the app may send an image with; 0 for no limit (P-DET-05).
     private let maxTextureDimension: UInt32
-    private unowned let delegate: any ScreenshotFetcherDelegate
+    /// Weak: a task may hold the fetcher while it delivers an answer after the inspection is
+    /// gone, which then does nothing.
+    private weak var delegate: (any ScreenshotFetcherDelegate)?
 
     /// Which layers' screenshots to ask for next, and what has come this round.
     var scheduler = DetailScheduler()
@@ -94,7 +96,7 @@ final class ScreenshotFetcher {
     /// Asks for the next batch, unless one is under way, asking stopped on a failure, a new
     /// tree's first batch waits for the rows in view, or the inspection says not now.
     func fetchNext() {
-        guard delegate.mayFetchScreenshots, !isStopped, !awaitingRows, fetch == nil,
+        guard let delegate, delegate.mayFetchScreenshots, !isStopped, !awaitingRows, fetch == nil,
               let batch = scheduler.nextBatch()
         else { return }
         batchesStarted += 1
@@ -118,7 +120,7 @@ final class ScreenshotFetcher {
                     guard let decode = self?.decoder(forBatch: batch.id) else { break }
                     let decompressed = await ImageDecompression.decompress(details, using: decode)
                     guard let self, self.fetch?.batch == batch.id else { break }
-                    self.delegate.fetcher(self, took: decompressed)
+                    self.delegate?.fetcher(self, took: decompressed)
                 }
             } catch {
                 failure = error
@@ -137,15 +139,13 @@ final class ScreenshotFetcher {
     /// The decompression to use for a chunk of this batch; nil once the batch was cancelled or
     /// replaced.
     private func decoder(forBatch id: UInt64) -> (@Sendable (EncodedImage) throws -> Bitmap)? {
-        fetch?.batch == id ? delegate.decodeImage : nil
+        fetch?.batch == id ? delegate?.decodeImage : nil
     }
 
     /// The end of a batch's stream. Ignored for a batch that was cancelled or replaced.
     private func finishBatch(_ id: UInt64, failure: (any Error)?) {
-        guard let current = fetch, current.batch == id else { return }
-        // Held for the whole answer: the delegate is unowned, and what it does may let go
-        // of it.
-        let delegate = self.delegate
+        // Held for the whole answer: what the delegate does may let go of it.
+        guard let current = fetch, current.batch == id, let delegate else { return }
         fetch = nil
         guard let failure else {
             scheduler.batchEnded(id, completed: true)
@@ -176,7 +176,7 @@ final class ScreenshotFetcher {
         fetch = nil
         current.task.cancel()
         scheduler.batchEnded(current.batch, completed: false)
-        delegate.fetcherProgressChanged(self)
+        delegate?.fetcherProgressChanged(self)
         return current.task
     }
 

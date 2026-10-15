@@ -10,7 +10,7 @@ import XCTest
 final class ConstraintsStoreTests: XCTestCase {
     private static let text = AttributeKey(layerID: 3, attributeID: "label.text")
 
-    /// What the panel asks for a layer once the server speaks 0.4.
+    /// What the panel asks for a layer.
     private static func panelRequest(_ id: UInt64) -> GetLayerDetails {
         GetLayerDetails(
             requests: [LayerDetailRequest(
@@ -48,14 +48,13 @@ final class ConstraintsStoreTests: XCTestCase {
     /// An open model on a session to a server that plays the handshake, then `steps`.
     @MainActor
     private func openModel(
-        _ steps: [MockScript.Step], constraints: Bool = true, editing: Bool = false
+        _ steps: [MockScript.Step], editing: Bool = false
     ) async throws -> (AttributesStore, Session, MockServer) {
         let server = try await MockServer.start(
             script: MockScript(steps: try MockScript.fixtures("handshake").steps + steps))
         let session = try await AttributesStoreTests.session(to: server)
         let model = AttributesStore(session: session)
         model.setOpen(true)
-        model.setConstraintsSupported(constraints)
         model.setEditingSupported(editing)
         return (model, session, server)
     }
@@ -86,32 +85,6 @@ final class ConstraintsStoreTests: XCTestCase {
         XCTAssertEqual(requests, [Self.panelRequest(3)])
         let mismatches = await server.mismatches
         XCTAssertEqual(mismatches, [])
-
-        await session.close()
-        await server.stop()
-    }
-
-    @MainActor
-    func test_C_LAYOUT_01_withoutConstraintsTheStateHasNoneUntilTheServerIsKnownToGiveThem()
-        async throws
-    {
-        let three = try Self.three()
-        let (model, session, server) = try await openModel(
-            MockScript.layerDetailsSteps([three], as: 10), constraints: false)
-
-        model.select(3)
-        let loaded = await Wait.until {
-            await model.state == .loaded(three.attributeGroups, constraints: nil)
-        }
-        XCTAssertTrue(loaded, "no Constraints section (P-HELLO-04)")
-        XCTAssertEqual(model.state, .loaded(three.attributeGroups), "nil is the default")
-
-        // The version may be learnt after the answer came: the answer is not asked for again.
-        model.setConstraintsSupported(true)
-        XCTAssertEqual(model.state, .loaded(three.attributeGroups, constraints: three.constraints))
-        try await Task.sleep(for: .milliseconds(100))
-        let requests = await Self.requests(server)
-        XCTAssertEqual(requests.count, 1)
 
         await session.close()
         await server.stop()
@@ -150,41 +123,6 @@ final class ConstraintsStoreTests: XCTestCase {
 
         await session.close()
         await server.stop()
-    }
-
-    @MainActor
-    func test_C_LAYOUT_01_anInspectionLearnsWhetherTheServerGivesConstraints() async throws {
-        for (minor, gives) in [(UInt16(4), true), (3, false)] {
-            var steps = try MockScript.fixtures("handshake").steps
-            guard case .send(var hello) = steps[1], case .hello(var body) = hello.body else {
-                XCTFail("the handshake script changed shape")
-                return
-            }
-            body.protocolVersion = Version(major: 0, minor: minor)
-            hello.body = .hello(body)
-            steps[1] = .send(hello)
-            steps += try MockScript.fixtures("hierarchy").steps
-            steps += MockScript.layerDetailsSteps([try Self.three()], as: 10)
-            let server = try await MockServer.start(script: MockScript(steps: steps))
-            let session = try await AttributesStoreTests.session(
-                to: server, protocolVersion: Fixtures.zeroMajorProtocol)
-            let inspection = InspectionStore(session: session, newLayers: .expanded)
-            inspection.rowsWait = .seconds(30)
-            inspection.enter()
-            let ready = await Wait.until {
-                await MainActor.run { inspection.loadState == .loaded && inspection.attributes.canEdit }
-            }
-            XCTAssertTrue(ready)
-            inspection.select(3)
-            let three = try Self.three()
-            let expected: AttributesStore.State = .loaded(
-                three.attributeGroups, constraints: gives ? three.constraints : nil)
-            let loaded = await Wait.until { await inspection.attributes.state == expected }
-            XCTAssertTrue(loaded, "0.\(minor): \(inspection.attributes.state)")
-
-            await session.close()
-            await server.stop()
-        }
     }
 
     // MARK: - C-LAYOUT-01: after a change
@@ -323,7 +261,7 @@ final class ConstraintsStoreTests: XCTestCase {
         XCTAssertTrue(settled)
         model.select(3)
         let loaded = await Wait.until {
-            if case .loaded(_, let constraints?) = await model.attributes.state {
+            if case .loaded(_, let constraints) = await model.attributes.state {
                 return constraints.count == 4
             }
             return false
@@ -456,30 +394,6 @@ final class ConstraintsStoreTests: XCTestCase {
         await server.stop()
     }
 
-    @MainActor
-    func test_C_LAYOUT_01_withoutConstraintsAChangeAsksForNothingMore() async throws {
-        let three = try Self.three()
-        var steps = MockScript.layerDetailsSteps([three], as: 10)
-        steps += try Self.result(20)
-        let (model, session, server) = try await openModel(
-            steps, constraints: false, editing: true)
-        model.select(3)
-        let loaded = await Wait.until {
-            await model.state == .loaded(three.attributeGroups)
-        }
-        XCTAssertTrue(loaded)
-
-        model.set(Self.text, to: .string("Welcome back"), continuous: false)
-        let done = await Wait.until { await model.edits.isEmpty }
-        XCTAssertTrue(done)
-        try await Task.sleep(for: .milliseconds(100))
-        let requests = await Self.requests(server)
-        XCTAssertEqual(requests.count, 1)
-
-        await session.close()
-        await server.stop()
-    }
-
     // MARK: - C-LAYOUT-03: the other end
 
     /// A model showing the `hierarchy` fixture, with no connection behind it.
@@ -500,7 +414,7 @@ final class ConstraintsStoreTests: XCTestCase {
         model.select(5)
         XCTAssertEqual(model.selectedLayerID, 1, "select picks the row that stands for it")
 
-        model.showConstraintEnd(5)
+        model.showLayer(5)
         XCTAssertEqual(model.selectedLayerID, 5)
         XCTAssertTrue(model.isExpanded(4))
         XCTAssertTrue(model.isExpanded(1))
@@ -513,13 +427,13 @@ final class ConstraintsStoreTests: XCTestCase {
         model.select(7)
         XCTAssertEqual(model.selectedLayerID, 7)
 
-        model.showConstraintEnd(4)
+        model.showLayer(4)
         XCTAssertNil(model.focusedLayerID)
         XCTAssertEqual(model.selectedLayerID, 4)
 
         // One inside the focus keeps it.
         model.focus(on: 4)
-        model.showConstraintEnd(5)
+        model.showLayer(5)
         XCTAssertEqual(model.focusedLayerID, 4)
         XCTAssertEqual(model.selectedLayerID, 5)
     }
@@ -530,7 +444,7 @@ final class ConstraintsStoreTests: XCTestCase {
         model.focus(on: 6)
         model.select(7)
 
-        model.showConstraintEnd(42)
+        model.showLayer(42)
         XCTAssertEqual(model.focusedLayerID, 6)
         XCTAssertEqual(model.selectedLayerID, 7)
     }

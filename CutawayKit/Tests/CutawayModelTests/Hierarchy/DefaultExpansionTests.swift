@@ -53,6 +53,26 @@ final class DefaultExpansionTests: XCTestCase {
         XCTAssertEqual(try LayerTree(hierarchy).defaultExpansion(), [1])
     }
 
+    func test_C_HIER_09_aViewControllerTheServerSaysIsNotShownIsNotOnShow() throws {
+        let hierarchy = try Self.fixture { nodes in
+            nodes[Self.index(2, in: nodes)].viewControllerVisibility = .notShown
+        }
+        // The same as without a view controller (P-HIER-18).
+        XCTAssertEqual(try LayerTree(hierarchy).defaultExpansion(), [1, 2, 4, 6])
+    }
+
+    func test_C_HIER_09_withoutVisibilityTheRootViewsPlaceStands() throws {
+        let hierarchy = Fixtures.withoutTheOptionalFields(try Fixtures.hierarchy())
+        XCTAssertEqual(try LayerTree(hierarchy).defaultExpansion(), [1, 2])
+        // Shown does not overrule the rest of the rule: a hidden root view is still not on show.
+        let hidden = try Self.fixture { nodes in
+            let two = Self.index(2, in: nodes)
+            nodes[two].viewControllerVisibility = .shown
+            nodes[two].isHidden = true
+        }
+        XCTAssertEqual(try LayerTree(hidden).defaultExpansion(), [1])
+    }
+
     func test_C_HIER_09_anotherWindowStartsCollapsed() throws {
         let other = [
             Self.node(20), Self.node(21, parent: 20, controller: "Keyboard"),

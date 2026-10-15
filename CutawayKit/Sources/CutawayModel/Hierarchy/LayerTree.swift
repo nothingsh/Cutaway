@@ -120,7 +120,8 @@ public struct LayerTree: Equatable, Sendable {
     /// The layers with sublayers that start expanded (C-HIER-09): the tree opens down to the
     /// view controllers on show, the innermost ones included, and no further. A view
     /// controller is on show when its root view is not dimmed and is in the key window, or
-    /// in any window when the key window is not in the tree. Without any, every layer of
+    /// in any window when the key window is not in the tree, and the server does not say it
+    /// is not shown. Without any, every layer of
     /// those windows that is not dimmed opens. Everything else, other windows too, starts
     /// collapsed.
     public func defaultExpansion() -> Set<UInt64> {
@@ -135,7 +136,11 @@ public struct LayerTree: Equatable, Sendable {
             guard windows.contains(window), let entry = entries[id], !entry.isDimmed else {
                 continue
             }
-            if viewControllerTitle(of: id) != nil { shown.append(id) }
+            // The server's word that a view controller is not on show is kept (P-HIER-18);
+            // without it, the root view's place stands for it.
+            if viewControllerTitle(of: id) != nil, entry.node.viewControllerVisibility != .notShown {
+                shown.append(id)
+            }
         }
         guard !shown.isEmpty else {
             return Set(ids.filter { id in

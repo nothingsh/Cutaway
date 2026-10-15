@@ -26,7 +26,8 @@ final class AppSettingsTests: XCTestCase {
 
     private static let keys = [
         AppSettings.Key.newInspectionMode, AppSettings.Key.layerSpacing,
-        AppSettings.Key.showsHiddenLayers, AppSettings.Key.showsBorders,
+        AppSettings.Key.showsHiddenLayers, AppSettings.Key.borderStyle,
+        AppSettings.Key.onlyAppClasses,
     ]
 
     func test_C_PREF_01_eachChangeIsKeptAndReadBack() {
@@ -34,7 +35,8 @@ final class AppSettingsTests: XCTestCase {
         settings.newInspectionMode = .threeD
         settings.layerSpacing = 80
         settings.showsHiddenLayers = true
-        settings.showsBorders = false
+        settings.borderStyle = .plain
+        settings.onlyAppClasses = true
         for key in Self.keys {
             XCTAssertNotNil(defaults.object(forKey: key), key)
         }
@@ -43,7 +45,8 @@ final class AppSettingsTests: XCTestCase {
         XCTAssertEqual(again.newInspectionMode, .threeD)
         XCTAssertEqual(again.layerSpacing, 80)
         XCTAssertTrue(again.showsHiddenLayers)
-        XCTAssertFalse(again.showsBorders)
+        XCTAssertEqual(again.borderStyle, .plain)
+        XCTAssertTrue(again.onlyAppClasses)
         XCTAssertFalse(again.isShowingPreviewDefaults)
     }
 
@@ -63,15 +66,18 @@ final class AppSettingsTests: XCTestCase {
         settings.newInspectionMode = .threeD
         settings.layerSpacing = 80
         settings.showsHiddenLayers = true
-        settings.showsBorders = false
+        settings.borderStyle = .off
+        settings.onlyAppClasses = true
+        defaults.set(false, forKey: AppSettings.Key.showsBorders)
         settings.restorePreviewDefaults()
 
         XCTAssertEqual(settings.newInspectionMode, .twoD)
         XCTAssertEqual(settings.layerSpacing, 50)
         XCTAssertFalse(settings.showsHiddenLayers)
-        XCTAssertTrue(settings.showsBorders)
+        XCTAssertEqual(settings.borderStyle, .byKind)
+        XCTAssertFalse(settings.onlyAppClasses)
         XCTAssertTrue(settings.isShowingPreviewDefaults)
-        for key in Self.keys {
+        for key in Self.keys + [AppSettings.Key.showsBorders] {
             XCTAssertNil(defaults.object(forKey: key), key)
         }
         XCTAssertEqual(self.settings().inspectionStart, InspectionStart())
@@ -82,10 +88,12 @@ final class AppSettingsTests: XCTestCase {
             [
                 AppSettings.Key.newInspectionMode: "4d", AppSettings.Key.layerSpacing: "far",
                 AppSettings.Key.showsHiddenLayers: "yes", AppSettings.Key.showsBorders: [1],
+                AppSettings.Key.borderStyle: "rainbow", AppSettings.Key.onlyAppClasses: "yes",
             ],
             [
                 AppSettings.Key.newInspectionMode: 3, AppSettings.Key.layerSpacing: -1.0,
                 AppSettings.Key.showsHiddenLayers: 2.5, AppSettings.Key.showsBorders: "off",
+                AppSettings.Key.borderStyle: true, AppSettings.Key.onlyAppClasses: 1,
             ],
             [AppSettings.Key.layerSpacing: 201.0],
             [AppSettings.Key.layerSpacing: Double.nan],
@@ -99,7 +107,8 @@ final class AppSettingsTests: XCTestCase {
             XCTAssertEqual(settings.newInspectionMode, .twoD, "\(values)")
             XCTAssertEqual(settings.layerSpacing, 50, "\(values)")
             XCTAssertFalse(settings.showsHiddenLayers, "\(values)")
-            XCTAssertTrue(settings.showsBorders, "\(values)")
+            XCTAssertEqual(settings.borderStyle, .byKind, "\(values)")
+            XCTAssertFalse(settings.onlyAppClasses, "\(values)")
             // What is kept is left as it is.
             for (key, _) in values {
                 XCTAssertNotNil(defaults.object(forKey: key), key)
@@ -112,8 +121,8 @@ final class AppSettingsTests: XCTestCase {
         let settings = settings()
         var published: [Bool] = []
         let watching = settings.$isShowingPreviewDefaults.dropFirst().sink { published.append($0) }
-        settings.showsBorders = false
-        settings.showsBorders = true
+        settings.borderStyle = .off
+        settings.borderStyle = .byKind
         XCTAssertTrue(settings.isShowingPreviewDefaults)
         XCTAssertEqual(published, [false, true])
         watching.cancel()
@@ -124,16 +133,49 @@ final class AppSettingsTests: XCTestCase {
         settings.newInspectionMode = .threeD
         settings.layerSpacing = 80
         settings.showsHiddenLayers = true
-        settings.showsBorders = false
+        settings.borderStyle = .plain
+        settings.onlyAppClasses = true
 
         let start = settings.inspectionStart
         XCTAssertEqual(start.previewMode, .threeD)
         XCTAssertEqual(start.layerSpacing, 80)
         XCTAssertTrue(start.showsHiddenLayers)
-        XCTAssertFalse(start.showsBorders)
+        XCTAssertEqual(start.borders, BorderOptions(style: .plain, onlyAppClasses: true))
         XCTAssertEqual(start.cameras.twoD, Camera.flat)
         var threeD = Camera.standard3D
         threeD.layerSpacing = 80
         XCTAssertEqual(start.cameras.threeD, threeD)
+    }
+
+    func test_C_PREV_17_theSwitchOfAnEarlierVersionReadsAsByKindOrOff() {
+        defaults.set(true, forKey: AppSettings.Key.showsBorders)
+        XCTAssertEqual(settings().borderStyle, .byKind)
+        defaults.set(false, forKey: AppSettings.Key.showsBorders)
+        XCTAssertEqual(settings().borderStyle, .off)
+        // The style, once kept, decides; the old key goes.
+        let settings = settings()
+        settings.borderStyle = .plain
+        XCTAssertNil(defaults.object(forKey: AppSettings.Key.showsBorders))
+        XCTAssertEqual(self.settings().borderStyle, .plain)
+    }
+
+    func test_C_PREV_18_theConstraintEndsSwitchIsOffKeptReadBackAndRestored() {
+        XCTAssertFalse(settings().showsConstraintEnds)
+        XCTAssertFalse(settings().inspectionStart.showsConstraintEnds)
+        let settings = settings()
+        settings.showsConstraintEnds = true
+        XCTAssertEqual(defaults.object(forKey: AppSettings.Key.showsConstraintEnds) as? Bool, true)
+        XCTAssertFalse(settings.isShowingPreviewDefaults)
+        XCTAssertTrue(self.settings().showsConstraintEnds)
+        XCTAssertTrue(self.settings().inspectionStart.showsConstraintEnds)
+
+        settings.restorePreviewDefaults()
+        XCTAssertFalse(settings.showsConstraintEnds)
+        XCTAssertNil(defaults.object(forKey: AppSettings.Key.showsConstraintEnds))
+        XCTAssertTrue(settings.isShowingPreviewDefaults)
+
+        // Kept wrongly, it reads as off.
+        defaults.set("yes", forKey: AppSettings.Key.showsConstraintEnds)
+        XCTAssertFalse(self.settings().showsConstraintEnds)
     }
 }
