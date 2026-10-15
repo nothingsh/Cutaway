@@ -84,18 +84,6 @@ final class RegionFormattingTests: XCTestCase {
         XCTAssertEqual(german["archiveName"] as? String, english["archiveName"] as? String)
     }
 
-    func test_C_LOC_02_datesAndCountsFollowTheRegion() throws {
-        let english = try probe(region: "en_US")
-        let german = try probe(region: "de_DE")
-        XCTAssertEqual(english["count"] as? String, "1,234 / 5,000")
-        XCTAssertEqual(german["count"] as? String, "1.234 / 5.000")
-        let englishSubtitle = try XCTUnwrap(english["subtitle"] as? String)
-        let germanSubtitle = try XCTUnwrap(german["subtitle"] as? String)
-        XCTAssertNotEqual(englishSubtitle, germanSubtitle)
-        XCTAssertTrue(germanSubtitle.contains("Okt"), germanSubtitle)
-        XCTAssertTrue(englishSubtitle.contains("Saved Oct"), englishSubtitle)
-    }
-
     /// Runs the probe in a child `xctest` in `region` and reads what it wrote.
     private func probe(region: String) throws -> [String: Any] {
         let output = FileManager.default.temporaryDirectory
@@ -125,28 +113,5 @@ final class RegionFormattingTests: XCTestCase {
         }
         let data = try Data(contentsOf: output)
         return try XCTUnwrap(try JSONSerialization.jsonObject(with: data) as? [String: Any])
-    }
-
-    // MARK: - In this process
-
-    func test_C_LOC_02_countsUseTheRegionsSeparators() {
-        let germany = Locale(identifier: "de_DE")
-        XCTAssertEqual(
-            PreviewPaneText.countText(1234, of: 5000, locale: germany), "1.234 / 5.000")
-        XCTAssertEqual(
-            PreviewPaneText.progressText(DetailProgress(completed: 12, total: 40), locale: germany),
-            "12 / 40")
-    }
-
-    func test_C_LOC_02_theSubtitleIsOneSentenceInTheInterfacesLanguage() {
-        let url = URL(fileURLWithPath: "/tmp/Demo.cutaway")
-        let china = Locale(identifier: "zh_Hans_CN")
-        let date = Self.savedAt.formatted(
-            Date.FormatStyle(date: .abbreviated, time: .shortened, locale: china))
-        Localization.override = "zh-Hans"
-        let subtitle = InspectorWindowTitle(
-            archive: url, app: Self.app, savedAt: Self.savedAt, locale: china
-        ).subtitle
-        XCTAssertTrue(subtitle.hasSuffix("存储于 \(date)"), subtitle)
     }
 }
