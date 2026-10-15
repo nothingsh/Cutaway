@@ -17,9 +17,7 @@ extension SceneLayout {
     /// The layer's parent among the layers, as the layout took it: a parent that does not
     /// come before its child makes the child a root.
     func parentIndex(of index: Int) -> Int? {
-        let parentID = entries[index].layer.parentID
-        guard parentID != 0, let parent = indexByID[parentID], parent < index else { return nil }
-        return parent
+        parentIndices[index]
     }
 
     /// The layer's newest image of a kind, as this layout holds it. A layer without
