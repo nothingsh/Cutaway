@@ -60,7 +60,7 @@ final class BaselineTests: XCTestCase {
         let list = RenderFixtures.layout(try RenderFixtures.hierarchyLayers(textures: keys))
             .project(
                 camera: .flat, viewport: RenderFixtures.portrait, selected: 3, hovered: 6,
-                marks: ConstraintEndRenderTests.layer3Ends)
+                marks: RenderFixtures.layer3Ends)
         try assertMatchesBaseline(
             try render(list, RenderFixtures.portrait), named: "C-REND-07-constraint-ends")
     }

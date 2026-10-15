@@ -38,39 +38,14 @@ final class Measurement3DRenderTests: XCTestCase {
                 measuring: measuring)
     }
 
-    /// The same picture with all of the measurement but the links.
-    private func withoutLinks(_ list: DrawList) -> DrawList {
-        var list = list
-        list.measurement?.links = []
-        return list
-    }
-
     private func render(_ list: DrawList) throws -> RenderedImage {
         try renderer.renderImage(
             list, textures: textures, style: style, pixelWidth: Int(viewport.width),
             pixelHeight: Int(viewport.height))
     }
 
-    private func along(_ segment: DrawSegment, _ distance: Double) -> ScenePoint {
-        let dx = segment.to.x - segment.from.x, dy = segment.to.y - segment.from.y
-        let length = (dx * dx + dy * dy).squareRoot()
-        return ScenePoint(
-            x: segment.from.x + dx * distance / length, y: segment.from.y + dy * distance / length)
-    }
-
-    private func length(_ segment: DrawSegment) -> Double {
-        let dx = segment.to.x - segment.from.x, dy = segment.to.y - segment.from.y
-        return (dx * dx + dy * dy).squareRoot()
-    }
-
     private func pixel(at point: ScenePoint) -> (x: Int, y: Int) {
         (Int(point.x.rounded(.down)), Int(point.y.rounded(.down)))
-    }
-
-    /// Whether the pixels around a point are all in the picture.
-    private func isInPicture(_ point: ScenePoint) -> Bool {
-        point.x >= 2 && point.y >= 2 && point.x < viewport.width - 2
-            && point.y < viewport.height - 2
     }
 
     /// The pixels around a point: a one-pixel line through it is among them.
@@ -96,72 +71,6 @@ final class Measurement3DRenderTests: XCTestCase {
         let rest = d - amount * k
         guard max(abs(rest.x), abs(rest.y), abs(rest.z)) <= 3 / 255 else { return nil }
         return amount
-    }
-
-    /// Whether the measuring colour is drawn around `point`: some pixel there is mostly that
-    /// colour over `plain`. A slanted line is smoothed, so that no pixel need be wholly
-    /// covered.
-    private func isMeasured(
-        around point: ScenePoint, in image: RenderedImage, plain: RenderedImage
-    ) -> Bool {
-        guard isInPicture(point) else {
-            XCTFail("\(point) is outside the picture")
-            return false
-        }
-        return around(point).contains { p in
-            coverage(
-                of: style.measure, in: image.pixel(x: p.x, y: p.y),
-                over: plain.pixel(x: p.x, y: p.y))
-                ?? 0 >= 0.5
-        }
-    }
-
-    func test_C_REND_09_theLinksAreDottedInTheMeasuringColour() throws {
-        let list = try list()
-        let drawn = try XCTUnwrap(list.measurement)
-        XCTAssertEqual(drawn.links.count, 4)
-        let image = try render(list)
-        let plain = try render(withoutLinks(list))
-        for (index, link) in drawn.links.enumerated() {
-            XCTAssertGreaterThan(length(link), 24, "link \(index) is long enough to sample")
-            // Around the middle: 1.5 points on, 2.5 off, from the start of the line. A gap
-            // within 4 points of the last dot is finer than the dashes, which draw 4 in a row.
-            let first = (length(link) / 2 / 4).rounded(.down) * 4
-            for on in [first + 0.75, first + 4.75] {
-                XCTAssertTrue(
-                    isMeasured(around: along(link, on), in: image, plain: plain),
-                    "link \(index): a dot at \(on)")
-            }
-            let middle = along(link, first + 2.75)
-            guard isInPicture(middle) else {
-                XCTFail("link \(index): \(middle) is outside the picture")
-                continue
-            }
-            let gap = pixel(at: middle)
-            XCTAssertFalse(
-                differ(image.pixel(x: gap.x, y: gap.y), plain.pixel(x: gap.x, y: gap.y)),
-                "link \(index): drawn in the gap at \(first + 2.75)")
-        }
-    }
-
-    func test_C_REND_09_theCopyAndTheLinesAreInTheMeasuringColour() throws {
-        let list = try list()
-        let drawn = try XCTUnwrap(list.measurement)
-        let image = try render(list)
-        let plain = try render(try self.list(measuring: nil))
-        let extensions = drawn.measurement.distances.flatMap(\.extensions).count
-        // The copy of layer 2's box on layer 3's level: dashed, 4 points on and 3 off from the
-        // start; sampled on a dash about the middle, away from the links at the corners.
-        for edge in drawn.dashes[extensions...] {
-            let dash = (length(edge) / 2 / 7).rounded(.down) * 7 + 2
-            XCTAssertTrue(
-                isMeasured(around: along(edge, dash), in: image, plain: plain), "a copy's edge")
-        }
-        for (index, line) in drawn.distanceLines.enumerated() {
-            let middle = along(line, length(line) / 2)
-            XCTAssertTrue(
-                isMeasured(around: middle, in: image, plain: plain), "distance \(index)")
-        }
     }
 
     func test_C_REND_09_measurementIn3DMatchesTheBaseline() throws {

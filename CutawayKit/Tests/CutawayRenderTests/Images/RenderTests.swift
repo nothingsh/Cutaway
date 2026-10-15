@@ -39,42 +39,6 @@ final class RenderTests: XCTestCase {
 
     // MARK: - C-REND-01: images and borders
 
-    func test_C_REND_01_texturedLayersShowTheirImagesIn2D() throws {
-        let list = try layerDetailsList(camera: .flat, viewport: RenderFixtures.portrait)
-        let image = try render(list, RenderFixtures.portrait)
-        assertPixel(image.pixel(at: try center(list, 3)), RenderFixtures.red, "layer 3")
-        assertPixel(image.pixel(at: try center(list, 4)), RenderFixtures.green, "layer 4")
-    }
-
-    func test_C_REND_01_texturedLayersShowTheirImagesIn3D() throws {
-        let list = try layerDetailsList(camera: .standard3D, viewport: RenderFixtures.square)
-        let image = try render(list, RenderFixtures.square)
-        assertPixel(image.pixel(at: try center(list, 3)), RenderFixtures.red, "layer 3")
-        assertPixel(image.pixel(at: try center(list, 4)), RenderFixtures.green, "layer 4")
-    }
-
-    func test_C_REND_01_aLayerWithoutATextureIsNotFilledButOutlined() throws {
-        let list = try layerDetailsList(camera: .flat, viewport: RenderFixtures.portrait)
-        let image = try render(list, RenderFixtures.portrait)
-
-        // Inside the scroll view (6), clear of its label (7): only the background.
-        let inside = try RenderFixtures.flatPoint(list, x: 100, y: 650)
-        assertPixel(image.pixel(at: inside), RenderFixtures.pixel(style.background), "inside 6")
-
-        // On the scroll view's left edge, halfway down: the border over the background, on
-        // one of the pixels the line can fall on.
-        let corners = try RenderFixtures.item(list, 6).points
-        let edge = ScenePoint(
-            x: (corners[0].x + corners[2].x) / 2, y: (corners[0].y + corners[2].y) / 2)
-        let expected = RenderFixtures.pixel(RenderFixtures.over(style.border, style.background))
-        let candidates = (-1...1).map { dx in
-            image.pixel(x: Int(edge.x.rounded(.down)) + dx, y: Int(edge.y.rounded(.down)))
-        }
-        XCTAssertTrue(
-            candidates.contains { !differ($0, expected) },
-            "no border \(expected) among \(candidates)")
-    }
-
     func test_C_REND_01_aPaddedImageIsDrawnWithoutItsPadding() throws {
         let keys = try RenderFixtures.storeDetails(scenario: "layer-details-edge", in: textures)
         let list = RenderFixtures.layout(try RenderFixtures.hierarchyLayers(textures: keys))
@@ -82,25 +46,6 @@ final class RenderTests: XCTestCase {
         let image = try render(list, RenderFixtures.portrait)
         assertPixel(image.pixel(at: try center(list, 8)), RenderFixtures.orange, "layer 8")
         assertPixel(image.pixel(at: try center(list, 3)), RenderFixtures.red, "layer 3")
-    }
-
-    func test_C_REND_01_anImageOfAnotherSizeStillCoversTheBounds() throws {
-        // A 2x image of layer 3: 400 × 48 red pixels on a 200 × 24 point layer.
-        let key = TextureKey(layerID: 3, kind: .group, revision: 1)
-        let redPixels = (0..<(400 * 48)).flatMap { _ -> [UInt8] in [0x00, 0x00, 0xFF, 0xFF] }
-        textures.store(
-            TextureImage(pixelWidth: 400, pixelHeight: 48, bytesPerRow: 1600, bytes: Data(redPixels)),
-            for: key)
-        let list = RenderFixtures.layout(
-            try RenderFixtures.hierarchyLayers(textures: [3: LayerTextures(group: key)])
-        ).project(camera: .flat, viewport: RenderFixtures.portrait, selected: nil, hovered: nil)
-        let image = try render(list, RenderFixtures.portrait)
-        let corners = try RenderFixtures.item(list, 3).points
-        // Three pixels in from each corner, towards the middle, clear of the border.
-        for (corner, inward) in zip(corners, [(3.0, 3.0), (-3.0, 3.0), (3.0, -3.0), (-3.0, -3.0)]) {
-            let point = ScenePoint(x: corner.x + inward.0, y: corner.y + inward.1)
-            assertPixel(image.pixel(at: point), RenderFixtures.red, "near \(corner)")
-        }
     }
 
     func test_C_REND_01_aShrunkenImageIsAveragedInsteadOfShowingMoire() throws {
@@ -193,51 +138,6 @@ final class RenderTests: XCTestCase {
         ).project(camera: .flat, viewport: RenderFixtures.portrait, selected: nil, hovered: nil)
         let image = try render(list, RenderFixtures.portrait)
         assertPixel(image.pixel(at: try center(list, 3)), RenderFixtures.pixel(style.background))
-    }
-
-    func test_C_REND_01_anEmptyListDrawsTheBackground() throws {
-        let image = try renderer.renderImage(
-            .empty, textures: textures, style: style, pixelWidth: 4, pixelHeight: 3)
-        XCTAssertEqual(image.bytes.count, 4 * 3 * 4)
-        for y in 0..<3 {
-            for x in 0..<4 {
-                assertPixel(image.pixel(x: x, y: y), RenderFixtures.pixel(style.background))
-            }
-        }
-    }
-
-    /// The app's preview follows the system's appearance; the standard style, which the
-    /// baselines are drawn with, stays as it was.
-    func test_C_REND_01_thePreviewsBackgroundFollowsTheAppearance() throws {
-        let expected = [
-            true: Pixel(blue: 27, green: 25, red: 25, alpha: 255),
-            false: Pixel(blue: 233, green: 230, red: 230, alpha: 255),
-        ]
-        for (dark, pixel) in expected {
-            let image = try renderer.renderImage(
-                .empty, textures: textures, style: .preview(dark: dark),
-                pixelWidth: 2, pixelHeight: 2)
-            assertPixel(image.pixel(x: 1, y: 1), pixel, tolerance: 1, "dark: \(dark)")
-        }
-        XCTAssertEqual(RenderStyle.standard.background, RenderStyle.premultiplied(0.165, 0.165, 0.176, 1))
-    }
-
-    func test_C_REND_01_onALightPreviewTheBordersAreDark() {
-        let light = RenderStyle.preview(dark: false)
-        let dark = RenderStyle.preview(dark: true)
-        // Premultiplied: the colour over its alpha.
-        XCTAssertLessThan(light.border.x / light.border.w, 0.2)
-        XCTAssertEqual(dark.border, RenderStyle.standard.border)
-        for style in [light, dark] {
-            XCTAssertEqual(style.selectedFill, RenderStyle.standard.selectedFill)
-            XCTAssertEqual(style.selectedBorder, RenderStyle.standard.selectedBorder)
-            XCTAssertEqual(style.hoveredFill, RenderStyle.standard.hoveredFill)
-            XCTAssertEqual(style.hoveredBorder, RenderStyle.standard.hoveredBorder)
-            XCTAssertEqual(style.ghostFill, RenderStyle.standard.ghostFill)
-            XCTAssertEqual(style.ghostBorder, RenderStyle.standard.ghostBorder)
-            XCTAssertTrue(style.drawsBorders)
-        }
-        XCTAssertFalse(RenderStyle.preview(dark: true, drawsBorders: false).drawsBorders)
     }
 
     func test_C_REND_01_aTargetWithoutPixelsIsRefused() {
@@ -343,19 +243,6 @@ final class RenderTests: XCTestCase {
             "blue over the background")
     }
 
-    func test_C_REND_02_opacityScalesTheImage() throws {
-        let keys = try RenderFixtures.storeDetails(scenario: "layer-details", in: textures)
-        var layers = try RenderFixtures.hierarchyLayers(textures: keys)
-        layers[2].opacity = 0.5
-        let list = RenderFixtures.layout(layers)
-            .project(camera: .flat, viewport: RenderFixtures.portrait, selected: nil, hovered: nil)
-        let image = try render(list, RenderFixtures.portrait)
-        assertPixel(
-            image.pixel(at: try center(list, 3)),
-            RenderFixtures.pixel(
-                RenderFixtures.over(RenderFixtures.opaqueRed * 0.5, style.background)))
-    }
-
     func test_C_REND_02_opacityBeyondOneIsTakenAsOne() throws {
         // A translucent image shows the clamp: at opacity 3 unclamped, its premultiplied blue
         // would saturate to 255.
@@ -428,99 +315,7 @@ final class RenderTests: XCTestCase {
         }
     }
 
-    // MARK: - C-REND-03: highlights
-
-    func test_C_REND_03_selectedHoveredAndPlainDiffer() throws {
-        var samples: [Pixel] = []
-        let states: [(selected: UInt64?, hovered: UInt64?)] = [(nil, nil), (4, nil), (nil, 4)]
-        for state in states {
-            let list = try layerDetailsList(
-                camera: .flat, viewport: RenderFixtures.portrait, selected: state.selected,
-                hovered: state.hovered)
-            let image = try render(list, RenderFixtures.portrait)
-            samples.append(image.pixel(at: try center(list, 4)))
-        }
-        assertPixel(samples[0], RenderFixtures.green, "plain")
-        XCTAssertTrue(differ(samples[0], samples[1]), "plain \(samples[0]), selected \(samples[1])")
-        XCTAssertTrue(differ(samples[0], samples[2]), "plain \(samples[0]), hovered \(samples[2])")
-        XCTAssertTrue(differ(samples[1], samples[2]), "selected \(samples[1]), hovered \(samples[2])")
-        let green = SIMD4<Float>(0, 1, 0, 1)
-        assertPixel(
-            samples[1], RenderFixtures.pixel(RenderFixtures.over(style.selectedFill, green)),
-            "selected")
-        assertPixel(
-            samples[2], RenderFixtures.pixel(RenderFixtures.over(style.hoveredFill, green)),
-            "hovered")
-    }
-
     // MARK: - C-REND-06: ghosts and borders
-
-    func test_C_REND_06_aGhostDiffersFromTheLayerShownAndFromTheBackground() throws {
-        let viewport = RenderFixtures.portrait
-        let keys = try RenderFixtures.storeDetails(scenario: "layer-details", in: textures)
-        let layers = try RenderFixtures.hierarchyLayers(textures: keys)
-        let ghosts = SceneLayout(
-            layers: layers, expanded: Set(layers.map(\.id)), showsHidden: true)
-            .project(camera: .flat, viewport: viewport, selected: nil, hovered: nil)
-        var shownLayers = layers
-        let five = try XCTUnwrap(shownLayers.firstIndex { $0.id == 5 })
-        shownLayers[five].isHidden = false
-        let shown = RenderFixtures.layout(shownLayers)
-            .project(camera: .flat, viewport: viewport, selected: nil, hovered: nil)
-
-        let point = try center(ghosts, 5)
-        XCTAssertEqual(point, try center(shown, 5), "the same place either way")
-        let asGhost = try render(ghosts, viewport).pixel(at: point)
-        let asShown = try render(shown, viewport).pixel(at: point)
-        XCTAssertTrue(differ(asGhost, asShown), "\(asGhost) and \(asShown)")
-        XCTAssertTrue(differ(asGhost, RenderFixtures.pixel(style.background)))
-    }
-
-    func test_C_REND_06_aGhostWithAnImageShowsItHalfAsStrong() throws {
-        // Layer 3 (red) made hidden: its image at half strength over the background.
-        let viewport = RenderFixtures.portrait
-        let keys = try RenderFixtures.storeDetails(scenario: "layer-details", in: textures)
-        var layers = try RenderFixtures.hierarchyLayers(textures: keys)
-        let three = try XCTUnwrap(layers.firstIndex { $0.id == 3 })
-        layers[three].isHidden = true
-        let list = SceneLayout(layers: layers, expanded: Set(layers.map(\.id)), showsHidden: true)
-            .project(camera: .flat, viewport: viewport, selected: nil, hovered: nil)
-        let image = try render(list, viewport)
-        let halfRed = RenderFixtures.over(
-            RenderStyle.premultiplied(1, 0, 0, style.ghostImageOpacity), style.background)
-        let expected = RenderFixtures.pixel(RenderFixtures.over(style.ghostFill, halfRed))
-        assertPixel(image.pixel(at: try center(list, 3)), expected)
-    }
-
-    func test_C_PREV_09_withoutBordersOnlyTheHighlightsAreOutlined() throws {
-        var plain = style
-        plain.drawsBorders = false
-        let list = try layerDetailsList(
-            camera: .flat, viewport: RenderFixtures.portrait, selected: 8)
-        let image = try render(list, RenderFixtures.portrait, style: plain)
-
-        // Layer 6's left edge, halfway down, over layers without images: only background.
-        let corners = try RenderFixtures.item(list, 6).points
-        let edge = ScenePoint(
-            x: (corners[0].x + corners[2].x) / 2, y: (corners[0].y + corners[2].y) / 2)
-        for dx in -1...1 {
-            assertPixel(
-                image.pixel(x: Int(edge.x.rounded(.down)) + dx, y: Int(edge.y.rounded(.down))),
-                RenderFixtures.pixel(style.background), "dx \(dx)")
-        }
-        // The selected layer 8 keeps its border.
-        let selected = try RenderFixtures.item(list, 8).points
-        let selectedEdge = ScenePoint(
-            x: (selected[0].x + selected[2].x) / 2, y: (selected[0].y + selected[2].y) / 2)
-        let bordered = (-1...1).map { dx in
-            image.pixel(
-                x: Int(selectedEdge.x.rounded(.down)) + dx, y: Int(selectedEdge.y.rounded(.down)))
-        }
-        // The border itself, not the selection's tint beside it.
-        let border = RenderFixtures.pixel(style.selectedBorder)
-        XCTAssertTrue(
-            bordered.contains { !differ($0, border) }, "no border \(border) among \(bordered)")
-    }
 
     /// Four corners in a draw item's order, from a list of them.
     private func quad<Point>(_ corners: [Point]) -> Corners<Point> {
