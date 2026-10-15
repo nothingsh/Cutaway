@@ -44,6 +44,10 @@ public struct SceneLayout: Sendable {
     /// few layers copy neither the entries nor every layer's images (C-SCALE-02).
     var images: ChunkedArray<LayerTextures>
     let indexByID: [UInt64: Int]
+    /// The index of each layer's parent, as the layout took it: nil for a root, and for a
+    /// layer whose parent does not come before it. An ID that comes twice does not mislead
+    /// it, as looking the parent up in `indexByID` would.
+    let parentIndices: [Int?]
     /// The displayed layers, as indices into `entries`, in the order of the wire.
     let displayed: [Int]
     /// The displayed layers that have an area, by level, then in the order of the wire.
@@ -156,6 +160,7 @@ public struct SceneLayout: Sendable {
         self.entries = entries
         self.images = ChunkedArray(layers.map { LayerTextures(solo: $0.solo, group: $0.group) })
         self.indexByID = indexByID
+        self.parentIndices = parentIndex
         self.displayed = displayed
         self.contentBox = contentBox
         self.neededTextures = displayed.compactMap { index in

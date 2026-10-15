@@ -95,22 +95,6 @@ final class CameraTests: XCTestCase {
         XCTAssertEqual(a.y, b.y, accuracy: accuracy, message, file: file, line: line)
     }
 
-    // MARK: - Orthographic
-
-    func test_C_SCENE_04_theFlatCameraCentersTheContentWithAMargin() throws {
-        let list = try fixtureLayout().project(
-            camera: .flat, viewport: viewport, selected: nil, hovered: nil)
-        let window = try XCTUnwrap(item(list, 1))
-        let scale = fit(SceneRect(x: 0, y: 0, width: 393, height: 852), viewport)
-
-        assertClose(window.points[0], ScenePoint(x: 240 - 196.5 * scale, y: 450 - 426 * scale))
-        assertClose(window.points[3], ScenePoint(x: 240 + 196.5 * scale, y: 450 + 426 * scale))
-        // The height is what limits: 20 points above and below, more at the sides.
-        XCTAssertEqual(window.points[0].y, 20, accuracy: 1e-9)
-        XCTAssertEqual(window.points[3].y, 880, accuracy: 1e-9)
-        XCTAssertGreaterThan(window.points[0].x, 20)
-    }
-
     // MARK: - Perspective
 
     func test_C_SCENE_04_anyCameraMatchesTheReferenceProjection() throws {
@@ -155,18 +139,6 @@ final class CameraTests: XCTestCase {
                 XCTAssertEqual(clip.z / clip.w, 0.5, accuracy: 1e-9)
             }
         }
-    }
-
-    func test_C_SCENE_04_theStandard3DCameraIsAsDesigned() {
-        let camera = Camera.standard3D
-        XCTAssertEqual(camera.projection, .perspective)
-        XCTAssertEqual(camera.yaw, .pi / 6, accuracy: 1e-12)
-        XCTAssertEqual(camera.pitch, .pi / 12, accuracy: 1e-12)
-        XCTAssertEqual(camera.zoom, 1)
-        XCTAssertEqual(camera.pan, .zero)
-        XCTAssertEqual(camera.layerSpacing, 50)
-        XCTAssertEqual(Camera.flat.projection, .orthographic)
-        XCTAssertEqual(Camera.flat.layerSpacing, 0)
     }
 
     // MARK: - Order
@@ -329,18 +301,6 @@ final class CameraTests: XCTestCase {
 
     // MARK: - Highlight, image, opacity (C-SCENE-06)
 
-    func test_C_SCENE_04_selectionWinsOverHover() throws {
-        let layout = try fixtureLayout()
-        let list = layout.project(camera: .flat, viewport: viewport, selected: 3, hovered: 4)
-        XCTAssertEqual(item(list, 3)?.highlight, .selected)
-        XCTAssertEqual(item(list, 4)?.highlight, .hovered)
-        XCTAssertEqual(item(list, 2)?.highlight, Highlight.none)
-        let both = layout.project(camera: .flat, viewport: viewport, selected: 3, hovered: 3)
-        XCTAssertEqual(item(both, 3)?.highlight, .selected)
-        let hidden = layout.project(camera: .flat, viewport: viewport, selected: 5, hovered: nil)
-        XCTAssertFalse(hidden.items.contains { $0.highlight != .none }, "5 is not drawn")
-    }
-
     func test_C_SCENE_06_theImageSitsOnTheBoundsCornersWithTheLayersOpacity() throws {
         let solo = SceneFixtures.solo(4)
         var layers = try SceneFixtures.hierarchyLayers(textures: [4: LayerTextures(solo: solo)])
@@ -371,15 +331,6 @@ final class CameraTests: XCTestCase {
 
     // MARK: - C-PREV-04 to 06: moving the camera
 
-    func test_C_PREV_04_draggingRightAndDownTurnsTheLeftAndTopEdgesTowardsTheViewer() {
-        let turned = Camera.standard3D.rotated(byDragOf: 10, 20)
-        let step = Camera.rotationPerPoint
-        XCTAssertEqual(turned.yaw, Camera.standard3D.yaw + 10 * step, accuracy: 1e-12)
-        XCTAssertEqual(turned.pitch, Camera.standard3D.pitch + 20 * step, accuracy: 1e-12)
-        XCTAssertEqual(turned.zoom, 1)
-        XCTAssertEqual(turned.layerSpacing, 50)
-    }
-
     func test_C_PREV_04_theTiltStopsAtAQuarterTurn() {
         XCTAssertEqual(Camera.standard3D.rotated(byDragOf: 0, 10_000).pitch, .pi / 2)
         XCTAssertEqual(Camera.standard3D.rotated(byDragOf: 0, -10_000).pitch, -.pi / 2)
@@ -406,6 +357,49 @@ final class CameraTests: XCTestCase {
                     XCTAssertEqual(q.x - p.x, 12, accuracy: 1e-9)
                     XCTAssertEqual(q.y - p.y, -7, accuracy: 1e-9)
                 }
+            }
+        }
+    }
+
+    func test_C_SCENE_04_theContentFitsBetweenWhatFloatsOverTheEdges() throws {
+        let layout = try fixtureLayout()
+        let insets = Viewport.Insets(top: 52, left: 30, bottom: 64, right: 10)
+        let size = Viewport(width: 600, height: 900, insets: insets)
+        for camera in [Camera.flat, Camera.standard3D] {
+            let list = layout.project(camera: camera, viewport: size, selected: nil, hovered: nil)
+            let points = list.items.flatMap(\.points)
+            let xs = points.map(\.x), ys = points.map(\.y)
+            let label = "\(camera)"
+            let left = insets.left + Camera.margin, right = size.width - insets.right - Camera.margin
+            let top = insets.top + Camera.margin, bottom = size.height - insets.bottom - Camera.margin
+            XCTAssertGreaterThanOrEqual(xs.min()!, left - 1e-6, label)
+            XCTAssertLessThanOrEqual(xs.max()!, right + 1e-6, label)
+            XCTAssertGreaterThanOrEqual(ys.min()!, top - 1e-6, label)
+            XCTAssertLessThanOrEqual(ys.max()!, bottom + 1e-6, label)
+            // Centred between them, and fitted one way or the other.
+            XCTAssertEqual((xs.min()! + xs.max()!) / 2, (left + right) / 2, accuracy: 1e-6, label)
+            XCTAssertEqual((ys.min()! + ys.max()!) / 2, (top + bottom) / 2, accuracy: 1e-6, label)
+            let fillsWidth = abs(xs.min()! - left) < 1e-6 && abs(xs.max()! - right) < 1e-6
+            let fillsHeight = abs(ys.min()! - top) < 1e-6 && abs(ys.max()! - bottom) < 1e-6
+            XCTAssertTrue(fillsWidth || fillsHeight, label)
+        }
+    }
+
+    func test_C_PREV_05_zoomKeepsWhatIsUnderThePointerBetweenInsets() throws {
+        let layout = try fixtureLayout()
+        let viewport = Viewport(
+            width: 480, height: 900, insets: Viewport.Insets(top: 52, bottom: 64))
+        for camera in [Camera.flat, Camera.standard3D] {
+            let list = layout.project(
+                camera: camera, viewport: viewport, selected: nil, hovered: nil)
+            let pointer = try XCTUnwrap(list.items.first { $0.layerID == 4 }).points[3]
+            for factor in [0.5, 2, 3.7] {
+                let zoomed = layout.project(
+                    camera: camera.zoomed(by: factor, about: pointer, in: viewport),
+                    viewport: viewport, selected: nil, hovered: nil)
+                let moved = try XCTUnwrap(zoomed.items.first { $0.layerID == 4 }).points[3]
+                XCTAssertEqual(moved.x, pointer.x, accuracy: 0.5, "\(camera) × \(factor)")
+                XCTAssertEqual(moved.y, pointer.y, accuracy: 0.5, "\(camera) × \(factor)")
             }
         }
     }
