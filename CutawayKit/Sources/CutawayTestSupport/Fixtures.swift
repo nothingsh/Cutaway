@@ -78,11 +78,6 @@ public enum Fixtures {
 }
 
 extension Fixtures {
-    /// The last protocol version before 1.0. Servers at 0.2 to 0.4 are a different major
-    /// version from `ProtocolVersion.current`, so the tests of what a lower minor version
-    /// lacks (P-HELLO-04) run the client at this version against them.
-    public static let zeroMajorProtocol = Version(major: 0, minor: 5)
-
     /// The `Hierarchy` of the `hierarchy` scenario: one window, nine nodes
     /// (Protocol/fixtures/README.md).
     public static func hierarchy() throws -> Hierarchy {
@@ -162,6 +157,106 @@ extension Fixtures {
         }
     }
 
+    /// The groups with no clusters: every attribute on a row of its own (C-ATTR-19).
+    public static func withoutClusters(_ groups: [AttributeGroup]) -> [AttributeGroup] {
+        groups.map { group in
+            var group = group
+            group.attributes = group.attributes.map { attribute in
+                var attribute = attribute
+                attribute.cluster = nil
+                return attribute
+            }
+            return group
+        }
+    }
+
+    /// The groups as a 1.0 server sends them: nothing of 1.1, so no sections and no limits
+    /// either (C-WIRE-10).
+    public static func withoutProtocol11(_ groups: [AttributeGroup]) -> [AttributeGroup] {
+        withoutTheOptionalFields(groups).map { group in
+            var group = group
+            group.attributes = group.attributes.map { attribute in
+                var attribute = attribute
+                attribute.section = .unspecified
+                attribute.limits = nil
+                return attribute
+            }
+            return group
+        }
+    }
+
+    /// The hierarchy as a 1.0 server sends it: nothing of 1.1, so no addresses either
+    /// (C-WIRE-10).
+    public static func withoutProtocol11(_ hierarchy: Hierarchy) -> Hierarchy {
+        var hierarchy = withoutTheOptionalFields(hierarchy)
+        hierarchy.nodes = hierarchy.nodes.map { node in
+            var node = node
+            node.layerAddress = nil
+            node.viewAddress = nil
+            node.viewControllerAddress = nil
+            return node
+        }
+        return hierarchy
+    }
+
+    /// The groups as a server that leaves out what 1.1 lets it leave out sends them
+    /// (C-WIRE-11): no clusters, inactive causes, units, system color names or class names,
+    /// and no Content, Appearance or Behavior section.
+    public static func withoutTheOptionalFields(_ groups: [AttributeGroup]) -> [AttributeGroup] {
+        groups.map { group in
+            var group = group
+            group.className = nil
+            group.attributes = group.attributes.map { attribute in
+                var attribute = attribute
+                attribute.cluster = nil
+                attribute.inactiveCause = nil
+                attribute.unit = .unspecified
+                attribute.systemColorName = nil
+                switch attribute.section {
+                case .content, .appearance, .behavior: attribute.section = .general
+                case .unspecified, .identity, .general, .layout: break
+                }
+                return attribute
+            }
+            return group
+        }
+    }
+
+    /// The hierarchy as a server that leaves out what 1.1 lets it leave out sends it
+    /// (C-WIRE-11): no origins, base classes or visibility.
+    public static func withoutTheOptionalFields(_ hierarchy: Hierarchy) -> Hierarchy {
+        var hierarchy = hierarchy
+        hierarchy.nodes = hierarchy.nodes.map { node in
+            var node = node
+            node.layerClassOrigin = .unknown
+            node.viewClassOrigin = .unknown
+            node.viewControllerClassOrigin = .unknown
+            node.layerBaseClassName = nil
+            node.viewBaseClassName = nil
+            node.viewControllerVisibility = .unknown
+            return node
+        }
+        return hierarchy
+    }
+
+    /// The constraints as a server that leaves out what 1.1 lets it leave out sends them
+    /// (C-WIRE-11): no origins and no guide kinds.
+    public static func withoutTheOptionalFields(_ constraints: [LayoutConstraint]) -> [LayoutConstraint] {
+        constraints.map { constraint in
+            var constraint = constraint
+            constraint.origin = .unknown
+            constraint.firstItem = constraint.firstItem.map(withoutTheOptionalFields)
+            constraint.secondItem = constraint.secondItem.map(withoutTheOptionalFields)
+            return constraint
+        }
+    }
+
+    private static func withoutTheOptionalFields(_ item: LayoutItem) -> LayoutItem {
+        guard case .layoutGuide(var guide) = item else { return item }
+        guide.kind = .unknown
+        return .layoutGuide(guide)
+    }
+
     /// The answers of the `set-attribute` scenario, in order (Protocol/fixtures/README.md).
     /// Protocol 0.3.
     public static func setAttributeResults() throws -> [SetAttributeResult] {
@@ -181,7 +276,7 @@ extension Fixtures {
             var group = group
             group.attributes = group.attributes.map { attribute in
                 var attribute = attribute
-                if attribute.id == "layer.backgroundColor" { attribute.value = nil }
+                if attribute.id == "view.backgroundColor" { attribute.value = nil }
                 return attribute
             }
             return group
