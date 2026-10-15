@@ -22,6 +22,12 @@ public enum ConstraintStatus: Sendable {
     case unknown, satisfied, unsatisfied
 }
 
+/// Which of its owner's guides a layout guide is (P-LAYOUT-04). Protocol 1.1. `unknown`
+/// means absent, as from an older server, and stands for values this client does not know.
+public enum LayoutGuideKind: Equatable, Sendable {
+    case unknown, other, safeArea, layoutMargins, readableContent, keyboard
+}
+
 /// A layout guide at one end of a constraint (P-LAYOUT-04). It has no layer, so it is not a
 /// node of the hierarchy.
 public struct LayoutGuide: Equatable, Sendable {
@@ -34,10 +40,12 @@ public struct LayoutGuide: Equatable, Sendable {
     public var identifier: String?
     /// The guide's layoutFrame, in the owner's bounds. Nil when the server left it out.
     public var frame: Rect?
+    /// Which of the owner's guides it is. Protocol 1.1.
+    public var kind: LayoutGuideKind
 
     public init(
         ownerLayerID: UInt64, guideID: UInt64, className: String?, displayClassName: String?,
-        identifier: String?, frame: Rect?
+        identifier: String?, frame: Rect?, kind: LayoutGuideKind = .unknown
     ) {
         self.ownerLayerID = ownerLayerID
         self.guideID = guideID
@@ -45,6 +53,7 @@ public struct LayoutGuide: Equatable, Sendable {
         self.displayClassName = displayClassName
         self.identifier = identifier
         self.frame = frame
+        self.kind = kind
     }
 }
 
@@ -76,12 +85,15 @@ public struct LayoutConstraint: Equatable, Sendable {
     /// 1 to 1000.
     public var priority: Float
     public var status: ConstraintStatus
+    /// `system` when the server recognised the constraint as one UIKit made (P-LAYOUT-09): a
+    /// lower bound, since `app` only means it was not recognised. Protocol 1.1.
+    public var origin: ClassOrigin
 
     public init(
         id: UInt64, className: String?, identifier: String?, firstItem: LayoutItem?,
         firstAttribute: LayoutAttribute, relation: LayoutRelation, secondItem: LayoutItem?,
         secondAttribute: LayoutAttribute, multiplier: Double, constant: Double, priority: Float,
-        status: ConstraintStatus
+        status: ConstraintStatus, origin: ClassOrigin = .unknown
     ) {
         self.id = id
         self.className = className
@@ -95,5 +107,6 @@ public struct LayoutConstraint: Equatable, Sendable {
         self.constant = constant
         self.priority = priority
         self.status = status
+        self.origin = origin
     }
 }

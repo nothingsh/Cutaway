@@ -221,7 +221,36 @@ extension LayerNode {
         object.viewControllerClassName = viewControllerClassName
         object.viewControllerDisplayClassName = viewControllerDisplayClassName
         object.memberReferences = memberReferences.map { $0.makeObject() }
+        object.layerAddress = layerAddress ?? 0
+        object.viewAddress = viewAddress ?? 0
+        object.viewControllerAddress = viewControllerAddress ?? 0
+        object.layerClassOrigin = layerClassOrigin.wire
+        object.viewClassOrigin = viewClassOrigin.wire
+        object.viewControllerClassOrigin = viewControllerClassOrigin.wire
+        object.layerBaseClassName = layerBaseClassName
+        object.viewBaseClassName = viewBaseClassName
+        object.viewControllerVisibility = viewControllerVisibility.wire
         return object
+    }
+}
+
+extension ClassOrigin {
+    var wire: Cutaway_Wire_Origin {
+        switch self {
+        case .unknown: return .unknown
+        case .system: return .system
+        case .app: return .app
+        }
+    }
+}
+
+extension ViewControllerVisibility {
+    var wire: Cutaway_Wire_ViewControllerVisibility {
+        switch self {
+        case .unknown: return .unknown
+        case .shown: return .shown
+        case .notShown: return .notshown
+        }
     }
 }
 
@@ -328,6 +357,52 @@ extension Attribute {
         object.editable = editable
         object.acceptsNil = acceptsNil
         object.valueKind = valueKind.wire
+        object.section = section.wire
+        object.limits = (limits ?? []).map { $0.makeObject() }
+        object.cluster = cluster?.name
+        object.slot = cluster?.slot
+        object.inactiveCause = inactiveCause
+        object.unit = unit.wire
+        if let systemColorName, let color = object.value?.value as? Cutaway_Wire_ColorValueT {
+            color.systemName = systemColorName
+        }
+        return object
+    }
+}
+
+extension AttributeUnit {
+    var wire: Cutaway_Wire_AttributeUnit {
+        switch self {
+        case .unspecified: return .unspecified
+        case .points: return .points
+        case .fraction: return .fraction
+        }
+    }
+}
+
+extension AttributeSection {
+    var wire: Cutaway_Wire_AttributeSection {
+        switch self {
+        case .unspecified: return .unspecified
+        case .identity: return .identity
+        case .general: return .general
+        case .layout: return .layout
+        case .content: return .content
+        case .appearance: return .appearance
+        case .behavior: return .behavior
+        }
+    }
+}
+
+extension NumberLimit {
+    func makeObject() -> Cutaway_Wire_NumberLimitT {
+        let object = Cutaway_Wire_NumberLimitT()
+        object.hasMinimum = minimum != nil
+        object.minimum = minimum ?? 0
+        object.minimumExclusive = minimum != nil && minimumIsExclusive
+        object.hasMaximum = maximum != nil
+        object.maximum = maximum ?? 0
+        object.maximumExclusive = maximum != nil && maximumIsExclusive
         return object
     }
 }
@@ -338,6 +413,7 @@ extension AttributeGroup {
         object.id = id
         object.title = title
         object.attributes = attributes.map { $0.makeObject() }
+        object.className = className
         return object
     }
 }
@@ -504,6 +580,7 @@ extension LayoutItem {
             object.displayClassName = guide.displayClassName
             object.identifier = guide.identifier
             object.guideFrame = guide.frame?.wire
+            object.guideKind = guide.kind.wire
         case .other(let className, let displayClassName):
             object.kind = .other
             object.className = className
@@ -528,6 +605,20 @@ extension LayoutConstraint {
         object.constant = constant
         object.priority = priority
         object.status = status.wire
+        object.origin = origin.wire
         return object
+    }
+}
+
+extension LayoutGuideKind {
+    var wire: Cutaway_Wire_LayoutGuideKind {
+        switch self {
+        case .unknown: return .unknown
+        case .other: return .other
+        case .safeArea: return .safearea
+        case .layoutMargins: return .layoutmargins
+        case .readableContent: return .readablecontent
+        case .keyboard: return .keyboard
+        }
     }
 }

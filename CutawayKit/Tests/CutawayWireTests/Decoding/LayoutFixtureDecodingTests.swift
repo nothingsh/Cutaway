@@ -14,9 +14,11 @@ final class LayoutFixtureDecodingTests: XCTestCase {
     private static let safeArea = LayoutGuide(
         ownerLayerID: 2, guideID: 1, className: "UILayoutGuide", displayClassName: "UILayoutGuide",
         identifier: "UIViewSafeAreaLayoutGuide",
-        frame: Rect(origin: Point(x: 0, y: 59), size: Size(width: 393, height: 759)))
+        frame: Rect(origin: Point(x: 0, y: 59), size: Size(width: 393, height: 759)),
+        kind: .safeArea)
 
-    /// A constraint as the fixture writes it: multiplier 1, priority 1000, satisfied.
+    /// A constraint as the fixture writes it: multiplier 1, priority 1000, satisfied; the
+    /// app's when it is an `NSLayoutConstraint`, UIKit's otherwise (P-LAYOUT-09).
     private static func constraint(
         _ id: UInt64, className: String = "NSLayoutConstraint", identifier: String? = nil,
         _ first: LayoutItem, _ firstAttribute: LayoutAttribute,
@@ -27,7 +29,8 @@ final class LayoutFixtureDecodingTests: XCTestCase {
             id: id, className: className, identifier: identifier, firstItem: first,
             firstAttribute: firstAttribute, relation: .equal, secondItem: second,
             secondAttribute: secondAttribute, multiplier: 1, constant: constant,
-            priority: priority, status: status)
+            priority: priority, status: status,
+            origin: className == "NSLayoutConstraint" ? .app : .system)
     }
 
     /// Layer 9's constraints, the shapes UIKit makes from an autoresizing mask (protocol 0.5).

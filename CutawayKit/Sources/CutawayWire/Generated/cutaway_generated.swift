@@ -103,6 +103,32 @@ internal enum Cutaway_Wire_DetailStatus: UInt8, FlatbuffersVectorInitializable, 
 }
 
 
+internal enum Cutaway_Wire_Origin: UInt8, FlatbuffersVectorInitializable, Enum, Verifiable {
+  internal typealias T = UInt8
+  internal static var byteSize: Int { return MemoryLayout<UInt8>.size }
+  internal var value: UInt8 { return self.rawValue }
+  case unknown = 0
+  case system = 1
+  case app = 2
+
+  internal static var max: Cutaway_Wire_Origin { return .app }
+  internal static var min: Cutaway_Wire_Origin { return .unknown }
+}
+
+
+internal enum Cutaway_Wire_ViewControllerVisibility: UInt8, FlatbuffersVectorInitializable, Enum, Verifiable {
+  internal typealias T = UInt8
+  internal static var byteSize: Int { return MemoryLayout<UInt8>.size }
+  internal var value: UInt8 { return self.rawValue }
+  case unknown = 0
+  case shown = 1
+  case notshown = 2
+
+  internal static var max: Cutaway_Wire_ViewControllerVisibility { return .notshown }
+  internal static var min: Cutaway_Wire_ViewControllerVisibility { return .unknown }
+}
+
+
 internal enum Cutaway_Wire_AttributeValue: UInt8, FlatbuffersVectorInitializable, UnionEnum {
   internal typealias T = UInt8
 
@@ -198,6 +224,36 @@ internal enum Cutaway_Wire_AttributeValueKind: UInt8, FlatbuffersVectorInitializ
 }
 
 
+internal enum Cutaway_Wire_AttributeSection: UInt8, FlatbuffersVectorInitializable, Enum, Verifiable {
+  internal typealias T = UInt8
+  internal static var byteSize: Int { return MemoryLayout<UInt8>.size }
+  internal var value: UInt8 { return self.rawValue }
+  case unspecified = 0
+  case identity = 1
+  case general = 2
+  case layout = 3
+  case content = 4
+  case appearance = 5
+  case behavior = 6
+
+  internal static var max: Cutaway_Wire_AttributeSection { return .behavior }
+  internal static var min: Cutaway_Wire_AttributeSection { return .unspecified }
+}
+
+
+internal enum Cutaway_Wire_AttributeUnit: UInt8, FlatbuffersVectorInitializable, Enum, Verifiable {
+  internal typealias T = UInt8
+  internal static var byteSize: Int { return MemoryLayout<UInt8>.size }
+  internal var value: UInt8 { return self.rawValue }
+  case unspecified = 0
+  case points = 1
+  case fraction = 2
+
+  internal static var max: Cutaway_Wire_AttributeUnit { return .fraction }
+  internal static var min: Cutaway_Wire_AttributeUnit { return .unspecified }
+}
+
+
 internal enum Cutaway_Wire_LayoutAttribute: UInt8, FlatbuffersVectorInitializable, Enum, Verifiable {
   internal typealias T = UInt8
   internal static var byteSize: Int { return MemoryLayout<UInt8>.size }
@@ -269,6 +325,22 @@ internal enum Cutaway_Wire_ConstraintStatus: UInt8, FlatbuffersVectorInitializab
 
   internal static var max: Cutaway_Wire_ConstraintStatus { return .unsatisfied }
   internal static var min: Cutaway_Wire_ConstraintStatus { return .unknown }
+}
+
+
+internal enum Cutaway_Wire_LayoutGuideKind: UInt8, FlatbuffersVectorInitializable, Enum, Verifiable {
+  internal typealias T = UInt8
+  internal static var byteSize: Int { return MemoryLayout<UInt8>.size }
+  internal var value: UInt8 { return self.rawValue }
+  case unknown = 0
+  case other = 1
+  case safearea = 2
+  case layoutmargins = 3
+  case readablecontent = 4
+  case keyboard = 5
+
+  internal static var max: Cutaway_Wire_LayoutGuideKind { return .keyboard }
+  internal static var min: Cutaway_Wire_LayoutGuideKind { return .unknown }
 }
 
 
@@ -1646,6 +1718,15 @@ internal struct Cutaway_Wire_LayerNode: FlatBufferTable, FlatbuffersVectorInitia
     case viewControllerClassName = 32
     case viewControllerDisplayClassName = 34
     case memberReferences = 36
+    case layerAddress = 38
+    case viewAddress = 40
+    case viewControllerAddress = 42
+    case layerClassOrigin = 44
+    case viewClassOrigin = 46
+    case viewControllerClassOrigin = 48
+    case layerBaseClassName = 50
+    case viewBaseClassName = 52
+    case viewControllerVisibility = 54
     var v: Int32 { Int32(self.rawValue) }
     var p: VOffset { self.rawValue }
   }
@@ -1677,7 +1758,18 @@ internal struct Cutaway_Wire_LayerNode: FlatBufferTable, FlatbuffersVectorInitia
   internal var viewControllerDisplayClassName: String? { let o = _accessor.offset(VTOFFSET.viewControllerDisplayClassName.v); return o == 0 ? nil : _accessor.string(at: o) }
   internal var viewControllerDisplayClassNameSegmentArray: [UInt8]? { return _accessor.getVector(at: VTOFFSET.viewControllerDisplayClassName.v) }
   internal var memberReferences: FlatbufferVector<Cutaway_Wire_MemberReference> { return _accessor.vector(at: VTOFFSET.memberReferences.v, byteSize: 4) }
-  internal static func startLayerNode(_ fbb: inout FlatBufferBuilder) -> UOffset { fbb.startTable(with: 17) }
+  internal var layerAddress: UInt64 { let o = _accessor.offset(VTOFFSET.layerAddress.v); return o == 0 ? 0 : _accessor.readBuffer(of: UInt64.self, at: o) }
+  internal var viewAddress: UInt64 { let o = _accessor.offset(VTOFFSET.viewAddress.v); return o == 0 ? 0 : _accessor.readBuffer(of: UInt64.self, at: o) }
+  internal var viewControllerAddress: UInt64 { let o = _accessor.offset(VTOFFSET.viewControllerAddress.v); return o == 0 ? 0 : _accessor.readBuffer(of: UInt64.self, at: o) }
+  internal var layerClassOrigin: Cutaway_Wire_Origin { let o = _accessor.offset(VTOFFSET.layerClassOrigin.v); return o == 0 ? .unknown : Cutaway_Wire_Origin(rawValue: _accessor.readBuffer(of: UInt8.self, at: o)) ?? .unknown }
+  internal var viewClassOrigin: Cutaway_Wire_Origin { let o = _accessor.offset(VTOFFSET.viewClassOrigin.v); return o == 0 ? .unknown : Cutaway_Wire_Origin(rawValue: _accessor.readBuffer(of: UInt8.self, at: o)) ?? .unknown }
+  internal var viewControllerClassOrigin: Cutaway_Wire_Origin { let o = _accessor.offset(VTOFFSET.viewControllerClassOrigin.v); return o == 0 ? .unknown : Cutaway_Wire_Origin(rawValue: _accessor.readBuffer(of: UInt8.self, at: o)) ?? .unknown }
+  internal var layerBaseClassName: String? { let o = _accessor.offset(VTOFFSET.layerBaseClassName.v); return o == 0 ? nil : _accessor.string(at: o) }
+  internal var layerBaseClassNameSegmentArray: [UInt8]? { return _accessor.getVector(at: VTOFFSET.layerBaseClassName.v) }
+  internal var viewBaseClassName: String? { let o = _accessor.offset(VTOFFSET.viewBaseClassName.v); return o == 0 ? nil : _accessor.string(at: o) }
+  internal var viewBaseClassNameSegmentArray: [UInt8]? { return _accessor.getVector(at: VTOFFSET.viewBaseClassName.v) }
+  internal var viewControllerVisibility: Cutaway_Wire_ViewControllerVisibility { let o = _accessor.offset(VTOFFSET.viewControllerVisibility.v); return o == 0 ? .unknown : Cutaway_Wire_ViewControllerVisibility(rawValue: _accessor.readBuffer(of: UInt8.self, at: o)) ?? .unknown }
+  internal static func startLayerNode(_ fbb: inout FlatBufferBuilder) -> UOffset { fbb.startTable(with: 26) }
   internal static func add(id: UInt64, _ fbb: inout FlatBufferBuilder) { fbb.add(element: id, def: 0, at: VTOFFSET.id.p) }
   internal static func add(parentId: UInt64, _ fbb: inout FlatBufferBuilder) { fbb.add(element: parentId, def: 0, at: VTOFFSET.parentId.p) }
   internal static func add(className: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: className, at: VTOFFSET.className.p) }
@@ -1697,6 +1789,15 @@ internal struct Cutaway_Wire_LayerNode: FlatBufferTable, FlatbuffersVectorInitia
   internal static func add(viewControllerClassName: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: viewControllerClassName, at: VTOFFSET.viewControllerClassName.p) }
   internal static func add(viewControllerDisplayClassName: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: viewControllerDisplayClassName, at: VTOFFSET.viewControllerDisplayClassName.p) }
   internal static func addVectorOf(memberReferences: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: memberReferences, at: VTOFFSET.memberReferences.p) }
+  internal static func add(layerAddress: UInt64, _ fbb: inout FlatBufferBuilder) { fbb.add(element: layerAddress, def: 0, at: VTOFFSET.layerAddress.p) }
+  internal static func add(viewAddress: UInt64, _ fbb: inout FlatBufferBuilder) { fbb.add(element: viewAddress, def: 0, at: VTOFFSET.viewAddress.p) }
+  internal static func add(viewControllerAddress: UInt64, _ fbb: inout FlatBufferBuilder) { fbb.add(element: viewControllerAddress, def: 0, at: VTOFFSET.viewControllerAddress.p) }
+  internal static func add(layerClassOrigin: Cutaway_Wire_Origin, _ fbb: inout FlatBufferBuilder) { fbb.add(element: layerClassOrigin.rawValue, def: 0, at: VTOFFSET.layerClassOrigin.p) }
+  internal static func add(viewClassOrigin: Cutaway_Wire_Origin, _ fbb: inout FlatBufferBuilder) { fbb.add(element: viewClassOrigin.rawValue, def: 0, at: VTOFFSET.viewClassOrigin.p) }
+  internal static func add(viewControllerClassOrigin: Cutaway_Wire_Origin, _ fbb: inout FlatBufferBuilder) { fbb.add(element: viewControllerClassOrigin.rawValue, def: 0, at: VTOFFSET.viewControllerClassOrigin.p) }
+  internal static func add(layerBaseClassName: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: layerBaseClassName, at: VTOFFSET.layerBaseClassName.p) }
+  internal static func add(viewBaseClassName: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: viewBaseClassName, at: VTOFFSET.viewBaseClassName.p) }
+  internal static func add(viewControllerVisibility: Cutaway_Wire_ViewControllerVisibility, _ fbb: inout FlatBufferBuilder) { fbb.add(element: viewControllerVisibility.rawValue, def: 0, at: VTOFFSET.viewControllerVisibility.p) }
   internal static func endLayerNode(_ fbb: inout FlatBufferBuilder, start: UOffset) -> Offset { let end = Offset(offset: fbb.endTable(at: start)); return end }
   internal static func createLayerNode(
     _ fbb: inout FlatBufferBuilder,
@@ -1716,7 +1817,16 @@ internal struct Cutaway_Wire_LayerNode: FlatBufferTable, FlatbuffersVectorInitia
     masksToBounds: Bool = false,
     viewControllerClassNameOffset viewControllerClassName: Offset = Offset(),
     viewControllerDisplayClassNameOffset viewControllerDisplayClassName: Offset = Offset(),
-    memberReferencesVectorOffset memberReferences: Offset = Offset()
+    memberReferencesVectorOffset memberReferences: Offset = Offset(),
+    layerAddress: UInt64 = 0,
+    viewAddress: UInt64 = 0,
+    viewControllerAddress: UInt64 = 0,
+    layerClassOrigin: Cutaway_Wire_Origin = .unknown,
+    viewClassOrigin: Cutaway_Wire_Origin = .unknown,
+    viewControllerClassOrigin: Cutaway_Wire_Origin = .unknown,
+    layerBaseClassNameOffset layerBaseClassName: Offset = Offset(),
+    viewBaseClassNameOffset viewBaseClassName: Offset = Offset(),
+    viewControllerVisibility: Cutaway_Wire_ViewControllerVisibility = .unknown
   ) -> Offset {
     let __start = Cutaway_Wire_LayerNode.startLayerNode(&fbb)
     Cutaway_Wire_LayerNode.add(id: id, &fbb)
@@ -1736,6 +1846,15 @@ internal struct Cutaway_Wire_LayerNode: FlatBufferTable, FlatbuffersVectorInitia
     Cutaway_Wire_LayerNode.add(viewControllerClassName: viewControllerClassName, &fbb)
     Cutaway_Wire_LayerNode.add(viewControllerDisplayClassName: viewControllerDisplayClassName, &fbb)
     Cutaway_Wire_LayerNode.addVectorOf(memberReferences: memberReferences, &fbb)
+    Cutaway_Wire_LayerNode.add(layerAddress: layerAddress, &fbb)
+    Cutaway_Wire_LayerNode.add(viewAddress: viewAddress, &fbb)
+    Cutaway_Wire_LayerNode.add(viewControllerAddress: viewControllerAddress, &fbb)
+    Cutaway_Wire_LayerNode.add(layerClassOrigin: layerClassOrigin, &fbb)
+    Cutaway_Wire_LayerNode.add(viewClassOrigin: viewClassOrigin, &fbb)
+    Cutaway_Wire_LayerNode.add(viewControllerClassOrigin: viewControllerClassOrigin, &fbb)
+    Cutaway_Wire_LayerNode.add(layerBaseClassName: layerBaseClassName, &fbb)
+    Cutaway_Wire_LayerNode.add(viewBaseClassName: viewBaseClassName, &fbb)
+    Cutaway_Wire_LayerNode.add(viewControllerVisibility: viewControllerVisibility, &fbb)
     return Cutaway_Wire_LayerNode.endLayerNode(&fbb, start: __start)
   }
 
@@ -1795,6 +1914,20 @@ internal struct Cutaway_Wire_LayerNode: FlatBufferTable, FlatbuffersVectorInitia
       __memberReferences__.append(Cutaway_Wire_MemberReference.pack(&builder, obj: &i))
     }
     let __memberReferences = builder.createVector(ofOffsets: __memberReferences__)
+    let __layerBaseClassName: Offset
+    if let s = obj.layerBaseClassName {
+      __layerBaseClassName = builder.create(string: s)
+    } else {
+      __layerBaseClassName = Offset()
+    }
+
+    let __viewBaseClassName: Offset
+    if let s = obj.viewBaseClassName {
+      __viewBaseClassName = builder.create(string: s)
+    } else {
+      __viewBaseClassName = Offset()
+    }
+
     let __root = Cutaway_Wire_LayerNode.startLayerNode(&builder)
     Cutaway_Wire_LayerNode.add(id: obj.id, &builder)
     Cutaway_Wire_LayerNode.add(parentId: obj.parentId, &builder)
@@ -1813,6 +1946,15 @@ internal struct Cutaway_Wire_LayerNode: FlatBufferTable, FlatbuffersVectorInitia
     Cutaway_Wire_LayerNode.add(viewControllerClassName: __viewControllerClassName, &builder)
     Cutaway_Wire_LayerNode.add(viewControllerDisplayClassName: __viewControllerDisplayClassName, &builder)
     Cutaway_Wire_LayerNode.addVectorOf(memberReferences: __memberReferences, &builder)
+    Cutaway_Wire_LayerNode.add(layerAddress: obj.layerAddress, &builder)
+    Cutaway_Wire_LayerNode.add(viewAddress: obj.viewAddress, &builder)
+    Cutaway_Wire_LayerNode.add(viewControllerAddress: obj.viewControllerAddress, &builder)
+    Cutaway_Wire_LayerNode.add(layerClassOrigin: obj.layerClassOrigin, &builder)
+    Cutaway_Wire_LayerNode.add(viewClassOrigin: obj.viewClassOrigin, &builder)
+    Cutaway_Wire_LayerNode.add(viewControllerClassOrigin: obj.viewControllerClassOrigin, &builder)
+    Cutaway_Wire_LayerNode.add(layerBaseClassName: __layerBaseClassName, &builder)
+    Cutaway_Wire_LayerNode.add(viewBaseClassName: __viewBaseClassName, &builder)
+    Cutaway_Wire_LayerNode.add(viewControllerVisibility: obj.viewControllerVisibility, &builder)
     return Cutaway_Wire_LayerNode.endLayerNode(&builder, start: __root)
   }
 
@@ -1835,6 +1977,15 @@ internal struct Cutaway_Wire_LayerNode: FlatBufferTable, FlatbuffersVectorInitia
     try _v.visit(field: VTOFFSET.viewControllerClassName.p, fieldName: "viewControllerClassName", required: false, type: ForwardOffset<String>.self)
     try _v.visit(field: VTOFFSET.viewControllerDisplayClassName.p, fieldName: "viewControllerDisplayClassName", required: false, type: ForwardOffset<String>.self)
     try _v.visit(field: VTOFFSET.memberReferences.p, fieldName: "memberReferences", required: false, type: ForwardOffset<Vector<ForwardOffset<Cutaway_Wire_MemberReference>, Cutaway_Wire_MemberReference>>.self)
+    try _v.visit(field: VTOFFSET.layerAddress.p, fieldName: "layerAddress", required: false, type: UInt64.self)
+    try _v.visit(field: VTOFFSET.viewAddress.p, fieldName: "viewAddress", required: false, type: UInt64.self)
+    try _v.visit(field: VTOFFSET.viewControllerAddress.p, fieldName: "viewControllerAddress", required: false, type: UInt64.self)
+    try _v.visit(field: VTOFFSET.layerClassOrigin.p, fieldName: "layerClassOrigin", required: false, type: Cutaway_Wire_Origin.self)
+    try _v.visit(field: VTOFFSET.viewClassOrigin.p, fieldName: "viewClassOrigin", required: false, type: Cutaway_Wire_Origin.self)
+    try _v.visit(field: VTOFFSET.viewControllerClassOrigin.p, fieldName: "viewControllerClassOrigin", required: false, type: Cutaway_Wire_Origin.self)
+    try _v.visit(field: VTOFFSET.layerBaseClassName.p, fieldName: "layerBaseClassName", required: false, type: ForwardOffset<String>.self)
+    try _v.visit(field: VTOFFSET.viewBaseClassName.p, fieldName: "viewBaseClassName", required: false, type: ForwardOffset<String>.self)
+    try _v.visit(field: VTOFFSET.viewControllerVisibility.p, fieldName: "viewControllerVisibility", required: false, type: Cutaway_Wire_ViewControllerVisibility.self)
     _v.finish()
   }
 }
@@ -1858,6 +2009,15 @@ internal class Cutaway_Wire_LayerNodeT: NativeObject {
   internal var viewControllerClassName: String?
   internal var viewControllerDisplayClassName: String?
   internal var memberReferences: [Cutaway_Wire_MemberReferenceT?]
+  internal var layerAddress: UInt64
+  internal var viewAddress: UInt64
+  internal var viewControllerAddress: UInt64
+  internal var layerClassOrigin: Cutaway_Wire_Origin
+  internal var viewClassOrigin: Cutaway_Wire_Origin
+  internal var viewControllerClassOrigin: Cutaway_Wire_Origin
+  internal var layerBaseClassName: String?
+  internal var viewBaseClassName: String?
+  internal var viewControllerVisibility: Cutaway_Wire_ViewControllerVisibility
 
   internal init(_ _t: borrowing Cutaway_Wire_LayerNode) {
     id = _t.id
@@ -1880,6 +2040,15 @@ internal class Cutaway_Wire_LayerNodeT: NativeObject {
     for val in _t.memberReferences{
         memberReferences.append(val.unpack())
     }
+    layerAddress = _t.layerAddress
+    viewAddress = _t.viewAddress
+    viewControllerAddress = _t.viewControllerAddress
+    layerClassOrigin = _t.layerClassOrigin
+    viewClassOrigin = _t.viewClassOrigin
+    viewControllerClassOrigin = _t.viewControllerClassOrigin
+    layerBaseClassName = _t.layerBaseClassName
+    viewBaseClassName = _t.viewBaseClassName
+    viewControllerVisibility = _t.viewControllerVisibility
   }
 
   internal init() {
@@ -1894,6 +2063,13 @@ internal class Cutaway_Wire_LayerNodeT: NativeObject {
     opacity = 0.0
     masksToBounds = false
     memberReferences = []
+    layerAddress = 0
+    viewAddress = 0
+    viewControllerAddress = 0
+    layerClassOrigin = .unknown
+    viewClassOrigin = .unknown
+    viewControllerClassOrigin = .unknown
+    viewControllerVisibility = .unknown
   }
 
   internal func serialize() -> ByteBuffer { return serialize(type: Cutaway_Wire_LayerNode.self) }
@@ -2507,21 +2683,27 @@ internal struct Cutaway_Wire_ColorValue: FlatBufferTable, FlatbuffersVectorIniti
 
   private enum VTOFFSET: VOffset {
     case value = 4
+    case systemName = 6
     var v: Int32 { Int32(self.rawValue) }
     var p: VOffset { self.rawValue }
   }
 
   internal var value: Cutaway_Wire_Color? { let o = _accessor.offset(VTOFFSET.value.v); return o == 0 ? nil : _accessor.readBuffer(of: Cutaway_Wire_Color.self, at: o) }
   internal var mutableValue: Cutaway_Wire_Color_Mutable? { let o = _accessor.offset(VTOFFSET.value.v); return o == 0 ? nil : Cutaway_Wire_Color_Mutable(_accessor.bb, o: o + _accessor.position) }
-  internal static func startColorValue(_ fbb: inout FlatBufferBuilder) -> UOffset { fbb.startTable(with: 1) }
+  internal var systemName: String? { let o = _accessor.offset(VTOFFSET.systemName.v); return o == 0 ? nil : _accessor.string(at: o) }
+  internal var systemNameSegmentArray: [UInt8]? { return _accessor.getVector(at: VTOFFSET.systemName.v) }
+  internal static func startColorValue(_ fbb: inout FlatBufferBuilder) -> UOffset { fbb.startTable(with: 2) }
   internal static func add(value: Cutaway_Wire_Color?, _ fbb: inout FlatBufferBuilder) { guard let value = value else { return }; fbb.create(struct: value, position: VTOFFSET.value.p) }
+  internal static func add(systemName: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: systemName, at: VTOFFSET.systemName.p) }
   internal static func endColorValue(_ fbb: inout FlatBufferBuilder, start: UOffset) -> Offset { let end = Offset(offset: fbb.endTable(at: start)); return end }
   internal static func createColorValue(
     _ fbb: inout FlatBufferBuilder,
-    value: Cutaway_Wire_Color? = nil
+    value: Cutaway_Wire_Color? = nil,
+    systemNameOffset systemName: Offset = Offset()
   ) -> Offset {
     let __start = Cutaway_Wire_ColorValue.startColorValue(&fbb)
     Cutaway_Wire_ColorValue.add(value: value, &fbb)
+    Cutaway_Wire_ColorValue.add(systemName: systemName, &fbb)
     return Cutaway_Wire_ColorValue.endColorValue(&fbb, start: __start)
   }
 
@@ -2534,14 +2716,23 @@ internal struct Cutaway_Wire_ColorValue: FlatBufferTable, FlatbuffersVectorIniti
   }
 
   internal static func pack(_ builder: inout FlatBufferBuilder, obj: inout Cutaway_Wire_ColorValueT) -> Offset {
+    let __systemName: Offset
+    if let s = obj.systemName {
+      __systemName = builder.create(string: s)
+    } else {
+      __systemName = Offset()
+    }
+
     let __root = Cutaway_Wire_ColorValue.startColorValue(&builder)
     Cutaway_Wire_ColorValue.add(value: obj.value, &builder)
+    Cutaway_Wire_ColorValue.add(systemName: __systemName, &builder)
     return Cutaway_Wire_ColorValue.endColorValue(&builder, start: __root)
   }
 
   internal static func verify<T>(_ verifier: inout Verifier, at position: Int, of type: T.Type) throws where T: Verifiable {
     var _v = try verifier.visitTable(at: position)
     try _v.visit(field: VTOFFSET.value.p, fieldName: "value", required: false, type: Cutaway_Wire_Color.self)
+    try _v.visit(field: VTOFFSET.systemName.p, fieldName: "systemName", required: false, type: ForwardOffset<String>.self)
     _v.finish()
   }
 }
@@ -2549,9 +2740,11 @@ internal struct Cutaway_Wire_ColorValue: FlatBufferTable, FlatbuffersVectorIniti
 internal class Cutaway_Wire_ColorValueT: NativeObject {
 
   internal var value: Cutaway_Wire_Color?
+  internal var systemName: String?
 
   internal init(_ _t: borrowing Cutaway_Wire_ColorValue) {
     value = _t.value
+    systemName = _t.systemName
   }
 
   internal init() {
@@ -3004,6 +3197,126 @@ internal class Cutaway_Wire_EnumValueT: NativeObject {
   internal func serialize() -> ByteBuffer { return serialize(type: Cutaway_Wire_EnumValue.self) }
 
 }
+internal struct Cutaway_Wire_NumberLimit: FlatBufferTable, FlatbuffersVectorInitializable, Verifiable, ObjectAPIPacker {
+
+  static func validateVersion() { FlatBuffersVersion_25_12_19() }
+  internal var __buffer: ByteBuffer! { return _accessor.bb }
+  private var _accessor: Table
+
+  internal static var id: String { "CTWY" } 
+  internal static func finish(_ fbb: inout FlatBufferBuilder, end: Offset, prefix: Bool = false) { fbb.finish(offset: end, fileId: Cutaway_Wire_NumberLimit.id, addPrefix: prefix) }
+  private init(_ t: Table) { _accessor = t }
+  internal init(_ bb: ByteBuffer, o: Int32) { _accessor = Table(bb: bb, position: o) }
+
+  private enum VTOFFSET: VOffset {
+    case minimum = 4
+    case hasMinimum = 6
+    case minimumExclusive = 8
+    case maximum = 10
+    case hasMaximum = 12
+    case maximumExclusive = 14
+    var v: Int32 { Int32(self.rawValue) }
+    var p: VOffset { self.rawValue }
+  }
+
+  internal var minimum: Double { let o = _accessor.offset(VTOFFSET.minimum.v); return o == 0 ? 0.0 : _accessor.readBuffer(of: Double.self, at: o) }
+  internal var hasMinimum: Bool { let o = _accessor.offset(VTOFFSET.hasMinimum.v); return o == 0 ? false : _accessor.readBuffer(of: Bool.self, at: o) }
+  internal var minimumExclusive: Bool { let o = _accessor.offset(VTOFFSET.minimumExclusive.v); return o == 0 ? false : _accessor.readBuffer(of: Bool.self, at: o) }
+  internal var maximum: Double { let o = _accessor.offset(VTOFFSET.maximum.v); return o == 0 ? 0.0 : _accessor.readBuffer(of: Double.self, at: o) }
+  internal var hasMaximum: Bool { let o = _accessor.offset(VTOFFSET.hasMaximum.v); return o == 0 ? false : _accessor.readBuffer(of: Bool.self, at: o) }
+  internal var maximumExclusive: Bool { let o = _accessor.offset(VTOFFSET.maximumExclusive.v); return o == 0 ? false : _accessor.readBuffer(of: Bool.self, at: o) }
+  internal static func startNumberLimit(_ fbb: inout FlatBufferBuilder) -> UOffset { fbb.startTable(with: 6) }
+  internal static func add(minimum: Double, _ fbb: inout FlatBufferBuilder) { fbb.add(element: minimum, def: 0.0, at: VTOFFSET.minimum.p) }
+  internal static func add(hasMinimum: Bool, _ fbb: inout FlatBufferBuilder) { fbb.add(element: hasMinimum, def: false,
+   at: VTOFFSET.hasMinimum.p) }
+  internal static func add(minimumExclusive: Bool, _ fbb: inout FlatBufferBuilder) { fbb.add(element: minimumExclusive, def: false,
+   at: VTOFFSET.minimumExclusive.p) }
+  internal static func add(maximum: Double, _ fbb: inout FlatBufferBuilder) { fbb.add(element: maximum, def: 0.0, at: VTOFFSET.maximum.p) }
+  internal static func add(hasMaximum: Bool, _ fbb: inout FlatBufferBuilder) { fbb.add(element: hasMaximum, def: false,
+   at: VTOFFSET.hasMaximum.p) }
+  internal static func add(maximumExclusive: Bool, _ fbb: inout FlatBufferBuilder) { fbb.add(element: maximumExclusive, def: false,
+   at: VTOFFSET.maximumExclusive.p) }
+  internal static func endNumberLimit(_ fbb: inout FlatBufferBuilder, start: UOffset) -> Offset { let end = Offset(offset: fbb.endTable(at: start)); return end }
+  internal static func createNumberLimit(
+    _ fbb: inout FlatBufferBuilder,
+    minimum: Double = 0.0,
+    hasMinimum: Bool = false,
+    minimumExclusive: Bool = false,
+    maximum: Double = 0.0,
+    hasMaximum: Bool = false,
+    maximumExclusive: Bool = false
+  ) -> Offset {
+    let __start = Cutaway_Wire_NumberLimit.startNumberLimit(&fbb)
+    Cutaway_Wire_NumberLimit.add(minimum: minimum, &fbb)
+    Cutaway_Wire_NumberLimit.add(hasMinimum: hasMinimum, &fbb)
+    Cutaway_Wire_NumberLimit.add(minimumExclusive: minimumExclusive, &fbb)
+    Cutaway_Wire_NumberLimit.add(maximum: maximum, &fbb)
+    Cutaway_Wire_NumberLimit.add(hasMaximum: hasMaximum, &fbb)
+    Cutaway_Wire_NumberLimit.add(maximumExclusive: maximumExclusive, &fbb)
+    return Cutaway_Wire_NumberLimit.endNumberLimit(&fbb, start: __start)
+  }
+
+  internal func unpack() -> Cutaway_Wire_NumberLimitT {
+    return Cutaway_Wire_NumberLimitT(self)
+  }
+  internal static func pack(_ builder: inout FlatBufferBuilder, obj: inout Cutaway_Wire_NumberLimitT?) -> Offset {
+    guard var obj = obj else { return Offset() }
+    return pack(&builder, obj: &obj)
+  }
+
+  internal static func pack(_ builder: inout FlatBufferBuilder, obj: inout Cutaway_Wire_NumberLimitT) -> Offset {
+    let __root = Cutaway_Wire_NumberLimit.startNumberLimit(&builder)
+    Cutaway_Wire_NumberLimit.add(minimum: obj.minimum, &builder)
+    Cutaway_Wire_NumberLimit.add(hasMinimum: obj.hasMinimum, &builder)
+    Cutaway_Wire_NumberLimit.add(minimumExclusive: obj.minimumExclusive, &builder)
+    Cutaway_Wire_NumberLimit.add(maximum: obj.maximum, &builder)
+    Cutaway_Wire_NumberLimit.add(hasMaximum: obj.hasMaximum, &builder)
+    Cutaway_Wire_NumberLimit.add(maximumExclusive: obj.maximumExclusive, &builder)
+    return Cutaway_Wire_NumberLimit.endNumberLimit(&builder, start: __root)
+  }
+
+  internal static func verify<T>(_ verifier: inout Verifier, at position: Int, of type: T.Type) throws where T: Verifiable {
+    var _v = try verifier.visitTable(at: position)
+    try _v.visit(field: VTOFFSET.minimum.p, fieldName: "minimum", required: false, type: Double.self)
+    try _v.visit(field: VTOFFSET.hasMinimum.p, fieldName: "hasMinimum", required: false, type: Bool.self)
+    try _v.visit(field: VTOFFSET.minimumExclusive.p, fieldName: "minimumExclusive", required: false, type: Bool.self)
+    try _v.visit(field: VTOFFSET.maximum.p, fieldName: "maximum", required: false, type: Double.self)
+    try _v.visit(field: VTOFFSET.hasMaximum.p, fieldName: "hasMaximum", required: false, type: Bool.self)
+    try _v.visit(field: VTOFFSET.maximumExclusive.p, fieldName: "maximumExclusive", required: false, type: Bool.self)
+    _v.finish()
+  }
+}
+
+internal class Cutaway_Wire_NumberLimitT: NativeObject {
+
+  internal var minimum: Double
+  internal var hasMinimum: Bool
+  internal var minimumExclusive: Bool
+  internal var maximum: Double
+  internal var hasMaximum: Bool
+  internal var maximumExclusive: Bool
+
+  internal init(_ _t: borrowing Cutaway_Wire_NumberLimit) {
+    minimum = _t.minimum
+    hasMinimum = _t.hasMinimum
+    minimumExclusive = _t.minimumExclusive
+    maximum = _t.maximum
+    hasMaximum = _t.hasMaximum
+    maximumExclusive = _t.maximumExclusive
+  }
+
+  internal init() {
+    minimum = 0.0
+    hasMinimum = false
+    minimumExclusive = false
+    maximum = 0.0
+    hasMaximum = false
+    maximumExclusive = false
+  }
+
+  internal func serialize() -> ByteBuffer { return serialize(type: Cutaway_Wire_NumberLimit.self) }
+
+}
 internal struct Cutaway_Wire_Attribute: FlatBufferTable, FlatbuffersVectorInitializable, Verifiable, ObjectAPIPacker {
 
   static func validateVersion() { FlatBuffersVersion_25_12_19() }
@@ -3023,6 +3336,12 @@ internal struct Cutaway_Wire_Attribute: FlatBufferTable, FlatbuffersVectorInitia
     case editable = 12
     case acceptsNil = 14
     case valueKind = 16
+    case section = 18
+    case limits = 20
+    case cluster = 22
+    case slot = 24
+    case inactiveCause = 26
+    case unit = 28
     var v: Int32 { Int32(self.rawValue) }
     var p: VOffset { self.rawValue }
   }
@@ -3036,7 +3355,16 @@ internal struct Cutaway_Wire_Attribute: FlatBufferTable, FlatbuffersVectorInitia
   internal var editable: Bool { let o = _accessor.offset(VTOFFSET.editable.v); return o == 0 ? false : _accessor.readBuffer(of: Bool.self, at: o) }
   internal var acceptsNil: Bool { let o = _accessor.offset(VTOFFSET.acceptsNil.v); return o == 0 ? false : _accessor.readBuffer(of: Bool.self, at: o) }
   internal var valueKind: Cutaway_Wire_AttributeValueKind { let o = _accessor.offset(VTOFFSET.valueKind.v); return o == 0 ? .none_ : Cutaway_Wire_AttributeValueKind(rawValue: _accessor.readBuffer(of: UInt8.self, at: o)) ?? .none_ }
-  internal static func startAttribute(_ fbb: inout FlatBufferBuilder) -> UOffset { fbb.startTable(with: 7) }
+  internal var section: Cutaway_Wire_AttributeSection { let o = _accessor.offset(VTOFFSET.section.v); return o == 0 ? .unspecified : Cutaway_Wire_AttributeSection(rawValue: _accessor.readBuffer(of: UInt8.self, at: o)) ?? .unspecified }
+  internal var limits: FlatbufferVector<Cutaway_Wire_NumberLimit> { return _accessor.vector(at: VTOFFSET.limits.v, byteSize: 4) }
+  internal var cluster: String? { let o = _accessor.offset(VTOFFSET.cluster.v); return o == 0 ? nil : _accessor.string(at: o) }
+  internal var clusterSegmentArray: [UInt8]? { return _accessor.getVector(at: VTOFFSET.cluster.v) }
+  internal var slot: String? { let o = _accessor.offset(VTOFFSET.slot.v); return o == 0 ? nil : _accessor.string(at: o) }
+  internal var slotSegmentArray: [UInt8]? { return _accessor.getVector(at: VTOFFSET.slot.v) }
+  internal var inactiveCause: String? { let o = _accessor.offset(VTOFFSET.inactiveCause.v); return o == 0 ? nil : _accessor.string(at: o) }
+  internal var inactiveCauseSegmentArray: [UInt8]? { return _accessor.getVector(at: VTOFFSET.inactiveCause.v) }
+  internal var unit: Cutaway_Wire_AttributeUnit { let o = _accessor.offset(VTOFFSET.unit.v); return o == 0 ? .unspecified : Cutaway_Wire_AttributeUnit(rawValue: _accessor.readBuffer(of: UInt8.self, at: o)) ?? .unspecified }
+  internal static func startAttribute(_ fbb: inout FlatBufferBuilder) -> UOffset { fbb.startTable(with: 13) }
   internal static func add(id: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: id, at: VTOFFSET.id.p) }
   internal static func add(title: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: title, at: VTOFFSET.title.p) }
   internal static func add(valueType: Cutaway_Wire_AttributeValue, _ fbb: inout FlatBufferBuilder) { fbb.add(element: valueType.rawValue, def: 0, at: VTOFFSET.valueType.p) }
@@ -3046,6 +3374,12 @@ internal struct Cutaway_Wire_Attribute: FlatBufferTable, FlatbuffersVectorInitia
   internal static func add(acceptsNil: Bool, _ fbb: inout FlatBufferBuilder) { fbb.add(element: acceptsNil, def: false,
    at: VTOFFSET.acceptsNil.p) }
   internal static func add(valueKind: Cutaway_Wire_AttributeValueKind, _ fbb: inout FlatBufferBuilder) { fbb.add(element: valueKind.rawValue, def: 0, at: VTOFFSET.valueKind.p) }
+  internal static func add(section: Cutaway_Wire_AttributeSection, _ fbb: inout FlatBufferBuilder) { fbb.add(element: section.rawValue, def: 0, at: VTOFFSET.section.p) }
+  internal static func addVectorOf(limits: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: limits, at: VTOFFSET.limits.p) }
+  internal static func add(cluster: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: cluster, at: VTOFFSET.cluster.p) }
+  internal static func add(slot: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: slot, at: VTOFFSET.slot.p) }
+  internal static func add(inactiveCause: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: inactiveCause, at: VTOFFSET.inactiveCause.p) }
+  internal static func add(unit: Cutaway_Wire_AttributeUnit, _ fbb: inout FlatBufferBuilder) { fbb.add(element: unit.rawValue, def: 0, at: VTOFFSET.unit.p) }
   internal static func endAttribute(_ fbb: inout FlatBufferBuilder, start: UOffset) -> Offset { let end = Offset(offset: fbb.endTable(at: start)); return end }
   internal static func createAttribute(
     _ fbb: inout FlatBufferBuilder,
@@ -3055,7 +3389,13 @@ internal struct Cutaway_Wire_Attribute: FlatBufferTable, FlatbuffersVectorInitia
     valueOffset value: Offset = Offset(),
     editable: Bool = false,
     acceptsNil: Bool = false,
-    valueKind: Cutaway_Wire_AttributeValueKind = .none_
+    valueKind: Cutaway_Wire_AttributeValueKind = .none_,
+    section: Cutaway_Wire_AttributeSection = .unspecified,
+    limitsVectorOffset limits: Offset = Offset(),
+    clusterOffset cluster: Offset = Offset(),
+    slotOffset slot: Offset = Offset(),
+    inactiveCauseOffset inactiveCause: Offset = Offset(),
+    unit: Cutaway_Wire_AttributeUnit = .unspecified
   ) -> Offset {
     let __start = Cutaway_Wire_Attribute.startAttribute(&fbb)
     Cutaway_Wire_Attribute.add(id: id, &fbb)
@@ -3065,6 +3405,12 @@ internal struct Cutaway_Wire_Attribute: FlatBufferTable, FlatbuffersVectorInitia
     Cutaway_Wire_Attribute.add(editable: editable, &fbb)
     Cutaway_Wire_Attribute.add(acceptsNil: acceptsNil, &fbb)
     Cutaway_Wire_Attribute.add(valueKind: valueKind, &fbb)
+    Cutaway_Wire_Attribute.add(section: section, &fbb)
+    Cutaway_Wire_Attribute.addVectorOf(limits: limits, &fbb)
+    Cutaway_Wire_Attribute.add(cluster: cluster, &fbb)
+    Cutaway_Wire_Attribute.add(slot: slot, &fbb)
+    Cutaway_Wire_Attribute.add(inactiveCause: inactiveCause, &fbb)
+    Cutaway_Wire_Attribute.add(unit: unit, &fbb)
     return Cutaway_Wire_Attribute.endAttribute(&fbb, start: __start)
   }
 
@@ -3092,6 +3438,32 @@ internal struct Cutaway_Wire_Attribute: FlatBufferTable, FlatbuffersVectorInitia
     }
 
     let __value = obj.value?.pack(builder: &builder) ?? Offset()
+    var __limits__: [Offset] = []
+    for var i in obj.limits {
+      __limits__.append(Cutaway_Wire_NumberLimit.pack(&builder, obj: &i))
+    }
+    let __limits = builder.createVector(ofOffsets: __limits__)
+    let __cluster: Offset
+    if let s = obj.cluster {
+      __cluster = builder.create(string: s)
+    } else {
+      __cluster = Offset()
+    }
+
+    let __slot: Offset
+    if let s = obj.slot {
+      __slot = builder.create(string: s)
+    } else {
+      __slot = Offset()
+    }
+
+    let __inactiveCause: Offset
+    if let s = obj.inactiveCause {
+      __inactiveCause = builder.create(string: s)
+    } else {
+      __inactiveCause = Offset()
+    }
+
     let __root = Cutaway_Wire_Attribute.startAttribute(&builder)
     Cutaway_Wire_Attribute.add(id: __id, &builder)
     Cutaway_Wire_Attribute.add(title: __title, &builder)
@@ -3103,6 +3475,12 @@ internal struct Cutaway_Wire_Attribute: FlatBufferTable, FlatbuffersVectorInitia
     Cutaway_Wire_Attribute.add(editable: obj.editable, &builder)
     Cutaway_Wire_Attribute.add(acceptsNil: obj.acceptsNil, &builder)
     Cutaway_Wire_Attribute.add(valueKind: obj.valueKind, &builder)
+    Cutaway_Wire_Attribute.add(section: obj.section, &builder)
+    Cutaway_Wire_Attribute.addVectorOf(limits: __limits, &builder)
+    Cutaway_Wire_Attribute.add(cluster: __cluster, &builder)
+    Cutaway_Wire_Attribute.add(slot: __slot, &builder)
+    Cutaway_Wire_Attribute.add(inactiveCause: __inactiveCause, &builder)
+    Cutaway_Wire_Attribute.add(unit: obj.unit, &builder)
     return Cutaway_Wire_Attribute.endAttribute(&builder, start: __root)
   }
 
@@ -3141,6 +3519,12 @@ internal struct Cutaway_Wire_Attribute: FlatBufferTable, FlatbuffersVectorInitia
     try _v.visit(field: VTOFFSET.editable.p, fieldName: "editable", required: false, type: Bool.self)
     try _v.visit(field: VTOFFSET.acceptsNil.p, fieldName: "acceptsNil", required: false, type: Bool.self)
     try _v.visit(field: VTOFFSET.valueKind.p, fieldName: "valueKind", required: false, type: Cutaway_Wire_AttributeValueKind.self)
+    try _v.visit(field: VTOFFSET.section.p, fieldName: "section", required: false, type: Cutaway_Wire_AttributeSection.self)
+    try _v.visit(field: VTOFFSET.limits.p, fieldName: "limits", required: false, type: ForwardOffset<Vector<ForwardOffset<Cutaway_Wire_NumberLimit>, Cutaway_Wire_NumberLimit>>.self)
+    try _v.visit(field: VTOFFSET.cluster.p, fieldName: "cluster", required: false, type: ForwardOffset<String>.self)
+    try _v.visit(field: VTOFFSET.slot.p, fieldName: "slot", required: false, type: ForwardOffset<String>.self)
+    try _v.visit(field: VTOFFSET.inactiveCause.p, fieldName: "inactiveCause", required: false, type: ForwardOffset<String>.self)
+    try _v.visit(field: VTOFFSET.unit.p, fieldName: "unit", required: false, type: Cutaway_Wire_AttributeUnit.self)
     _v.finish()
   }
 }
@@ -3153,6 +3537,12 @@ internal class Cutaway_Wire_AttributeT: NativeObject {
   internal var editable: Bool
   internal var acceptsNil: Bool
   internal var valueKind: Cutaway_Wire_AttributeValueKind
+  internal var section: Cutaway_Wire_AttributeSection
+  internal var limits: [Cutaway_Wire_NumberLimitT?]
+  internal var cluster: String?
+  internal var slot: String?
+  internal var inactiveCause: String?
+  internal var unit: Cutaway_Wire_AttributeUnit
 
   internal init(_ _t: borrowing Cutaway_Wire_Attribute) {
     id = _t.id
@@ -3196,12 +3586,24 @@ internal class Cutaway_Wire_AttributeT: NativeObject {
     editable = _t.editable
     acceptsNil = _t.acceptsNil
     valueKind = _t.valueKind
+    section = _t.section
+    limits = []
+    for val in _t.limits{
+        limits.append(val.unpack())
+    }
+    cluster = _t.cluster
+    slot = _t.slot
+    inactiveCause = _t.inactiveCause
+    unit = _t.unit
   }
 
   internal init() {
     editable = false
     acceptsNil = false
     valueKind = .none_
+    section = .unspecified
+    limits = []
+    unit = .unspecified
   }
 
   internal func serialize() -> ByteBuffer { return serialize(type: Cutaway_Wire_Attribute.self) }
@@ -3222,6 +3624,7 @@ internal struct Cutaway_Wire_AttributeGroup: FlatBufferTable, FlatbuffersVectorI
     case id = 4
     case title = 6
     case attributes = 8
+    case className = 10
     var v: Int32 { Int32(self.rawValue) }
     var p: VOffset { self.rawValue }
   }
@@ -3231,21 +3634,26 @@ internal struct Cutaway_Wire_AttributeGroup: FlatBufferTable, FlatbuffersVectorI
   internal var title: String? { let o = _accessor.offset(VTOFFSET.title.v); return o == 0 ? nil : _accessor.string(at: o) }
   internal var titleSegmentArray: [UInt8]? { return _accessor.getVector(at: VTOFFSET.title.v) }
   internal var attributes: FlatbufferVector<Cutaway_Wire_Attribute> { return _accessor.vector(at: VTOFFSET.attributes.v, byteSize: 4) }
-  internal static func startAttributeGroup(_ fbb: inout FlatBufferBuilder) -> UOffset { fbb.startTable(with: 3) }
+  internal var className: String? { let o = _accessor.offset(VTOFFSET.className.v); return o == 0 ? nil : _accessor.string(at: o) }
+  internal var classNameSegmentArray: [UInt8]? { return _accessor.getVector(at: VTOFFSET.className.v) }
+  internal static func startAttributeGroup(_ fbb: inout FlatBufferBuilder) -> UOffset { fbb.startTable(with: 4) }
   internal static func add(id: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: id, at: VTOFFSET.id.p) }
   internal static func add(title: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: title, at: VTOFFSET.title.p) }
   internal static func addVectorOf(attributes: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: attributes, at: VTOFFSET.attributes.p) }
+  internal static func add(className: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: className, at: VTOFFSET.className.p) }
   internal static func endAttributeGroup(_ fbb: inout FlatBufferBuilder, start: UOffset) -> Offset { let end = Offset(offset: fbb.endTable(at: start)); return end }
   internal static func createAttributeGroup(
     _ fbb: inout FlatBufferBuilder,
     idOffset id: Offset = Offset(),
     titleOffset title: Offset = Offset(),
-    attributesVectorOffset attributes: Offset = Offset()
+    attributesVectorOffset attributes: Offset = Offset(),
+    classNameOffset className: Offset = Offset()
   ) -> Offset {
     let __start = Cutaway_Wire_AttributeGroup.startAttributeGroup(&fbb)
     Cutaway_Wire_AttributeGroup.add(id: id, &fbb)
     Cutaway_Wire_AttributeGroup.add(title: title, &fbb)
     Cutaway_Wire_AttributeGroup.addVectorOf(attributes: attributes, &fbb)
+    Cutaway_Wire_AttributeGroup.add(className: className, &fbb)
     return Cutaway_Wire_AttributeGroup.endAttributeGroup(&fbb, start: __start)
   }
 
@@ -3277,10 +3685,18 @@ internal struct Cutaway_Wire_AttributeGroup: FlatBufferTable, FlatbuffersVectorI
       __attributes__.append(Cutaway_Wire_Attribute.pack(&builder, obj: &i))
     }
     let __attributes = builder.createVector(ofOffsets: __attributes__)
+    let __className: Offset
+    if let s = obj.className {
+      __className = builder.create(string: s)
+    } else {
+      __className = Offset()
+    }
+
     let __root = Cutaway_Wire_AttributeGroup.startAttributeGroup(&builder)
     Cutaway_Wire_AttributeGroup.add(id: __id, &builder)
     Cutaway_Wire_AttributeGroup.add(title: __title, &builder)
     Cutaway_Wire_AttributeGroup.addVectorOf(attributes: __attributes, &builder)
+    Cutaway_Wire_AttributeGroup.add(className: __className, &builder)
     return Cutaway_Wire_AttributeGroup.endAttributeGroup(&builder, start: __root)
   }
 
@@ -3289,6 +3705,7 @@ internal struct Cutaway_Wire_AttributeGroup: FlatBufferTable, FlatbuffersVectorI
     try _v.visit(field: VTOFFSET.id.p, fieldName: "id", required: false, type: ForwardOffset<String>.self)
     try _v.visit(field: VTOFFSET.title.p, fieldName: "title", required: false, type: ForwardOffset<String>.self)
     try _v.visit(field: VTOFFSET.attributes.p, fieldName: "attributes", required: false, type: ForwardOffset<Vector<ForwardOffset<Cutaway_Wire_Attribute>, Cutaway_Wire_Attribute>>.self)
+    try _v.visit(field: VTOFFSET.className.p, fieldName: "className", required: false, type: ForwardOffset<String>.self)
     _v.finish()
   }
 }
@@ -3298,6 +3715,7 @@ internal class Cutaway_Wire_AttributeGroupT: NativeObject {
   internal var id: String?
   internal var title: String?
   internal var attributes: [Cutaway_Wire_AttributeT?]
+  internal var className: String?
 
   internal init(_ _t: borrowing Cutaway_Wire_AttributeGroup) {
     id = _t.id
@@ -3306,6 +3724,7 @@ internal class Cutaway_Wire_AttributeGroupT: NativeObject {
     for val in _t.attributes{
         attributes.append(val.unpack())
     }
+    className = _t.className
   }
 
   internal init() {
@@ -3866,6 +4285,7 @@ internal struct Cutaway_Wire_LayoutItem: FlatBufferTable, FlatbuffersVectorIniti
     case displayClassName = 12
     case identifier = 14
     case guideFrame = 16
+    case guideKind = 18
     var v: Int32 { Int32(self.rawValue) }
     var p: VOffset { self.rawValue }
   }
@@ -3881,7 +4301,8 @@ internal struct Cutaway_Wire_LayoutItem: FlatBufferTable, FlatbuffersVectorIniti
   internal var identifierSegmentArray: [UInt8]? { return _accessor.getVector(at: VTOFFSET.identifier.v) }
   internal var guideFrame: Cutaway_Wire_Rect? { let o = _accessor.offset(VTOFFSET.guideFrame.v); return o == 0 ? nil : _accessor.readBuffer(of: Cutaway_Wire_Rect.self, at: o) }
   internal var mutableGuideFrame: Cutaway_Wire_Rect_Mutable? { let o = _accessor.offset(VTOFFSET.guideFrame.v); return o == 0 ? nil : Cutaway_Wire_Rect_Mutable(_accessor.bb, o: o + _accessor.position) }
-  internal static func startLayoutItem(_ fbb: inout FlatBufferBuilder) -> UOffset { fbb.startTable(with: 7) }
+  internal var guideKind: Cutaway_Wire_LayoutGuideKind { let o = _accessor.offset(VTOFFSET.guideKind.v); return o == 0 ? .unknown : Cutaway_Wire_LayoutGuideKind(rawValue: _accessor.readBuffer(of: UInt8.self, at: o)) ?? .unknown }
+  internal static func startLayoutItem(_ fbb: inout FlatBufferBuilder) -> UOffset { fbb.startTable(with: 8) }
   internal static func add(kind: Cutaway_Wire_LayoutItemKind, _ fbb: inout FlatBufferBuilder) { fbb.add(element: kind.rawValue, def: 0, at: VTOFFSET.kind.p) }
   internal static func add(layerId: UInt64, _ fbb: inout FlatBufferBuilder) { fbb.add(element: layerId, def: 0, at: VTOFFSET.layerId.p) }
   internal static func add(guideId: UInt64, _ fbb: inout FlatBufferBuilder) { fbb.add(element: guideId, def: 0, at: VTOFFSET.guideId.p) }
@@ -3889,6 +4310,7 @@ internal struct Cutaway_Wire_LayoutItem: FlatBufferTable, FlatbuffersVectorIniti
   internal static func add(displayClassName: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: displayClassName, at: VTOFFSET.displayClassName.p) }
   internal static func add(identifier: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: identifier, at: VTOFFSET.identifier.p) }
   internal static func add(guideFrame: Cutaway_Wire_Rect?, _ fbb: inout FlatBufferBuilder) { guard let guideFrame = guideFrame else { return }; fbb.create(struct: guideFrame, position: VTOFFSET.guideFrame.p) }
+  internal static func add(guideKind: Cutaway_Wire_LayoutGuideKind, _ fbb: inout FlatBufferBuilder) { fbb.add(element: guideKind.rawValue, def: 0, at: VTOFFSET.guideKind.p) }
   internal static func endLayoutItem(_ fbb: inout FlatBufferBuilder, start: UOffset) -> Offset { let end = Offset(offset: fbb.endTable(at: start)); return end }
   internal static func createLayoutItem(
     _ fbb: inout FlatBufferBuilder,
@@ -3898,7 +4320,8 @@ internal struct Cutaway_Wire_LayoutItem: FlatBufferTable, FlatbuffersVectorIniti
     classNameOffset className: Offset = Offset(),
     displayClassNameOffset displayClassName: Offset = Offset(),
     identifierOffset identifier: Offset = Offset(),
-    guideFrame: Cutaway_Wire_Rect? = nil
+    guideFrame: Cutaway_Wire_Rect? = nil,
+    guideKind: Cutaway_Wire_LayoutGuideKind = .unknown
   ) -> Offset {
     let __start = Cutaway_Wire_LayoutItem.startLayoutItem(&fbb)
     Cutaway_Wire_LayoutItem.add(kind: kind, &fbb)
@@ -3908,6 +4331,7 @@ internal struct Cutaway_Wire_LayoutItem: FlatBufferTable, FlatbuffersVectorIniti
     Cutaway_Wire_LayoutItem.add(displayClassName: displayClassName, &fbb)
     Cutaway_Wire_LayoutItem.add(identifier: identifier, &fbb)
     Cutaway_Wire_LayoutItem.add(guideFrame: guideFrame, &fbb)
+    Cutaway_Wire_LayoutItem.add(guideKind: guideKind, &fbb)
     return Cutaway_Wire_LayoutItem.endLayoutItem(&fbb, start: __start)
   }
 
@@ -3949,6 +4373,7 @@ internal struct Cutaway_Wire_LayoutItem: FlatBufferTable, FlatbuffersVectorIniti
     Cutaway_Wire_LayoutItem.add(displayClassName: __displayClassName, &builder)
     Cutaway_Wire_LayoutItem.add(identifier: __identifier, &builder)
     Cutaway_Wire_LayoutItem.add(guideFrame: obj.guideFrame, &builder)
+    Cutaway_Wire_LayoutItem.add(guideKind: obj.guideKind, &builder)
     return Cutaway_Wire_LayoutItem.endLayoutItem(&builder, start: __root)
   }
 
@@ -3961,6 +4386,7 @@ internal struct Cutaway_Wire_LayoutItem: FlatBufferTable, FlatbuffersVectorIniti
     try _v.visit(field: VTOFFSET.displayClassName.p, fieldName: "displayClassName", required: false, type: ForwardOffset<String>.self)
     try _v.visit(field: VTOFFSET.identifier.p, fieldName: "identifier", required: false, type: ForwardOffset<String>.self)
     try _v.visit(field: VTOFFSET.guideFrame.p, fieldName: "guideFrame", required: false, type: Cutaway_Wire_Rect.self)
+    try _v.visit(field: VTOFFSET.guideKind.p, fieldName: "guideKind", required: false, type: Cutaway_Wire_LayoutGuideKind.self)
     _v.finish()
   }
 }
@@ -3974,6 +4400,7 @@ internal class Cutaway_Wire_LayoutItemT: NativeObject {
   internal var displayClassName: String?
   internal var identifier: String?
   internal var guideFrame: Cutaway_Wire_Rect?
+  internal var guideKind: Cutaway_Wire_LayoutGuideKind
 
   internal init(_ _t: borrowing Cutaway_Wire_LayoutItem) {
     kind = _t.kind
@@ -3983,6 +4410,7 @@ internal class Cutaway_Wire_LayoutItemT: NativeObject {
     displayClassName = _t.displayClassName
     identifier = _t.identifier
     guideFrame = _t.guideFrame
+    guideKind = _t.guideKind
   }
 
   internal init() {
@@ -3990,6 +4418,7 @@ internal class Cutaway_Wire_LayoutItemT: NativeObject {
     layerId = 0
     guideId = 0
     guideFrame = Cutaway_Wire_Rect()
+    guideKind = .unknown
   }
 
   internal func serialize() -> ByteBuffer { return serialize(type: Cutaway_Wire_LayoutItem.self) }
@@ -4019,6 +4448,7 @@ internal struct Cutaway_Wire_LayoutConstraint: FlatBufferTable, FlatbuffersVecto
     case constant = 22
     case priority = 24
     case status = 26
+    case origin = 28
     var v: Int32 { Int32(self.rawValue) }
     var p: VOffset { self.rawValue }
   }
@@ -4037,7 +4467,8 @@ internal struct Cutaway_Wire_LayoutConstraint: FlatBufferTable, FlatbuffersVecto
   internal var constant: Double { let o = _accessor.offset(VTOFFSET.constant.v); return o == 0 ? 0.0 : _accessor.readBuffer(of: Double.self, at: o) }
   internal var priority: Float32 { let o = _accessor.offset(VTOFFSET.priority.v); return o == 0 ? 0.0 : _accessor.readBuffer(of: Float32.self, at: o) }
   internal var status: Cutaway_Wire_ConstraintStatus { let o = _accessor.offset(VTOFFSET.status.v); return o == 0 ? .unknown : Cutaway_Wire_ConstraintStatus(rawValue: _accessor.readBuffer(of: UInt8.self, at: o)) ?? .unknown }
-  internal static func startLayoutConstraint(_ fbb: inout FlatBufferBuilder) -> UOffset { fbb.startTable(with: 12) }
+  internal var origin: Cutaway_Wire_Origin { let o = _accessor.offset(VTOFFSET.origin.v); return o == 0 ? .unknown : Cutaway_Wire_Origin(rawValue: _accessor.readBuffer(of: UInt8.self, at: o)) ?? .unknown }
+  internal static func startLayoutConstraint(_ fbb: inout FlatBufferBuilder) -> UOffset { fbb.startTable(with: 13) }
   internal static func add(id: UInt64, _ fbb: inout FlatBufferBuilder) { fbb.add(element: id, def: 0, at: VTOFFSET.id.p) }
   internal static func add(className: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: className, at: VTOFFSET.className.p) }
   internal static func add(identifier: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: identifier, at: VTOFFSET.identifier.p) }
@@ -4050,6 +4481,7 @@ internal struct Cutaway_Wire_LayoutConstraint: FlatBufferTable, FlatbuffersVecto
   internal static func add(constant: Double, _ fbb: inout FlatBufferBuilder) { fbb.add(element: constant, def: 0.0, at: VTOFFSET.constant.p) }
   internal static func add(priority: Float32, _ fbb: inout FlatBufferBuilder) { fbb.add(element: priority, def: 0.0, at: VTOFFSET.priority.p) }
   internal static func add(status: Cutaway_Wire_ConstraintStatus, _ fbb: inout FlatBufferBuilder) { fbb.add(element: status.rawValue, def: 0, at: VTOFFSET.status.p) }
+  internal static func add(origin: Cutaway_Wire_Origin, _ fbb: inout FlatBufferBuilder) { fbb.add(element: origin.rawValue, def: 0, at: VTOFFSET.origin.p) }
   internal static func endLayoutConstraint(_ fbb: inout FlatBufferBuilder, start: UOffset) -> Offset { let end = Offset(offset: fbb.endTable(at: start)); return end }
   internal static func createLayoutConstraint(
     _ fbb: inout FlatBufferBuilder,
@@ -4064,7 +4496,8 @@ internal struct Cutaway_Wire_LayoutConstraint: FlatBufferTable, FlatbuffersVecto
     multiplier: Double = 0.0,
     constant: Double = 0.0,
     priority: Float32 = 0.0,
-    status: Cutaway_Wire_ConstraintStatus = .unknown
+    status: Cutaway_Wire_ConstraintStatus = .unknown,
+    origin: Cutaway_Wire_Origin = .unknown
   ) -> Offset {
     let __start = Cutaway_Wire_LayoutConstraint.startLayoutConstraint(&fbb)
     Cutaway_Wire_LayoutConstraint.add(id: id, &fbb)
@@ -4079,6 +4512,7 @@ internal struct Cutaway_Wire_LayoutConstraint: FlatBufferTable, FlatbuffersVecto
     Cutaway_Wire_LayoutConstraint.add(constant: constant, &fbb)
     Cutaway_Wire_LayoutConstraint.add(priority: priority, &fbb)
     Cutaway_Wire_LayoutConstraint.add(status: status, &fbb)
+    Cutaway_Wire_LayoutConstraint.add(origin: origin, &fbb)
     return Cutaway_Wire_LayoutConstraint.endLayoutConstraint(&fbb, start: __start)
   }
 
@@ -4120,6 +4554,7 @@ internal struct Cutaway_Wire_LayoutConstraint: FlatBufferTable, FlatbuffersVecto
     Cutaway_Wire_LayoutConstraint.add(constant: obj.constant, &builder)
     Cutaway_Wire_LayoutConstraint.add(priority: obj.priority, &builder)
     Cutaway_Wire_LayoutConstraint.add(status: obj.status, &builder)
+    Cutaway_Wire_LayoutConstraint.add(origin: obj.origin, &builder)
     return Cutaway_Wire_LayoutConstraint.endLayoutConstraint(&builder, start: __root)
   }
 
@@ -4137,6 +4572,7 @@ internal struct Cutaway_Wire_LayoutConstraint: FlatBufferTable, FlatbuffersVecto
     try _v.visit(field: VTOFFSET.constant.p, fieldName: "constant", required: false, type: Double.self)
     try _v.visit(field: VTOFFSET.priority.p, fieldName: "priority", required: false, type: Float32.self)
     try _v.visit(field: VTOFFSET.status.p, fieldName: "status", required: false, type: Cutaway_Wire_ConstraintStatus.self)
+    try _v.visit(field: VTOFFSET.origin.p, fieldName: "origin", required: false, type: Cutaway_Wire_Origin.self)
     _v.finish()
   }
 }
@@ -4155,6 +4591,7 @@ internal class Cutaway_Wire_LayoutConstraintT: NativeObject {
   internal var constant: Double
   internal var priority: Float32
   internal var status: Cutaway_Wire_ConstraintStatus
+  internal var origin: Cutaway_Wire_Origin
 
   internal init(_ _t: borrowing Cutaway_Wire_LayoutConstraint) {
     id = _t.id
@@ -4169,6 +4606,7 @@ internal class Cutaway_Wire_LayoutConstraintT: NativeObject {
     constant = _t.constant
     priority = _t.priority
     status = _t.status
+    origin = _t.origin
   }
 
   internal init() {
@@ -4182,6 +4620,7 @@ internal class Cutaway_Wire_LayoutConstraintT: NativeObject {
     constant = 0.0
     priority = 0.0
     status = .unknown
+    origin = .unknown
   }
 
   internal func serialize() -> ByteBuffer { return serialize(type: Cutaway_Wire_LayoutConstraint.self) }

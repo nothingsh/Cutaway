@@ -205,7 +205,47 @@ extension LayerNode {
             isHidden: wire.hidden, opacity: wire.opacity, masksToBounds: wire.masksToBounds,
             viewControllerClassName: wire.viewControllerClassName,
             viewControllerDisplayClassName: wire.viewControllerDisplayClassName,
-            memberReferences: wire.memberReferences.map { MemberReference($0) })
+            memberReferences: wire.memberReferences.map { MemberReference($0) },
+            layerAddress: Self.address(wire.layerAddress), viewAddress: Self.address(wire.viewAddress),
+            viewControllerAddress: Self.address(wire.viewControllerAddress),
+            layerClassOrigin: ClassOrigin(wire.layerClassOrigin),
+            viewClassOrigin: ClassOrigin(wire.viewClassOrigin),
+            viewControllerClassOrigin: ClassOrigin(wire.viewControllerClassOrigin),
+            layerBaseClassName: nonEmpty(wire.layerBaseClassName),
+            viewBaseClassName: nonEmpty(wire.viewBaseClassName),
+            viewControllerVisibility: ViewControllerVisibility(wire.viewControllerVisibility))
+    }
+
+    /// 0 means absent (P-HIER-14).
+    private static func address(_ wire: UInt64) -> UInt64? {
+        wire == 0 ? nil : wire
+    }
+}
+
+/// A protocol 1.1 string field whose empty value means nothing but absent (C-WIRE-11).
+private func nonEmpty(_ string: String?) -> String? {
+    guard let string, !string.isEmpty else { return nil }
+    return string
+}
+
+extension ClassOrigin {
+    /// The runtime already reads a value this client does not know as `Unknown`.
+    init(_ wire: Cutaway_Wire_Origin) {
+        switch wire {
+        case .unknown: self = .unknown
+        case .system: self = .system
+        case .app: self = .app
+        }
+    }
+}
+
+extension ViewControllerVisibility {
+    init(_ wire: Cutaway_Wire_ViewControllerVisibility) {
+        switch wire {
+        case .unknown: self = .unknown
+        case .shown: self = .shown
+        case .notshown: self = .notShown
+        }
     }
 }
 
@@ -299,14 +339,95 @@ extension Attribute {
     init(_ wire: Cutaway_Wire_Attribute) {
         self.init(
             id: wire.id, title: wire.title, value: AttributeValue(wire), editable: wire.editable,
-            acceptsNil: wire.acceptsNil, valueKind: AttributeValueKind(wire.valueKind))
+            acceptsNil: wire.acceptsNil, valueKind: AttributeValueKind(wire.valueKind),
+            section: AttributeSection(wire.section))
+        // A unit on a kind that cannot have one is read as none (P-ATTR-14, C-WIRE-11).
+        if valueKind.mayHaveUnit { unit = AttributeUnit(wire.unit) }
+        limits = Self.limits(
+            wire.limits.map { NumberLimit($0) }, editable: editable, kind: valueKind)
+        // P-ATTR-12 gives both or neither; one alone is read as neither (C-WIRE-11).
+        if let name = nonEmpty(wire.cluster), let slot = nonEmpty(wire.slot) {
+            cluster = AttributeCluster(name: name, slot: slot)
+        }
+        inactiveCause = nonEmpty(wire.inactiveCause)
+        if wire.valueType == .colorvalue {
+            systemColorName = nonEmpty(wire.value(type: Cutaway_Wire_ColorValue.self)?.systemName)
+        }
+    }
+
+    /// The limits as P-ATTR-09 and P-ATTR-10 allow them, or nil (C-WIRE-10): only for an
+    /// editable number of a kind that has them, with one entry or one per component, each
+    /// entry finite and with some value between its bounds (a whole one for an integer).
+    /// Anything else is read as no limits rather than fail the decoding.
+    static func limits(
+        _ limits: [NumberLimit], editable: Bool, kind: AttributeValueKind
+    ) -> [NumberLimit]? {
+        guard editable, let count = kind.numericComponentCount, !limits.isEmpty,
+              limits.count == 1 || limits.count == count,
+              limits.allSatisfy({ $0.isValid(integer: kind == .integer) })
+        else { return nil }
+        return limits
+    }
+}
+
+extension AttributeSection {
+    /// The runtime already reads a value this client does not know as `Unspecified`.
+    init(_ wire: Cutaway_Wire_AttributeSection) {
+        switch wire {
+        case .unspecified: self = .unspecified
+        case .identity: self = .identity
+        case .general: self = .general
+        case .layout: self = .layout
+        case .content: self = .content
+        case .appearance: self = .appearance
+        case .behavior: self = .behavior
+        }
+    }
+}
+
+extension AttributeUnit {
+    /// The runtime already reads a value this client does not know as `Unspecified`.
+    init(_ wire: Cutaway_Wire_AttributeUnit) {
+        switch wire {
+        case .unspecified: self = .unspecified
+        case .points: self = .points
+        case .fraction: self = .fraction
+        }
+    }
+}
+
+extension NumberLimit {
+    /// A side whose `has_` field is false is free; its other two fields are ignored.
+    init(_ wire: Cutaway_Wire_NumberLimit) {
+        self.init(
+            minimum: wire.hasMinimum ? wire.minimum : nil,
+            minimumIsExclusive: wire.hasMinimum && wire.minimumExclusive,
+            maximum: wire.hasMaximum ? wire.maximum : nil,
+            maximumIsExclusive: wire.hasMaximum && wire.maximumExclusive)
+    }
+
+    /// Whether the entry is one P-ATTR-10 allows: finite bounds, integers for an integer,
+    /// and some value (a whole one for an integer) between them.
+    func isValid(integer: Bool) -> Bool {
+        let bounds = [minimum, maximum].compactMap { $0 }
+        guard bounds.allSatisfy(\.isFinite) else { return false }
+        if integer, !bounds.allSatisfy({ $0.rounded() == $0 }) { return false }
+        guard let minimum, let maximum else { return true }
+        if integer {
+            let lowest = minimumIsExclusive ? minimum + 1 : minimum
+            let highest = maximumIsExclusive ? maximum - 1 : maximum
+            return lowest <= highest
+        }
+        if minimumIsExclusive || maximumIsExclusive { return minimum < maximum }
+        return minimum <= maximum
     }
 }
 
 extension AttributeGroup {
     init(_ wire: Cutaway_Wire_AttributeGroup) {
         self.init(
-            id: wire.id, title: wire.title, attributes: wire.attributes.map { Attribute($0) })
+            id: wire.id, title: wire.title, attributes: wire.attributes.map { Attribute($0) },
+            className: nonEmpty(wire.className))
     }
 }
 
@@ -365,7 +486,7 @@ extension LayoutItem {
             self = .layoutGuide(LayoutGuide(
                 ownerLayerID: wire.layerId, guideID: wire.guideId, className: wire.className,
                 displayClassName: wire.displayClassName, identifier: wire.identifier,
-                frame: wire.guideFrame.map { Rect($0) }))
+                frame: wire.guideFrame.map { Rect($0) }, kind: LayoutGuideKind(wire.guideKind)))
         case .other:
             self = .other(className: wire.className, displayClassName: wire.displayClassName)
         }
@@ -381,7 +502,22 @@ extension LayoutConstraint {
             relation: LayoutRelation(wire.relation),
             secondItem: wire.secondItem.map { LayoutItem($0) },
             secondAttribute: LayoutAttribute(wire.secondAttribute), multiplier: wire.multiplier,
-            constant: wire.constant, priority: wire.priority, status: ConstraintStatus(wire.status))
+            constant: wire.constant, priority: wire.priority, status: ConstraintStatus(wire.status),
+            origin: ClassOrigin(wire.origin))
+    }
+}
+
+extension LayoutGuideKind {
+    /// The runtime already reads a value this client does not know as `Unknown`.
+    init(_ wire: Cutaway_Wire_LayoutGuideKind) {
+        switch wire {
+        case .unknown: self = .unknown
+        case .other: self = .other
+        case .safearea: self = .safeArea
+        case .layoutmargins: self = .layoutMargins
+        case .readablecontent: self = .readableContent
+        case .keyboard: self = .keyboard
+        }
     }
 }
 

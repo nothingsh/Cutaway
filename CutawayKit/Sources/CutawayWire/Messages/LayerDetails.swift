@@ -7,7 +7,7 @@ public struct LayerDetailRequest: Equatable, Sendable {
     public var wantSolo: Bool
     public var wantGroup: Bool
     public var wantAttributes: Bool
-    /// Protocol 0.4. A 0.3 server ignores it.
+    /// Protocol 0.4.
     public var wantConstraints: Bool
 
     public init(
@@ -42,8 +42,8 @@ public struct LayerDetail: Equatable, Sendable {
     public var group: EncodedImage?
     public var attributeGroups: [AttributeGroup]
     /// Protocol 0.4 (P-LAYOUT-01). Empty when they were not asked for, when the layer backs no
-    /// view, when the view has none, and from a 0.3 server: the wire cannot tell an absent list
-    /// from an empty one, so the caller goes by the negotiated version and the layer.
+    /// view, and when the view has none: the wire cannot tell an absent list from an empty
+    /// one, so the caller goes by the layer.
     public var constraints: [LayoutConstraint]
 
     public init(
