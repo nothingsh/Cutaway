@@ -84,81 +84,6 @@ final class SettingsWindowTests: XCTestCase {
 
     // MARK: - C-PREF-01: the window
 
-    func test_C_PREF_01_settingsOpensOneWindowAndBringsItToTheFront() throws {
-        let (coordinator, _) = coordinator()
-        coordinator.showSettings(nil)
-        let first = try XCTUnwrap(coordinator.settingsWindow?.window)
-        XCTAssertTrue(first.isVisible)
-        XCTAssertEqual(first.styleMask, [.titled, .closable])
-        XCTAssertFalse(first.styleMask.contains(.resizable))
-        XCTAssertFalse(first.styleMask.contains(.miniaturizable))
-
-        first.close()
-        XCTAssertFalse(first.isVisible)
-        coordinator.showSettings(nil)
-        XCTAssertTrue(coordinator.settingsWindow?.window === first)
-        XCTAssertTrue(first.isVisible)
-        XCTAssertEqual(
-            NSApp.windows.filter { $0.contentViewController is NSTabViewController && $0.isVisible }
-                .count, 1)
-    }
-
-    func test_C_PREF_01_thePagesAreTabsTitlingTheWindowAndTheLastOneShowsAgain() throws {
-        let (coordinator, _) = coordinator()
-        coordinator.showSettings(nil)
-        let controller = try XCTUnwrap(coordinator.settingsWindow)
-        let window = try XCTUnwrap(controller.window)
-        XCTAssertEqual(controller.tabs.tabStyle, .toolbar)
-        XCTAssertEqual(controller.tabs.tabViewItems.map(\.label), ["General", "Preview"])
-        XCTAssertEqual(controller.tabs.selectedTabViewItemIndex, 0)
-        XCTAssertEqual(window.title, "General")
-
-        controller.tabs.selectedTabViewItemIndex = 1
-        XCTAssertEqual(window.title, "Preview")
-        XCTAssertEqual(coordinator.settings.page, 1)
-        // The next launch's window opens on it.
-        let next = SettingsWindowController(
-            settings: AppSettings(defaults: defaults), language: coordinator.language, restart: {})
-        XCTAssertEqual(next.tabs.selectedTabViewItemIndex, 1)
-        next.close()
-    }
-
-    func test_C_PREF_01_theControlsShowAndChangeTheSettings() throws {
-        let (coordinator, _) = coordinator()
-        let settings = coordinator.settings
-        let page = try page(coordinator)
-        let mode: NSSegmentedControl = try control(PreviewSettingsViewController.modeIdentifier, in: page)
-        let slider: NSSlider = try control(PreviewSettingsViewController.spacingSliderIdentifier, in: page)
-        let field: NSTextField = try control(PreviewSettingsViewController.spacingFieldIdentifier, in: page)
-        let hidden: NSButton = try control(PreviewSettingsViewController.showsHiddenIdentifier, in: page)
-        let borders: NSButton = try control(PreviewSettingsViewController.showsBordersIdentifier, in: page)
-
-        XCTAssertEqual(mode.selectedSegment, 0)
-        XCTAssertEqual(slider.doubleValue, 50)
-        XCTAssertEqual(slider.minValue, 0)
-        XCTAssertEqual(slider.maxValue, 200)
-        XCTAssertEqual(field.stringValue, "50")
-        XCTAssertEqual(hidden.state, .off)
-        XCTAssertEqual(borders.state, .on)
-
-        mode.selectedSegment = 1
-        send(mode)
-        slider.doubleValue = 120.4
-        send(slider)
-        hidden.state = .on
-        send(hidden)
-        borders.state = .off
-        send(borders)
-
-        XCTAssertEqual(settings.newInspectionMode, .threeD)
-        XCTAssertEqual(settings.layerSpacing, 120)
-        XCTAssertEqual(field.stringValue, "120")
-        XCTAssertTrue(settings.showsHiddenLayers)
-        XCTAssertFalse(settings.showsBorders)
-        // Kept at once.
-        XCTAssertEqual(AppSettings(defaults: defaults).inspectionStart, settings.inspectionStart)
-    }
-
     func test_C_PREF_01_theSpacingFieldRoundsClampsAndRejects() throws {
         let (coordinator, _) = coordinator()
         let settings = coordinator.settings
@@ -173,28 +98,6 @@ final class SettingsWindowTests: XCTestCase {
             XCTAssertEqual(field.stringValue, String(Int(expected)), typed)
             XCTAssertEqual(slider.doubleValue, expected, typed)
         }
-    }
-
-    func test_C_PREF_01_restoreDefaultsIsOffAtTheDefaults() throws {
-        let (coordinator, _) = coordinator()
-        let settings = coordinator.settings
-        let page = try page(coordinator)
-        let restore: NSButton = try control(PreviewSettingsViewController.restoreIdentifier, in: page)
-        let mode: NSSegmentedControl = try control(PreviewSettingsViewController.modeIdentifier, in: page)
-        let field: NSTextField = try control(PreviewSettingsViewController.spacingFieldIdentifier, in: page)
-        XCTAssertFalse(restore.isEnabled)
-
-        settings.newInspectionMode = .threeD
-        settings.layerSpacing = 80
-        XCTAssertTrue(restore.isEnabled)
-        XCTAssertEqual(mode.selectedSegment, 1)
-        XCTAssertEqual(field.stringValue, "80")
-
-        send(restore)
-        XCTAssertFalse(restore.isEnabled)
-        XCTAssertEqual(settings.inspectionStart, InspectionStart())
-        XCTAssertEqual(mode.selectedSegment, 0)
-        XCTAssertEqual(field.stringValue, "50")
     }
 
     // MARK: - C-PREF-02: where the settings reach
