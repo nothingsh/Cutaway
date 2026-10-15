@@ -85,33 +85,6 @@ final class SessionRecordingTests: XCTestCase {
         await server.stop()
     }
 
-    func test_C_ARCH_01_recordedDetailsDropConstraintsBelow0_4() async throws {
-        var steps = try Harness.handshakeSteps()
-        guard case .send(var hello) = steps[1], case .hello(var body) = hello.body else {
-            XCTFail("the handshake script changed shape")
-            return
-        }
-        body.protocolVersion = Version(major: 0, minor: 3)
-        hello.body = .hello(body)
-        steps[1] = .send(hello)
-        steps += try MockScript.fixtures("layout-constraints").steps
-        let server = try await MockServer.start(script: MockScript(steps: steps))
-        let session = try await Harness.readySession(
-            for: server, protocolVersion: Fixtures.zeroMajorProtocol)
-
-        let asked = try request("layout-constraints")
-        XCTAssertTrue(asked.requests.allSatisfy(\.wantConstraints))
-        _ = await collect(await session.recordedLayerDetails(asked))
-
-        var expected = asked
-        for index in expected.requests.indices { expected.requests[index].wantConstraints = false }
-        let sent = await server.receivedFrames.last
-        XCTAssertEqual(sent?.body, .getLayerDetails(expected))
-
-        await session.close()
-        await server.stop()
-    }
-
     /// An archive written from what the session recorded reads back frame for frame as the
     /// server sent it.
     func test_C_ARCH_01_anArchiveWrittenFromTheMockServerReadsBack() async throws {

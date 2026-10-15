@@ -276,16 +276,9 @@ public actor Session {
         return Recorded(value: hierarchy, payload: received.payload)
     }
 
-    /// What the negotiated version has (P-HELLO-04). Nil before the handshake succeeded.
-    public var features: ProtocolFeatures? {
-        negotiatedVersion.map(ProtocolFeatures.init(negotiated:))
-    }
-
     /// Changes one attribute of one layer (P-SET-01). Returns the layer's attributes as the
-    /// server read them after the change. Throws `RequestError.unsupported` without sending
-    /// anything when the negotiated version is below 0.3 (P-HELLO-04).
+    /// server read them after the change.
     public func setAttribute(_ request: SetAttribute) async throws -> SetAttributeResult {
-        try require(\.changesAttributes)
         guard case .setAttributeResult(let result) =
             try await self.request(.setAttribute(request), expecting: .setAttributeResult).body
         else {
@@ -299,9 +292,7 @@ public actor Session {
     }
 
     /// Asks for a layer and all its descendants (P-HIER-10). The first node is the layer.
-    /// Same rule as `setAttribute(_:)` for a server below 0.3.
     public func subtree(of rootID: UInt64) async throws -> Hierarchy {
-        try require(\.sendsSubtrees)
         guard case .hierarchy(let hierarchy) =
             try await request(.getSubtree(GetSubtree(rootID: rootID)), expecting: .hierarchy).body
         else {
@@ -314,8 +305,6 @@ public actor Session {
     }
 
     /// Asks for screenshots and attributes of layers. The response is a stream (P-REQ-03).
-    /// Below 0.4 the requests go without `wantConstraints`, which that version does not have
-    /// (P-HELLO-04); the details then come without constraints.
     public func layerDetails(_ request: GetLayerDetails) -> LayerDetailsStream {
         let (chunks, cancel) = openStream(request, sink: StreamSink.plain)
         return LayerDetailsStream(chunks: chunks, cancelAction: cancel)
@@ -363,12 +352,6 @@ public actor Session {
             sink.finish(throwing: RequestError.disconnected)
             return (nil, {})
         }
-        var request = request
-        if let features, !features.givesConstraints {
-            for index in request.requests.indices {
-                request.requests[index].wantConstraints = false
-            }
-        }
         let id = takeRequestID()
         pending.store(StreamRequest(continuation: sink, sentAt: clock.now()), for: id)
         startWatchdog()
@@ -393,13 +376,6 @@ public actor Session {
             startWatchdog()
             enqueue(Frame(requestID: id, body: body))
         }
-    }
-
-    /// Throws `unsupported` when the negotiated version lacks the feature. Before the
-    /// handshake and after the connection ended, `request` fails as `disconnected` instead.
-    private func require(_ feature: KeyPath<ProtocolFeatures, Bool>) throws {
-        guard phase == .ready, let features else { return }
-        if !features[keyPath: feature] { throw RequestError.unsupported }
     }
 
     private func cancelStream(_ id: UInt32) {

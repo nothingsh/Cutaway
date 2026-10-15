@@ -81,9 +81,20 @@ final class SessionEditingTests: XCTestCase {
         let expected: [RequestError] = [
             .layerNotFound(message: "no layer with id 99"),
             .attributeNotEditable(message: "layer.frame is read-only"),
-            .invalidAttributeValue(message: "layer.opacity takes a DoubleValue"),
+            .invalidAttributeValue(message: "view.alpha takes a DoubleValue"),
             .invalidAttributeValue(message: "label.numberOfLines cannot be nil"),
+            // Protocol 1.1: outside the limits (P-SET-07). The session sends what it is given;
+            // the limits are checked above it.
+            .invalidAttributeValue(message: "view.alpha must be between 0 and 1"),
+            .invalidAttributeValue(message: "layer.bounds cannot have a negative width or height"),
+            // The layer's attribute of a pair (P-ATTR-11).
+            .attributeNotEditable(
+                message: "layer 3 backs a view; set view.alpha instead of layer.opacity"),
+            // The background is a pair too (P-ATTR-11).
+            .attributeNotEditable(
+                message: "layer 3 backs a view; set view.backgroundColor instead of layer.backgroundColor"),
         ]
+        XCTAssertEqual(requests.count, expected.count)
         for (request, error) in zip(requests, expected) {
             await assertThrows(error) { _ = try await session.setAttribute(request) }
         }
@@ -99,7 +110,7 @@ final class SessionEditingTests: XCTestCase {
         let server = try await MockServer.start(script: try .fixtures("handshake", "subtree"))
         let session = try await Harness.readySession(for: server)
         let negotiated = await session.negotiatedVersion
-        XCTAssertEqual(negotiated, Version(major: 1, minor: 0))
+        XCTAssertEqual(negotiated, Version(major: 1, minor: 1))
 
         let subtree = try await session.subtree(of: 4)
         XCTAssertEqual(subtree.nodes.map(\.id), [4, 5])
@@ -160,51 +171,6 @@ final class SessionEditingTests: XCTestCase {
         XCTAssertLessThan(elapsed, .seconds(2))
 
         await session.close()
-        await server.stop()
-    }
-
-    func test_C_CONN_11_anOlderServerIsNeverSentEither() async throws {
-        // The server speaks 0.2: P-HELLO-04 keeps 0.3's messages off the wire.
-        var steps = try Harness.handshakeSteps()
-        guard case .send(var hello) = steps[1], case .hello(var body) = hello.body else {
-            XCTFail("the handshake script changed shape")
-            return
-        }
-        body.protocolVersion = Version(major: 0, minor: 2)
-        hello.body = .hello(body)
-        steps[1] = .send(hello)
-        steps += try MockScript.fixtures("hierarchy").steps
-        let server = try await MockServer.start(script: MockScript(steps: steps))
-        let session = try await Harness.session(for: server, protocolVersion: Fixtures.zeroMajorProtocol)
-        let before = await session.negotiatedVersion
-        XCTAssertNil(before)
-        let outcome = try await session.handshake()
-        guard case .ready(_, let negotiated) = outcome else {
-            XCTFail("\(outcome)")
-            return
-        }
-        XCTAssertEqual(negotiated, Version(major: 0, minor: 2))
-        // Kept for whoever asks later, such as an inspection (C-DET-07).
-        let kept = await session.negotiatedVersion
-        XCTAssertEqual(kept, Version(major: 0, minor: 2))
-
-        await assertThrows(.unsupported) {
-            _ = try await session.setAttribute(SetAttribute(
-                layerID: 3, attributeID: "label.text", value: .string("Hi")))
-        }
-        await assertThrows(.unsupported) { _ = try await session.subtree(of: 4) }
-
-        // Neither took a request ID: the next request is still number 1.
-        _ = try await session.hierarchy()
-        let received = await server.receivedFrames
-        XCTAssertEqual(received.map(\.requestID), [0, 1])
-        XCTAssertEqual(received.last?.body, .getHierarchy)
-        let mismatches = await server.mismatches
-        XCTAssertEqual(mismatches, [])
-
-        // Once the connection ended, they fail as any request does.
-        await session.close()
-        await assertThrows(.disconnected) { _ = try await session.subtree(of: 4) }
         await server.stop()
     }
 

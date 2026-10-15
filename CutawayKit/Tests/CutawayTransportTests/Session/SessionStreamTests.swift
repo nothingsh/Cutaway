@@ -64,43 +64,12 @@ final class SessionStreamTests: XCTestCase {
 
     // MARK: - C-LAYOUT-01
 
-    /// The handshake, with the server speaking `minor`, then `layout-constraints`.
-    private func constraintsScript(serverMinor minor: UInt16) throws -> MockScript {
-        var steps = try Harness.handshakeSteps()
-        guard case .send(var hello) = steps[1], case .hello(var body) = hello.body else {
-            throw RequestError.protocolViolation("the handshake script changed shape")
-        }
-        body.protocolVersion = Version(major: 0, minor: minor)
-        hello.body = .hello(body)
-        steps[1] = .send(hello)
-        steps += try MockScript.fixtures("layout-constraints").steps
-        return MockScript(steps: steps)
-    }
-
-    func test_C_LAYOUT_01_aServerBelow04IsNotAskedForConstraints() async throws {
-        let server = try await MockServer.start(script: try constraintsScript(serverMinor: 3))
-        let session = try await Harness.readySession(
-            for: server, protocolVersion: Fixtures.zeroMajorProtocol)
+    func test_C_LAYOUT_01_theServerIsAskedForConstraints() async throws {
+        let server = try await MockServer.start(
+            script: try .fixtures("handshake", "layout-constraints"))
+        let session = try await Harness.readySession(for: server)
         let asked = try request("layout-constraints")
         XCTAssertTrue(asked.requests.allSatisfy(\.wantConstraints))
-
-        _ = await collect(await session.layerDetails(asked))
-
-        // The same request without the field 0.3 does not know (P-HELLO-04).
-        var expected = asked
-        for index in expected.requests.indices { expected.requests[index].wantConstraints = false }
-        let sent = await server.receivedFrames.last
-        XCTAssertEqual(sent?.body, .getLayerDetails(expected))
-
-        await session.close()
-        await server.stop()
-    }
-
-    func test_C_LAYOUT_01_a04ServerIsAskedForConstraints() async throws {
-        let server = try await MockServer.start(script: try constraintsScript(serverMinor: 4))
-        let session = try await Harness.readySession(
-            for: server, protocolVersion: Fixtures.zeroMajorProtocol)
-        let asked = try request("layout-constraints")
 
         _ = await collect(await session.layerDetails(asked))
 
