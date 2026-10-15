@@ -1,4 +1,3 @@
-import CutawayModel
 import CutawayScene
 import CutawayTestSupport
 import XCTest
@@ -12,7 +11,7 @@ final class ScaleLayoutTests: XCTestCase {
     }
 
     private func layers() throws -> [SceneLayer] {
-        try LayerTree(ScaleScene.hierarchy()).sceneLayers()
+        try SceneInput.scaleScene()
     }
 
     private func check(

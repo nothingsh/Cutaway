@@ -1,13 +1,11 @@
-import CutawayModel
 import CutawayScene
 import CutawayTestSupport
-import CutawayWire
 import Foundation
 
 enum SceneFixtures {
     /// The nine layers of the `hierarchy` fixture as the scene's input.
     static func hierarchyLayers(textures: [UInt64: LayerTextures] = [:]) throws -> [SceneLayer] {
-        try LayerTree(try Fixtures.hierarchy()).sceneLayers(textures: textures)
+        try SceneInput.hierarchyFixture(textures: textures)
     }
 
     static let allIDs: Set<UInt64> = Set(1...9)

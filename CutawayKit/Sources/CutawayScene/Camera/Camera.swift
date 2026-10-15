@@ -89,7 +89,8 @@ extension Camera {
     }
 
     /// Zoomed by `factor` within `zoomRange`, keeping what is under `point` where it is
-    /// (C-PREV-05). `Framing` puts a seen point s at c + pan + (s − m) × fit × zoom, and
+    /// (C-PREV-05). `Framing` puts a seen point s at c + pan + (s − m) × fit × zoom, where c is
+    /// the viewport's middle, and
     /// neither m nor fit depends on the zoom or the pan; so keeping P fixed needs
     /// pan′ = (P − c) − (P − c − pan) × zoom′ / zoom, whatever the content and the turn.
     public func zoomed(
@@ -100,8 +101,8 @@ extension Camera {
         }
         let newZoom = min(max(zoom * factor, Self.zoomRange.lowerBound), Self.zoomRange.upperBound)
         let ratio = newZoom / zoom
-        let fromCenter = ScenePoint(
-            x: point.x - viewport.width / 2, y: point.y - viewport.height / 2)
+        let middle = viewport.middle
+        let fromCenter = ScenePoint(x: point.x - middle.x, y: point.y - middle.y)
         var camera = self
         camera.zoom = newZoom
         camera.pan = ScenePoint(
@@ -115,9 +116,37 @@ extension Camera {
 public struct Viewport: Equatable, Sendable {
     public var width: Double
     public var height: Double
+    /// What floats over the edges of the view: at zoom 1 the content fits between them, and
+    /// without a pan it is centred between them.
+    public var insets: Insets
 
-    public init(width: Double, height: Double) {
+    /// Room taken from each edge, in points.
+    public struct Insets: Equatable, Sendable {
+        public var top: Double
+        public var left: Double
+        public var bottom: Double
+        public var right: Double
+
+        public init(top: Double = 0, left: Double = 0, bottom: Double = 0, right: Double = 0) {
+            self.top = top
+            self.left = left
+            self.bottom = bottom
+            self.right = right
+        }
+
+        public static let zero = Self()
+    }
+
+    public init(width: Double, height: Double, insets: Insets = .zero) {
         self.width = width
         self.height = height
+        self.insets = insets
+    }
+
+    /// Where the content's middle is without a pan: the middle of the room inside the insets.
+    public var middle: ScenePoint {
+        ScenePoint(
+            x: insets.left + (width - insets.left - insets.right) / 2,
+            y: insets.top + (height - insets.top - insets.bottom) / 2)
     }
 }

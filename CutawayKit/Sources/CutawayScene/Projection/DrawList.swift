@@ -108,16 +108,28 @@ public enum SceneMark: Equatable, Sendable {
 
 /// A mark as the camera sees it.
 public struct DrawMark: Equatable, Sendable {
+    /// How a mark stands among the others while the pointer is on an end of a constraint, or
+    /// on a constraint, in the attribute panel (C-LAYOUT-06, C-LAYOUT-07): those ends' marks
+    /// stressed, the others faded.
+    public enum Emphasis: Equatable, Sendable {
+        case plain, emphasized, faded
+    }
+
     public var mark: SceneMark
     /// Top left, top right, bottom left, bottom right, as for a `DrawItem`.
     public var corners: Corners<ClipPoint>
     /// The same corners in viewport points.
     public var points: Corners<ScenePoint>
+    public var emphasis: Emphasis
 
-    public init(mark: SceneMark, corners: Corners<ClipPoint>, points: Corners<ScenePoint>) {
+    public init(
+        mark: SceneMark, corners: Corners<ClipPoint>, points: Corners<ScenePoint>,
+        emphasis: Emphasis = .plain
+    ) {
         self.mark = mark
         self.corners = corners
         self.points = points
+        self.emphasis = emphasis
     }
 }
 
@@ -223,6 +235,24 @@ public struct DrawList: Equatable, Sendable {
             let highlight: Highlight =
                 id == selected ? .selected : (id == hovered ? .hovered : .none)
             if list.items[index].highlight != highlight { list.items[index].highlight = highlight }
+        }
+        return list
+    }
+
+    /// The list with `marks` stressed and the other marks faded, or every mark plain when the
+    /// list has none of them (C-LAYOUT-06, C-LAYOUT-07). Nothing is projected again.
+    public func emphasizing(_ marks: [SceneMark]) -> Self {
+        var list = self
+        let stressed = marks.filter { mark in list.marks.contains { $0.mark == mark } }
+        for index in list.marks.indices {
+            let emphasis: DrawMark.Emphasis = if stressed.isEmpty {
+                .plain
+            } else if stressed.contains(list.marks[index].mark) {
+                .emphasized
+            } else {
+                .faded
+            }
+            list.marks[index].emphasis = emphasis
         }
         return list
     }

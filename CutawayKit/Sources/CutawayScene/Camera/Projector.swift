@@ -98,8 +98,9 @@ struct Projector {
     }
 }
 
-/// Puts what the camera sees into the viewport: the box around it centred, at the scale
-/// that fits it with `Camera.margin` to spare, times the zoom, moved by the pan.
+/// Puts what the camera sees into the viewport: the box around it centred inside the
+/// viewport's insets, at the scale that fits it there with `Camera.margin` to spare, times the
+/// zoom, moved by the pan.
 struct Framing {
     private let middle: ScenePoint
     private let scale: Double
@@ -107,8 +108,9 @@ struct Framing {
     private let viewport: Viewport
 
     init(seen: SceneRect, lens: Lens, viewport: Viewport) {
-        let width = max(viewport.width - 2 * Camera.margin, 1)
-        let height = max(viewport.height - 2 * Camera.margin, 1)
+        let insets = viewport.insets
+        let width = max(viewport.width - insets.left - insets.right - 2 * Camera.margin, 1)
+        let height = max(viewport.height - insets.top - insets.bottom - 2 * Camera.margin, 1)
         let box = seen.size
         let fit: Double
         if box.width > 0, box.height > 0 {
@@ -122,8 +124,8 @@ struct Framing {
         }
         middle = seen.center
         scale = fit * lens.zoom
-        origin = ScenePoint(
-            x: viewport.width / 2 + lens.pan.x, y: viewport.height / 2 + lens.pan.y)
+        let middle = viewport.middle
+        origin = ScenePoint(x: middle.x + lens.pan.x, y: middle.y + lens.pan.y)
         self.viewport = viewport
     }
 
