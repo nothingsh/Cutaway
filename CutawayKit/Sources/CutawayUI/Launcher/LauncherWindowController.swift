@@ -4,16 +4,21 @@ import CutawayTransport
 import DeclarativeAppKit
 
 /// The window the app starts with (C-WIN-01): the app's icon and name, the apps that can be
-/// inspected, and a line that says the search goes on.
+/// inspected, and a line that says the search goes on (C-LIST-04).
 public final class LauncherWindowController: NSWindowController {
     static let footerIdentifier = "launcher.footer"
+    static let iconIdentifier = "launcher.icon"
+    static let searchingIdentifier = "launcher.searching"
     static let size = NSSize(width: 480, height: 580)
     static let minimumSize = NSSize(width: 400, height: 380)
 
     let listController: AppListViewController
 
-    init(store: AppListStore, discoversDevices: Bool, onChoose: @escaping (AppLocation) -> Void) {
-        listController = AppListViewController(store: store, onChoose: onChoose)
+    init(
+        store: AppListStore, discoversDevices: Bool, onChoose: @escaping (AppLocation) -> Void,
+        openURL: @escaping @MainActor (URL) -> Void = { NSWorkspace.shared.open($0) }
+    ) {
+        listController = AppListViewController(store: store, onChoose: onChoose, openURL: openURL)
         let content = LauncherViewController(
             list: listController, discoversDevices: discoversDevices)
 
@@ -32,6 +37,8 @@ public final class LauncherWindowController: NSWindowController {
         // window that may go full screen takes the inspector's place there.
         window.collectionBehavior.insert(.fullScreenNone)
         window.contentViewController = content
+        // The arrow keys and Return go to the list (C-LIST-04).
+        window.initialFirstResponder = listController.tableView
         window.setContentSize(Self.size)
         window.contentMinSize = Self.minimumSize
         window.center()
@@ -75,12 +82,6 @@ final class LauncherViewController: NSViewController {
 
     override func loadView() {
         addChild(list)
-        let spinner = NSProgressIndicator()
-        spinner.style = .spinning
-        spinner.controlSize = .mini
-        spinner.isIndeterminate = true
-        spinner.startAnimation(nil)
-
         let root = NSVisualEffectView()
         root.material = .windowBackground
         root.blendingMode = .behindWindow
@@ -90,22 +91,24 @@ final class LauncherViewController: NSViewController {
                 NSImageView()
                     .image(Self.appIcon())
                     .imageScaling(.scaleProportionallyUpOrDown)
-                    .frame(width: 64, height: 64)
+                    .frame(width: 60, height: 60)
+                    .accessibilityIdentifier(LauncherWindowController.iconIdentifier)
                 VStack(alignment: .leading, spacing: 2) {
                     NSTextField(labelWithString: "Cutaway")
-                        .font(.systemFont(ofSize: 22, weight: .semibold))
+                        .font(.systemFont(ofSize: 20, weight: .semibold))
                     NSTextField(labelWithString: localized("launcher.prompt"))
                         .textColor(.secondaryLabelColor)
                 }
                 Spacer()
             }
-            .padding(top: Theme.Spacing.small, leading: 24, bottom: Theme.Spacing.large, trailing: 24)
+            .padding(top: 6, leading: 22, bottom: 14, trailing: 22)
 
             list.view
 
             NSBox().configure { $0.boxType = .separator }
             HStack(alignment: .center, spacing: Theme.Spacing.small) {
-                spinner
+                PulseDotView()
+                    .accessibilityIdentifier(LauncherWindowController.searchingIdentifier)
                 NSTextField(labelWithString: Self.footerText(discoversDevices: discoversDevices))
                     .font(Theme.Font.caption)
                     .textColor(.secondaryLabelColor)
