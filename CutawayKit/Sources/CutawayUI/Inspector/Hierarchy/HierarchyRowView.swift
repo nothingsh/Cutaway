@@ -1,19 +1,22 @@
 import AppKit
+import CutawayModel
 import DeclarativeAppKit
 
-/// One row of the hierarchy list: a symbol for what the layer is and the layer's title
-/// (C-HIER-01), then in smaller text the view controller it is the root view of or the member
+/// One row of the hierarchy list: an icon for what the layer is (C-HIER-11) and the layer's
+/// title (C-HIER-01), then in smaller text the view controller it is the root view of or the member
 /// that holds it (C-HIER-07); weaker, and marked with a crossed-out eye, for a layer that
-/// cannot be seen (C-HIER-03).
+/// cannot be seen (C-HIER-03); the icon fades with it.
 final class HierarchyRowView: NSTableCellView {
     static let titleIdentifier = "hierarchy.title"
     static let symbolIdentifier = "hierarchy.symbol"
     static let hiddenIdentifier = "hierarchy.hidden"
     static let detailIdentifier = "hierarchy.detail"
-    /// What a row puts beside its title at most: the symbol, the hidden mark and the gaps,
+    /// What a row puts beside its title at most: the icon, the hidden mark and the gaps,
     /// measured on a row that shows them all.
     static let widthBesideTitle: CGFloat = {
         let row = HierarchyRowView()
+        // Measured by its constraints alone: a frame of 0 × 0 would conflict with them.
+        row.translatesAutoresizingMaskIntoConstraints = false
         row.configure(HierarchyRow(title: "", isDimmed: true))
         return (row.fittingSize.width - NSTextField(labelWithString: "").intrinsicContentSize.width)
             .rounded(.up)
@@ -26,13 +29,16 @@ final class HierarchyRowView: NSTableCellView {
     private var detailColor = NSColor.secondaryLabelColor
     private let hiddenMark = NSImageView()
     private(set) var isDimmed = false
-    private(set) var symbolName: String?
+    private(set) var icon: LayerIcon?
+
+    /// The gap between the disclosure triangle and the icon.
+    static let iconInset: CGFloat = 4
 
     init() {
         super.init(frame: .zero)
-        addHStack(alignment: .center, spacing: 6) {
+        addContent(HStack(alignment: .center, spacing: 6) {
             symbolView
-                .imageScaling(.scaleProportionallyDown)
+                .imageScaling(.scaleNone)
                 .accessibilityIdentifier(Self.symbolIdentifier)
                 .frame(width: 16, height: 16)
             titleLabel
@@ -45,11 +51,12 @@ final class HierarchyRowView: NSTableCellView {
                 .compressionResistancePriority(.defaultLow, for: .horizontal)
                 .accessibilityIdentifier(Self.detailIdentifier)
             hiddenMark
-                .image(Theme.symbol("eye.slash", size: 10, description: localized("hierarchy.row.hidden")))
+                .image(Theme.symbol(Theme.Symbol.hiddenLayer, size: 10, description: localized("hierarchy.row.hidden")))
                 .contentTintColor(.tertiaryLabelColor)
                 .accessibilityIdentifier(Self.hiddenIdentifier)
             Spacer()
         }
+        .padding(top: 0, leading: Self.iconInset, bottom: 0, trailing: 0))
         imageView = symbolView
         textField = titleLabel
     }
@@ -59,7 +66,7 @@ final class HierarchyRowView: NSTableCellView {
         fatalError("init(coder:) is not supported")
     }
 
-    /// The width a row needs to show this title in full, the symbol and the mark included.
+    /// The width a row needs to show this title in full, the icon and the mark included.
     /// The detail is not counted: it is cut short when there is no room (C-HIER-07).
     static func width(ofTitle title: String) -> CGFloat {
         NSTextField(labelWithString: title).intrinsicContentSize.width + widthBesideTitle
@@ -79,10 +86,9 @@ final class HierarchyRowView: NSTableCellView {
         detailColor = row.isDimmed || row.isContext ? .tertiaryLabelColor : .secondaryLabelColor
         toolTip = row.toolTip
         hiddenMark.isHidden = !row.isDimmed
-        if row.symbolName != symbolName {
-            symbolView.image = Theme.symbol(row.symbolName, size: 12)
-            symbolName = row.symbolName
-        }
+        icon = row.icon
+        // The text and the icon both fade; a row of the search's context too (C-HIER-04).
+        symbolView.alphaValue = row.isDimmed || row.isContext ? 0.4 : 1
         isDimmed = row.isDimmed
         updateSymbolTint()
     }
@@ -91,15 +97,11 @@ final class HierarchyRowView: NSTableCellView {
         didSet { updateSymbolTint() }
     }
 
-    /// The accent colour, except on the selected row, whose background is the accent colour;
-    /// the detail likewise.
+    /// The icon in its colours, as the selected row shows it on the accent colour; the
+    /// detail likewise.
     private func updateSymbolTint() {
-        if backgroundStyle == .emphasized {
-            symbolView.contentTintColor = .alternateSelectedControlTextColor
-            detailLabel.textColor = .alternateSelectedControlTextColor
-        } else {
-            symbolView.contentTintColor = isDimmed ? .tertiaryLabelColor : .controlAccentColor
-            detailLabel.textColor = detailColor
-        }
+        let isSelected = backgroundStyle == .emphasized
+        symbolView.image = icon.map { LayerIconImage.image($0, isSelected: isSelected) }
+        detailLabel.textColor = isSelected ? .alternateSelectedControlTextColor : detailColor
     }
 }

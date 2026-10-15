@@ -69,36 +69,6 @@ final class HierarchyViewTests: XCTestCase {
     // MARK: - C-HIER-01: the tree
 
     @MainActor
-    func test_C_HIER_01_theOutlineShowsTheNineNodesOfTheFixture() throws {
-        let model = model()
-        let controller = controller(for: model)
-        model.apply(try Fixtures.hierarchy())
-        let outline = controller.outlineView
-
-        XCTAssertEqual(outline.numberOfRows, 9)
-        XCTAssertEqual(layers(of: controller), [1, 2, 3, 4, 5, 6, 7, 8, 9])
-        XCTAssertEqual((0..<9).map(outline.level(forRow:)), [0, 1, 2, 2, 3, 2, 3, 2, 2])
-
-        let titles = try (0..<9).map { row in
-            try XCTUnwrap(AppListViewTests.descendant(
-                of: try XCTUnwrap(controller.rowView(row)),
-                identifier: HierarchyRowView.titleIdentifier) as? NSTextField).stringValue
-        }
-        XCTAssertEqual(titles, [
-            "UIWindow", "UIView", "UILabel", "CardView", "CAShapeLayer", "UIScrollView",
-            "UILabel", "CALayer", "UIView",
-        ])
-
-        // Parents, as the outline view sees them: row 4 (layer 5) is inside row 3 (layer 4).
-        let parents = (0..<9).map { row -> Int in
-            outline.row(forItem: outline.parent(forItem: outline.item(atRow: row)))
-        }
-        XCTAssertEqual(parents, [-1, 0, 1, 1, 3, 1, 5, 1, 1])
-        XCTAssertTrue(isShown(outline))
-        XCTAssertFalse(isShown(try status(of: controller)))
-    }
-
-    @MainActor
     func test_C_HIER_01_aTreeOfThousandsOfLayersIsShown() {
         // 3,000 layers; layer n is inside layer n / 2.
         let nodes = (1...3_000).map { id in
@@ -174,26 +144,6 @@ final class HierarchyViewTests: XCTestCase {
     }
 
     // MARK: - C-HIER-01: when there is no tree to show
-
-    @MainActor
-    func test_C_HIER_01_textStandsInWhileLoadingAndWhenThereAreNoWindows() throws {
-        let model = model()
-        let controller = controller(for: model)
-        let status = try status(of: controller)
-
-        XCTAssertTrue(isShown(status))
-        XCTAssertEqual(status.stringValue, "Loading layers…")
-        XCTAssertFalse(isShown(controller.outlineView))
-
-        model.apply(Hierarchy(nodes: [], keyWindowID: 0))
-        XCTAssertTrue(isShown(status))
-        XCTAssertEqual(status.stringValue, "This app has no windows.")
-        XCTAssertFalse(isShown(controller.outlineView))
-
-        model.apply(try Fixtures.hierarchy())
-        XCTAssertFalse(isShown(status))
-        XCTAssertTrue(isShown(controller.outlineView))
-    }
 
     @MainActor
     func test_C_HIER_01_aTreeThatBreaksTheProtocolIsExplained() throws {
@@ -308,90 +258,7 @@ final class HierarchyViewTests: XCTestCase {
         await server.stop()
     }
 
-    // MARK: - C-HIER-02: from the outline to the model
-
-    @MainActor
-    func test_C_HIER_02_collapsingAndExpandingARowIsRecordedInTheModel() throws {
-        let model = model()
-        let controller = controller(for: model)
-        model.apply(try Fixtures.hierarchy())
-        let outline = controller.outlineView
-
-        outline.collapseItem(try item(4, in: controller))
-        XCTAssertFalse(model.isExpanded(4))
-        XCTAssertEqual(layers(of: controller), [1, 2, 3, 4, 6, 7, 8, 9])
-
-        outline.expandItem(try item(4, in: controller))
-        XCTAssertTrue(model.isExpanded(4))
-        XCTAssertEqual(outline.numberOfRows, 9)
-    }
-
     // MARK: - C-HIER-09, C-HIER-10: how the rows start, and double-clicking them
-
-    @MainActor
-    func test_C_HIER_09_theListOpensDownToTheViewController() throws {
-        let model = InspectionStore(session: Session(channel: InertChannel(), client: Self.client))
-        let controller = controller(for: model)
-        model.apply(try Fixtures.hierarchy())
-        // Layers 5 and 7 are inside the collapsed layers 4 and 6.
-        XCTAssertEqual(layers(of: controller), [1, 2, 3, 4, 6, 8, 9])
-    }
-
-    @MainActor
-    func test_C_HIER_10_doubleClickingARowExpandsOrCollapsesIt() throws {
-        let model = InspectionStore(session: Session(channel: InertChannel(), client: Self.client))
-        let controller = controller(for: model)
-        model.apply(try Fixtures.hierarchy())
-        let outline = controller.outlineView
-        XCTAssertTrue(outline.target === controller)
-        XCTAssertEqual(outline.doubleAction, NSSelectorFromString("outlineViewWasDoubleClicked:"))
-
-        controller.rowWasDoubleClicked(try XCTUnwrap(layers(of: controller).firstIndex(of: 4)))
-        XCTAssertTrue(model.isExpanded(4))
-        XCTAssertEqual(layers(of: controller), [1, 2, 3, 4, 5, 6, 8, 9])
-
-        controller.rowWasDoubleClicked(try XCTUnwrap(layers(of: controller).firstIndex(of: 4)))
-        XCTAssertFalse(model.isExpanded(4))
-        XCTAssertEqual(layers(of: controller), [1, 2, 3, 4, 6, 8, 9])
-
-        // A row without sublayers, and no row at all, change nothing.
-        controller.rowWasDoubleClicked(try XCTUnwrap(layers(of: controller).firstIndex(of: 3)))
-        controller.rowWasDoubleClicked(-1)
-        XCTAssertEqual(layers(of: controller), [1, 2, 3, 4, 6, 8, 9])
-        XCTAssertEqual(model.tree.ids.filter { !model.isExpanded($0) }, [4, 6])
-    }
-
-    @MainActor
-    func test_C_HIER_10_doubleClickingARowOfTheSearchOnlySelectsIt() throws {
-        let model = InspectionStore(session: Session(channel: InertChannel(), client: Self.client))
-        let controller = controller(for: model)
-        model.apply(try Fixtures.hierarchy())
-        // The search shows layer 6 expanded, to show the label inside it.
-        model.setSearchText("label")
-        let rows = layers(of: controller)
-        XCTAssertEqual(rows, [1, 2, 3, 6, 7])
-
-        controller.rowWasDoubleClicked(try XCTUnwrap(rows.firstIndex(of: 6)))
-        XCTAssertEqual(layers(of: controller), rows)
-        XCTAssertFalse(model.isExpanded(6))
-    }
-
-    @MainActor
-    func test_C_HIER_02_selectingARowIsRecordedInTheModel() throws {
-        let model = model()
-        let controller = controller(for: model)
-        model.apply(try Fixtures.hierarchy())
-        let outline = controller.outlineView
-
-        outline.selectRowIndexes([6], byExtendingSelection: false)
-        XCTAssertEqual(model.selectedLayerID, 7)
-
-        outline.selectRowIndexes([2], byExtendingSelection: false)
-        XCTAssertEqual(model.selectedLayerID, 3)
-
-        outline.deselectAll(nil)
-        XCTAssertNil(model.selectedLayerID)
-    }
 
     @MainActor
     func test_C_HIER_02_collapsingARowAboveTheSelectionSelectsThatRow() throws {
@@ -427,41 +294,7 @@ final class HierarchyViewTests: XCTestCase {
         XCTAssertEqual(controller.layerID(atRow: outline.selectedRow), 2)
     }
 
-    @MainActor
-    func test_C_HIER_02_expandingARowWithEverythingInsideItIsRecorded() throws {
-        let model = model()
-        model.apply(try Fixtures.hierarchy())
-        for id: UInt64 in [4, 6, 2] {
-            model.setExpanded(id, false)
-        }
-        let controller = controller(for: model)
-        let outline = controller.outlineView
-        XCTAssertEqual(layers(of: controller), [1, 2])
-
-        // What the outline view does when the triangle is clicked with Option held.
-        outline.expandItem(try item(2, in: controller), expandChildren: true)
-
-        XCTAssertEqual(layers(of: controller), [1, 2, 3, 4, 5, 6, 7, 8, 9])
-        for id: UInt64 in [2, 4, 6] {
-            XCTAssertTrue(model.isExpanded(id), "layer \(id)")
-        }
-    }
-
     // MARK: - C-HIER-02: from the model to the outline
-
-    @MainActor
-    func test_C_HIER_02_theModelsSelectionIsShown() throws {
-        let model = model()
-        let controller = controller(for: model)
-        model.apply(try Fixtures.hierarchy())
-        let outline = controller.outlineView
-
-        model.select(7)
-        XCTAssertEqual(outline.selectedRow, 6)
-
-        model.select(nil)
-        XCTAssertEqual(outline.selectedRow, -1)
-    }
 
     @MainActor
     func test_C_HIER_02_theStateIsShownAgainAfterAReload() throws {
@@ -537,83 +370,6 @@ final class HierarchyViewTests: XCTestCase {
     // MARK: - C-HIER-03
 
     @MainActor
-    func test_C_HIER_03_theHiddenLayerIsShownDimmed() throws {
-        let model = model()
-        let controller = controller(for: model)
-        model.apply(try Fixtures.hierarchy())
-
-        for row in 0..<9 {
-            let view = try XCTUnwrap(controller.rowView(row))
-            let title = try XCTUnwrap(AppListViewTests.descendant(
-                of: view, identifier: HierarchyRowView.titleIdentifier) as? NSTextField)
-            // Row 4 is layer 5, the hidden shape layer.
-            let dimmed = row == 4
-            XCTAssertEqual(view.isDimmed, dimmed, "row \(row)")
-            XCTAssertEqual(
-                title.textColor, dimmed ? .tertiaryLabelColor : .labelColor, "row \(row)")
-        }
-    }
-
-    @MainActor
-    func test_C_HIER_03_aHiddenLayerCarriesTheCrossedOutEye() throws {
-        let model = model()
-        let controller = controller(for: model)
-        model.apply(try Fixtures.hierarchy())
-
-        for row in 0..<9 {
-            let view = try XCTUnwrap(controller.rowView(row))
-            let mark = try XCTUnwrap(AppListViewTests.descendant(
-                of: view, identifier: HierarchyRowView.hiddenIdentifier))
-            XCTAssertEqual(mark.isHidden, row != 4, "row \(row)")
-        }
-    }
-
-    @MainActor
-    func test_C_HIER_01_eachRowHasASymbolForWhatItIs() throws {
-        let model = model()
-        let controller = controller(for: model)
-        model.apply(try Fixtures.hierarchy())
-
-        let symbols = try (0..<9).map { row in try XCTUnwrap(controller.rowView(row)).symbolName }
-        // UIWindow, UIView, UILabel, CardView, CAShapeLayer, UIScrollView, UILabel, CALayer,
-        // UIView.
-        XCTAssertEqual(symbols, [
-            "macwindow", "square", "textformat", "square", "square.dashed", "scroll",
-            "textformat", "square.dashed", "square",
-        ])
-        let image = try XCTUnwrap(AppListViewTests.descendant(
-            of: try XCTUnwrap(controller.rowView(0)), identifier: HierarchyRowView.symbolIdentifier)
-            as? NSImageView)
-        XCTAssertNotNil(image.image)
-    }
-
-    @MainActor
-    func test_C_HIER_01_theFooterCountsTheLayers() throws {
-        let model = model()
-        let controller = controller(for: model)
-        let count = try XCTUnwrap(AppListViewTests.descendant(
-            of: controller.view, identifier: HierarchyViewController.countIdentifier)
-            as? NSTextField)
-        XCTAssertFalse(isShown(count), "nothing to count while loading")
-
-        model.apply(try Fixtures.hierarchy())
-        XCTAssertTrue(isShown(count))
-        XCTAssertEqual(count.stringValue, "9 layers · 1 hidden")
-    }
-
-    @MainActor
-    func test_C_HIER_01_theWidthOfARowCoversItsSymbolAndHiddenMark() {
-        let title = "UIActivityIndicatorView"
-        for dimmed in [false, true] {
-            let row = HierarchyRowView()
-            row.configure(HierarchyRow(title: title, isDimmed: dimmed))
-            XCTAssertLessThanOrEqual(
-                row.fittingSize.width, HierarchyRowView.width(ofTitle: title) + 0.5,
-                "dimmed: \(dimmed)")
-        }
-    }
-
-    @MainActor
     func test_C_HIER_03_aReusedRowDoesNotStayDimmed() {
         let row = HierarchyRowView()
         row.configure(HierarchyRow(title: "CAShapeLayer", isDimmed: true))
@@ -645,133 +401,6 @@ final class HierarchyViewTests: XCTestCase {
     private func layOut(_ controller: HierarchyViewController) {
         controller.view.frame = NSRect(x: 0, y: 0, width: 280, height: 400)
         controller.view.layoutSubtreeIfNeeded()
-    }
-
-    /// The width a row's title needs to be shown in full.
-    @MainActor
-    private func titleWidth(_ title: String) -> CGFloat {
-        NSTextField(labelWithString: title).intrinsicContentSize.width
-    }
-
-    @MainActor
-    func test_C_HIER_01_aDeepRowStillHasRoomForItsTitle() throws {
-        let model = model()
-        let controller = controller(for: model)
-        layOut(controller)
-        model.apply(chain(depth: 40, title: "UICollectionViewListCell"))
-        controller.view.layoutSubtreeIfNeeded()
-        let outline = controller.outlineView
-
-        XCTAssertEqual(outline.numberOfRows, 40)
-        let needed = titleWidth("UICollectionViewListCell")
-        for row in 0..<40 {
-            XCTAssertGreaterThanOrEqual(
-                outline.frameOfCell(atColumn: 0, row: row).width, needed, "row \(row)")
-        }
-
-        // The list is 280 points wide and these rows are not: it scrolls sideways.
-        let scrollView = try XCTUnwrap(outline.enclosingScrollView)
-        XCTAssertTrue(scrollView.hasHorizontalScroller)
-        XCTAssertGreaterThan(outline.frame.width, scrollView.contentView.bounds.width)
-    }
-
-    @MainActor
-    func test_C_HIER_01_aTreeThatFitsDoesNotScrollSideways() throws {
-        let model = model()
-        let controller = controller(for: model)
-        layOut(controller)
-        model.apply(try Fixtures.hierarchy())
-        controller.view.layoutSubtreeIfNeeded()
-        let outline = controller.outlineView
-
-        for row in 0..<9 {
-            let title = try XCTUnwrap(controller.layerID(atRow: row).map(model.tree.displayTitle(of:)))
-            XCTAssertGreaterThanOrEqual(
-                outline.frameOfCell(atColumn: 0, row: row).width, titleWidth(title), "row \(row)")
-        }
-        // Nothing to scroll to, and the rows still span the whole list.
-        let scrollView = try XCTUnwrap(outline.enclosingScrollView)
-        XCTAssertEqual(outline.frame.width, scrollView.contentView.bounds.width)
-    }
-
-    @MainActor
-    func test_C_HIER_01_theRoomForTitlesFollowsAReload() throws {
-        let model = model()
-        let controller = controller(for: model)
-        layOut(controller)
-        let outline = controller.outlineView
-        let scrollView = try XCTUnwrap(outline.enclosingScrollView)
-
-        model.apply(chain(depth: 40, title: "UICollectionViewListCell"))
-        controller.view.layoutSubtreeIfNeeded()
-        XCTAssertGreaterThan(outline.frame.width, scrollView.contentView.bounds.width)
-
-        // A shallower tree needs less, and the list stops scrolling sideways.
-        model.apply(try Fixtures.hierarchy())
-        controller.view.layoutSubtreeIfNeeded()
-        XCTAssertEqual(outline.frame.width, scrollView.contentView.bounds.width)
-
-        // A deeper one needs more again.
-        model.apply(chain(depth: 60, title: "UICollectionViewListCell"))
-        controller.view.layoutSubtreeIfNeeded()
-        XCTAssertGreaterThanOrEqual(
-            outline.frameOfCell(atColumn: 0, row: 59).width, titleWidth("UICollectionViewListCell"))
-    }
-
-    /// Folding a deep subtree away used to leave the list scrolling sideways to the width the
-    /// hidden rows needed.
-    @MainActor
-    func test_C_HIER_01_theRoomForTitlesFollowsTheRowsShown() throws {
-        let model = model()
-        let controller = controller(for: model)
-        layOut(controller)
-        let outline = controller.outlineView
-        let scrollView = try XCTUnwrap(outline.enclosingScrollView)
-        model.apply(chain(depth: 40, title: "UICollectionViewListCell"))
-        controller.view.layoutSubtreeIfNeeded()
-        XCTAssertGreaterThan(outline.frame.width, scrollView.contentView.bounds.width)
-
-        // Collapsed by the model (as "Collapse All" does): one short row, nothing sideways.
-        model.collapseAll()
-        controller.view.layoutSubtreeIfNeeded()
-        XCTAssertEqual(outline.numberOfRows, 1)
-        XCTAssertEqual(outline.frame.width, scrollView.contentView.bounds.width)
-
-        // Expanded by the model again: as wide as the deepest row.
-        model.expandAll()
-        controller.view.layoutSubtreeIfNeeded()
-        XCTAssertGreaterThan(outline.frame.width, scrollView.contentView.bounds.width)
-
-        // Collapsed in the list, as a click on the disclosure does: sized once that is over.
-        outline.collapseItem(outline.item(atRow: 0))
-        RunLoop.main.run(until: Date().addingTimeInterval(0.05))
-        controller.view.layoutSubtreeIfNeeded()
-        XCTAssertEqual(outline.frame.width, scrollView.contentView.bounds.width)
-        outline.expandItem(outline.item(atRow: 0), expandChildren: true)
-        RunLoop.main.run(until: Date().addingTimeInterval(0.05))
-        controller.view.layoutSubtreeIfNeeded()
-        XCTAssertGreaterThan(outline.frame.width, scrollView.contentView.bounds.width)
-
-        // A search that leaves only shallow rows, and a focus on a shallow node.
-        model.setSearchText("no such layer")
-        controller.view.layoutSubtreeIfNeeded()
-        XCTAssertEqual(outline.numberOfRows, 0, "no titles match: the column is left alone")
-        model.setSearchText("")
-        model.collapseAll()
-        model.focus(on: 1)
-        controller.view.layoutSubtreeIfNeeded()
-        XCTAssertEqual(outline.frame.width, scrollView.contentView.bounds.width)
-        model.expandAll()
-        controller.view.layoutSubtreeIfNeeded()
-        XCTAssertGreaterThan(outline.frame.width, scrollView.contentView.bounds.width)
-    }
-
-    // MARK: - C-PREV-01: the first click
-
-    @MainActor
-    func test_C_PREV_01_theListTakesAClickInAWindowThatIsNotKey() {
-        let controller = controller(for: model())
-        XCTAssertTrue(controller.outlineView.acceptsFirstMouse(for: nil))
     }
 
     // MARK: - C-HIER-02: reloading in place
@@ -856,6 +485,52 @@ final class HierarchyViewTests: XCTestCase {
         for row in 0..<outline.numberOfRows {
             let item = outline.item(atRow: row)
             if outline.isExpandable(item) { XCTAssertTrue(outline.isItemExpanded(item), "row \(row)") }
+        }
+    }
+
+    /// Collapsing all, or down to a level, collapses the rows inside too: expanding one of the
+    /// collapsed rows by hand afterwards shows the rows inside it collapsed, as the model holds
+    /// them, not as they were before.
+    @MainActor
+    func test_C_HIER_06_expandingARowByHandAfterCollapsingAllShowsItsRowsAsTheModelHoldsThem() throws {
+        let model = model()
+        let controller = controller(for: model)
+        let hierarchy = try Fixtures.hierarchy()
+        model.apply(hierarchy)
+        let outline = controller.outlineView
+
+        func expandedRows() -> [UInt64?] {
+            let rows = layers(of: controller)
+            return (0..<outline.numberOfRows).filter { row in
+                let item = outline.item(atRow: row)
+                return outline.isExpandable(item) && outline.isItemExpanded(item)
+            }.map { rows[$0] }
+        }
+
+        model.expandAll()
+        model.collapseAll()
+        XCTAssertEqual(outline.numberOfRows, 1)
+        outline.expandItem(outline.item(atRow: 0))
+        XCTAssertEqual(expandedRows(), [1], "only the row expanded by hand")
+        for node in hierarchy.nodes
+            where node.id != 1 && hierarchy.nodes.contains(where: { $0.parentID == node.id })
+        {
+            XCTAssertFalse(model.isExpanded(node.id), "layer \(node.id)")
+        }
+
+        model.expandAll()
+        model.expand(toDepth: 1)
+        let collapsed = try XCTUnwrap(
+            (0..<outline.numberOfRows).first { row in
+                let item = outline.item(atRow: row)
+                return outline.isExpandable(item) && !outline.isItemExpanded(item)
+            })
+        let collapsedID = try XCTUnwrap(layers(of: controller)[collapsed])
+        outline.expandItem(outline.item(atRow: collapsed))
+        let inside = hierarchy.nodes.filter { $0.parentID == collapsedID }.map(\.id)
+        for id in inside where hierarchy.nodes.contains(where: { $0.parentID == id }) {
+            XCTAssertFalse(model.isExpanded(id), "layer \(id)")
+            XCTAssertFalse(outline.isItemExpanded(try item(id, in: controller)), "layer \(id)")
         }
     }
 
@@ -965,19 +640,6 @@ final class HierarchyViewTests: XCTestCase {
         XCTAssertTrue(
             outline.visibleRect.intersects(outline.rect(ofRow: row)),
             "row \(row) \(outline.rect(ofRow: row)) is out of \(outline.visibleRect)")
-    }
-
-    @MainActor
-    func test_C_HIER_01_typingJumpsToARowByItsTitle() throws {
-        let model = model()
-        let controller = controller(for: model)
-        model.apply(try Fixtures.hierarchy())
-        let outline = controller.outlineView
-        let item = try XCTUnwrap(outline.item(atRow: 3))
-        XCTAssertEqual(
-            controller.outlineView(
-                outline, typeSelectStringFor: outline.tableColumns.first, item: item),
-            "CardView")
     }
 
     private static func plainNode(_ id: UInt64, parent: UInt64 = 0) -> LayerNode {

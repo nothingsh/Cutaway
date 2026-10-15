@@ -12,9 +12,12 @@ import DeclarativeCombine
 /// back.
 final class HierarchyViewController: NSViewController {
     // What the HierarchyViewController+*.swift files use is internal here only so that they
-    // can reach it: `store`, `viewModel`, the column's sizing state, and the getters of
-    // `tree` and `focus`. It belongs to HierarchyViewController alone. What is internal for
-    // tests says so.
+    // can reach it: `store`, `viewModel`, the column's sizing state, the getters of `tree`
+    // and `focus`, and what the outline view's data source and delegate
+    // (HierarchyViewController+Outline.swift) read and write: `Item`, `roots`, `filter`,
+    // `shownChildren`, `collapsedInside`, the guards `isShowingStore`, `writingExpansion` and
+    // `showingStore`, and the helpers under "From the store to the outline". It belongs to
+    // HierarchyViewController alone. What is internal for tests says so.
 
     static let outlineIdentifier = "hierarchy.outline"
     static let statusIdentifier = "hierarchy.status"
@@ -24,11 +27,11 @@ final class HierarchyViewController: NSViewController {
     static let pathIdentifier = "hierarchy.path"
     static let leaveFocusIdentifier = "hierarchy.leaveFocus"
 
-    private static let rowIdentifier = NSUserInterfaceItemIdentifier("HierarchyRow")
+    static let rowIdentifier = NSUserInterfaceItemIdentifier("HierarchyRow")
 
     /// What the outline view holds for a layer. It recognises a row after a reload by the
     /// identity of this object, so there is one per layer for as long as the layer exists.
-    private final class Item: NSObject {
+    final class Item: NSObject {
         let id: UInt64
 
         init(id: UInt64) {
@@ -39,6 +42,8 @@ final class HierarchyViewController: NSViewController {
     // MARK: - Controls
 
     let outlineView = HierarchyOutlineView()
+    /// The ancestors of the rows at the top, over the list (C-HIER-13).
+    let stickyView = HierarchyStickyView()
     /// Collapse All, Expand to Level n, Expand All (C-HIER-06). Rebuilt when the rows change,
     /// which is when the levels there are can change.
     ///
@@ -86,11 +91,11 @@ final class HierarchyViewController: NSViewController {
     /// What the outline shows, as the store last published it. Inside a subscription the
     /// store may already hold newer values.
     private(set) var tree = LayerTree.empty
-    private var filter: HierarchyFilter?
+    private(set) var filter: HierarchyFilter?
     private(set) var focus: UInt64?
     /// The outline's top rows: the focused layer, or every window's root layer; with a
     /// search, only those it leaves.
-    private var roots: [UInt64] = []
+    private(set) var roots: [UInt64] = []
     private var items: [UInt64: Item] = [:]
     /// How wide each title is when shown in full. Class names repeat a lot.
     var titleWidths: [String: CGFloat] = [:]
@@ -100,15 +105,20 @@ final class HierarchyViewController: NSViewController {
     var isColumnSizingPending = false
     /// True while the outline is being made to match the store. Its notifications are then
     /// not the user's doing.
-    private var isShowingStore = false
+    private(set) var isShowingStore = false
     /// Set while the outline writes an expansion to the store, which publishes it back.
     private var isWritingExpansion = false
     /// The children a search leaves, by layer, as the outline view has asked for them since
     /// the rows were last shown.
-    private var shownChildren: [UInt64: [UInt64]] = [:]
+    var shownChildren: [UInt64: [UInt64]] = [:]
     /// Rows the outline view collapsed for good inside a row that is being collapsed with ⌥,
     /// waiting for that row's own notification, which comes last.
-    private var collapsedInside: [UInt64] = []
+    var collapsedInside: [UInt64] = []
+    /// The selected and the hovered layer as the store last published them: inside its
+    /// subscriptions the store still holds the old ones. What the rows' guides, hover and the
+    /// sticky rows show.
+    var shownSelection: UInt64?
+    var shownHover: UInt64?
     /// The rows in view as last reported to the store; nil before the first report.
     private var reportedVisible: [UInt64]?
     private var cancellables = Set<AnyCancellable>()
@@ -141,7 +151,10 @@ final class HierarchyViewController: NSViewController {
         root.addVStack(alignment: .fill, safeArea: .top) {
             makeFilterBar()
             makeStatusView()
-            scrollView
+            HierarchyListView(scrollView: scrollView, stickyView: stickyView)
+                // Takes the room the bars leave, as the scroll view alone did.
+                .contentHuggingPriority(NSLayoutConstraint.Priority(1), for: .vertical)
+                .contentHuggingPriority(NSLayoutConstraint.Priority(1), for: .horizontal)
                 .bind(\.isHidden, to: status.map { $0 != nil })
             makeCountBar()
         }
@@ -161,7 +174,8 @@ final class HierarchyViewController: NSViewController {
         outlineView.headerView = nil
         outlineView.style = .sourceList
         outlineView.rowHeight = 24
-        outlineView.indentationPerLevel = 14
+        // With guides, less indentation still shows which row is inside which (C-HIER-12).
+        outlineView.indentationPerLevel = 12
         outlineView.allowsMultipleSelection = false
         outlineView.allowsEmptySelection = true
         outlineView.setAccessibilityIdentifier(Self.outlineIdentifier)
@@ -175,6 +189,7 @@ final class HierarchyViewController: NSViewController {
         outlineView.menu?.delegate = self
         outlineView.action = #selector(outlineViewWasClicked(_:))
         outlineView.doubleAction = #selector(outlineViewWasDoubleClicked(_:))
+        configurePointer()
     }
 
     /// The outline view in a scroll view whose scrolling and resizing fit the column.
@@ -197,6 +212,8 @@ final class HierarchyViewController: NSViewController {
                 MainActor.assumeIsolated {
                     self?.fitColumn()
                     self?.reportVisibleRows()
+                    self?.updateSticky()
+                    self?.outlineView.pointerMayHaveMoved()
                 }
             }
             .store(in: &cancellables)
@@ -332,7 +349,20 @@ final class HierarchyViewController: NSViewController {
             .store(in: &cancellables)
         store.$selectedLayerID
             .removeDuplicates()
-            .sink { [weak self] id in self?.showSelection(id, scroll: true) }
+            .sink { [weak self] id in
+                self?.shownSelection = id
+                self?.showSelection(id, scroll: true)
+                self?.followSideways(id)
+                self?.decorateRows()
+            }
+            .store(in: &cancellables)
+        // The hover, from the list or the preview (C-HIER-15).
+        store.$hoveredLayerID
+            .removeDuplicates()
+            .sink { [weak self] id in
+                self?.shownHover = id
+                self?.decorateRows()
+            }
             .store(in: &cancellables)
         // Expansion the store makes on its own: expanding to a level, revealing a row,
         // focusing (C-HIER-06). The outline follows it without reloading.
@@ -385,12 +415,12 @@ final class HierarchyViewController: NSViewController {
     }
 
     /// The steps from the window's root layer down to the focus, each with its title and
-    /// symbol.
+    /// icon.
     private static func pathItems(_ store: InspectionStore) -> [NSPathControlItem] {
         HierarchyViewModel.pathSteps(store).map { step in
             let item = NSPathControlItem()
             item.title = step.title
-            item.image = Theme.squareSymbol(step.symbolName, size: 11, side: 16)
+            item.image = LayerIconImage.image(step.icon, side: 14)
             return item
         }
     }
@@ -483,7 +513,7 @@ final class HierarchyViewController: NSViewController {
 
     /// Tells the store which rows are in view, top to bottom, when that changed: their
     /// screenshots are asked for first (C-DET-01).
-    private func reportVisibleRows() {
+    func reportVisibleRows() {
         let range = outlineView.rows(in: outlineView.visibleRect)
         let ids = (range.location..<(range.location + range.length)).compactMap(layerID(atRow:))
         guard ids != reportedVisible else { return }
@@ -493,20 +523,20 @@ final class HierarchyViewController: NSViewController {
 
     // MARK: - From the store to the outline
 
-    private func item(for id: UInt64) -> Item {
+    func item(for id: UInt64) -> Item {
         if let item = items[id] { return item }
         let item = Item(id: id)
         items[id] = item
         return item
     }
 
-    private func writingExpansion(_ body: () -> Void) {
+    func writingExpansion(_ body: () -> Void) {
         isWritingExpansion = true
         body()
         isWritingExpansion = false
     }
 
-    private func showingStore(_ body: () -> Void) {
+    func showingStore(_ body: () -> Void) {
         let wasShowingStore = isShowingStore
         isShowingStore = true
         body()
@@ -577,7 +607,7 @@ final class HierarchyViewController: NSViewController {
     /// expand a row before the row it is inside of is expanded. A row expanded in the store
     /// together with every row inside it is expanded with them in one call: the outline view
     /// inserts rows for each call, and row by row, thousands of them took seconds.
-    private func applyExpansion(below ids: [UInt64]) {
+    func applyExpansion(below ids: [UInt64]) {
         let whole = HierarchyOutlineSync.wholeExpansions(below: ids, in: tree) { store.isExpanded($0) }
         var pending = Array(ids.reversed())
         while let id = pending.popLast() {
@@ -589,13 +619,16 @@ final class HierarchyViewController: NSViewController {
                 outlineView.expandItem(item)
                 pending.append(contentsOf: tree.children(of: id).reversed())
             } else {
-                outlineView.collapseItem(item)
+                // The rows inside are collapsed with it: the outline view would otherwise
+                // remember them as expanded and open them again with it, whatever the store
+                // holds by then.
+                outlineView.collapseItem(item, collapseChildren: true)
             }
         }
     }
 
     /// Selects the row of a layer, or nothing; scrolls to it when asked.
-    private func showSelection(_ id: UInt64?, scroll: Bool) {
+    func showSelection(_ id: UInt64?, scroll: Bool) {
         showingStore {
             // A row index outlives a reload, the layer in that row may not: always set the
             // selection anew.
@@ -620,7 +653,18 @@ final class HierarchyViewController: NSViewController {
 
     /// The layer a row shows. Internal for tests.
     func layerID(atRow row: Int) -> UInt64? {
-        (outlineView.item(atRow: row) as? Item)?.id
+        layerID(of: outlineView.item(atRow: row))
+    }
+
+    /// The layer of one of the outline view's items.
+    func layerID(of item: Any?) -> UInt64? {
+        (item as? Item)?.id
+    }
+
+    /// The row of a layer, or -1 when it has none.
+    func row(of id: UInt64) -> Int {
+        guard tree.contains(id) else { return -1 }
+        return outlineView.row(forItem: item(for: id))
     }
 
     /// The view of one row, configured.
@@ -628,127 +672,5 @@ final class HierarchyViewController: NSViewController {
         guard let item = outlineView.item(atRow: row) else { return nil }
         return outlineView(outlineView, viewFor: outlineView.tableColumns.first, item: item)
             as? HierarchyRowView
-    }
-}
-
-extension HierarchyViewController: NSOutlineViewDataSource, NSOutlineViewDelegate {
-    private func children(of item: Any?) -> [UInt64] {
-        guard let item = item as? Item else { return roots }
-        let children = tree.children(of: item.id)
-        guard let filter else { return children }
-        // The outline view asks for each child by its index: filtering the children for each
-        // would take a node's k children k times.
-        if let shown = shownChildren[item.id] { return shown }
-        let shown = children.filter(filter.shown.contains)
-        shownChildren[item.id] = shown
-        return shown
-    }
-
-    func outlineView(_ outlineView: NSOutlineView, numberOfChildrenOfItem item: Any?) -> Int {
-        children(of: item).count
-    }
-
-    func outlineView(_ outlineView: NSOutlineView, child index: Int, ofItem item: Any?) -> Any {
-        self.item(for: children(of: item)[index])
-    }
-
-    /// Typing a title's first letters selects its row.
-    func outlineView(
-        _ outlineView: NSOutlineView, typeSelectStringFor tableColumn: NSTableColumn?, item: Any
-    ) -> String? {
-        (item as? Item).map { tree.displayTitle(of: $0.id) }
-    }
-
-    func outlineView(_ outlineView: NSOutlineView, isItemExpandable item: Any) -> Bool {
-        !children(of: item).isEmpty
-    }
-
-    func outlineView(
-        _ outlineView: NSOutlineView, viewFor tableColumn: NSTableColumn?, item: Any
-    ) -> NSView? {
-        guard let item = item as? Item else { return nil }
-        let view =
-            outlineView.makeView(withIdentifier: Self.rowIdentifier, owner: nil)
-                as? HierarchyRowView ?? HierarchyRowView()
-        view.identifier = Self.rowIdentifier
-        view.configure(HierarchyRow(tree, item.id, filter: filter))
-        return view
-    }
-
-    // MARK: From the outline to the store
-
-    func outlineViewItemDidExpand(_ notification: Notification) {
-        guard !isShowingStore else { return }
-        // Rows appeared: the column follows them, with a search too.
-        defer { sizeColumnSoon() }
-        // With a search, expanding is the list's own business (C-HIER-04).
-        guard filter == nil, let item = notification.userInfo?["NSObject"] as? Item
-        else { return }
-        writingExpansion { store.setExpanded(item.id, true) }
-        // The rows that just appeared are as the outline view remembers them, or collapsed.
-        // The store says how they should be.
-        showingStore {
-            applyExpansion(below: tree.children(of: item.id))
-        }
-        reportVisibleRows()
-    }
-
-    func outlineViewItemDidCollapse(_ notification: Notification) {
-        guard !isShowingStore else { return }
-        // Rows went away: the column follows them, with a search too.
-        defer { sizeColumnSoon() }
-        guard filter == nil, let item = notification.userInfo?["NSObject"] as? Item
-        else { return }
-        // Collapsing a row collapses every expanded row inside it first, each with its own
-        // notification, and the row itself last. Without ⌥ the outline view expands them
-        // again with that row, as they were, so the store keeps them expanded: their
-        // expansion does not show while the row is collapsed. With ⌥ they stay collapsed and
-        // go to the store together with the row. Either way the tree is laid out once, not
-        // once for each.
-        if let parent = outlineView.parent(forItem: item), !outlineView.isItemExpanded(parent) {
-            if outlineView.isCollapsingChildren { collapsedInside.append(item.id) }
-            return
-        }
-        let collapsed = collapsedInside + [item.id]
-        collapsedInside.removeAll()
-        writingExpansion { store.setExpanded(collapsed, false) }
-        // The outline view has dropped a selection that was inside the collapsed row. The
-        // store moved it onto the row; show that.
-        showSelection(store.selectedLayerID, scroll: true)
-        reportVisibleRows()
-    }
-
-    func outlineViewSelectionDidChange(_ notification: Notification) {
-        guard !isShowingStore else { return }
-        // The outline view's selection now, not at the time the notification was posted: it
-        // arrives after a collapse has already been dealt with.
-        let id = layerID(atRow: outlineView.selectedRow)
-        // Collapsing a row of the search drops a selection inside it from the outline. The
-        // search's rows are the list's own business: the store keeps its selection.
-        if id == nil, filter != nil, let selected = store.selectedLayerID,
-           tree.contains(selected), outlineView.row(forItem: item(for: selected)) < 0
-        {
-            return
-        }
-        // A row of the search may be inside nodes the store holds collapsed: they are
-        // expanded, so that the row clicked is the one selected (C-HIER-04).
-        if let id, filter != nil {
-            store.reveal(id)
-        } else {
-            store.select(id)
-        }
-    }
-}
-
-/// The hierarchy's outline view. Tells whether the collapse under way collapses every row
-/// inside too, as ⌥ does, which its notifications do not tell.
-final class HierarchyOutlineView: NSOutlineView {
-    private(set) var isCollapsingChildren = false
-
-    override func collapseItem(_ item: Any?, collapseChildren: Bool) {
-        let wasCollapsingChildren = isCollapsingChildren
-        isCollapsingChildren = collapseChildren
-        super.collapseItem(item, collapseChildren: collapseChildren)
-        isCollapsingChildren = wasCollapsingChildren
     }
 }
