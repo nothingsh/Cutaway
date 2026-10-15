@@ -14,7 +14,7 @@ final class HierarchyViewModel {
     /// One step of the path from the window's root layer down to the focus (C-HIER-05).
     struct PathStep: Equatable {
         var title: String
-        var symbolName: String
+        var icon: LayerIcon
     }
 
     let store: InspectionStore
@@ -64,11 +64,11 @@ final class HierarchyViewModel {
                 switch state {
                 case .loading: return nil
                 case .failed(.appNotActive):
-                    return "moon.zzz"
-                case .failed: return "exclamationmark.triangle"
+                    return Theme.Symbol.hierarchyNotActive
+                case .failed: return Theme.Symbol.hierarchyFailed
                 case .loaded:
                     if tree.isEmpty {
-                        return "rectangle.dashed"
+                        return Theme.Symbol.emptyTree
                     }
                     guard Self.noMatchText(store?.filter) != nil else {
                         return nil
@@ -137,12 +137,12 @@ final class HierarchyViewModel {
     }
 
     /// The steps from the window's root layer down to the focus, each with its title and
-    /// symbol.
+    /// icon.
     static func pathSteps(_ store: InspectionStore) -> [PathStep] {
         guard let focus = store.focusedLayerID else { return [] }
         let tree = store.tree
         return tree.path(to: focus).map { id in
-            PathStep(title: tree.displayTitle(of: id), symbolName: LayerSymbol.name(for: tree.node(id)))
+            PathStep(title: tree.displayTitle(of: id), icon: LayerIcon(tree.node(id)))
         }
     }
 }

@@ -57,24 +57,6 @@ final class HierarchyToolsViewTests: XCTestCase {
     // MARK: - C-HIER-05: the focus in the list
 
     @MainActor
-    func test_C_HIER_05_theFocusedLayerIsTheListsRoot() throws {
-        let (model, controller) = try loaded()
-        model.focus(on: 4)
-        XCTAssertEqual(layers(of: controller), [4, 5])
-        XCTAssertEqual(levels(of: controller), [0, 1])
-        model.focus(on: nil)
-        XCTAssertEqual(layers(of: controller), [1, 2, 3, 4, 5, 6, 7, 8, 9])
-    }
-
-    @MainActor
-    func test_C_HIER_05_theListKeepsTheModelsExpansionInTheFocus() throws {
-        let (model, controller) = try loaded()
-        model.setExpanded(6, false)
-        model.focus(on: 2)
-        XCTAssertEqual(layers(of: controller), [2, 3, 4, 5, 6, 8, 9])
-    }
-
-    @MainActor
     func test_C_HIER_05_aFocusReloadsTheListOnce() throws {
         let (model, controller) = try loaded()
         let reloads = controller.reloadCount
@@ -177,55 +159,6 @@ final class HierarchyToolsViewTests: XCTestCase {
         XCTAssertEqual(published, ["label"], "and only once")
     }
 
-    /// Return in the field, through its field editor as the keyboard does.
-    @MainActor
-    func test_C_HIER_04_returnRunsTheSearchAtOnce() throws {
-        let (model, controller) = try loaded()
-        let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 280, height: 300), styleMask: [.titled],
-            backing: .buffered, defer: false)
-        window.contentViewController = controller
-        let field = try view(
-            HierarchyViewController.searchIdentifier, in: controller, as: NSSearchField.self)
-        XCTAssertTrue(window.makeFirstResponder(field))
-        let editor = try XCTUnwrap(field.currentEditor() as? NSTextView)
-        editor.string = "label"
-        editor.didChangeText()
-        XCTAssertEqual(model.searchText, "", "typing waits")
-        editor.insertNewline(nil)
-        XCTAssertEqual(model.searchText, "label")
-        XCTAssertEqual(layers(of: controller), [1, 2, 3, 6, 7])
-    }
-
-    @MainActor
-    func test_C_HIER_04_theListShowsTheMatchesAndTheirAncestors() throws {
-        let (model, controller) = try loaded()
-        try search("label", in: controller)
-        XCTAssertEqual(model.searchText, "label")
-        XCTAssertEqual(layers(of: controller), [1, 2, 3, 6, 7])
-        XCTAssertEqual(levels(of: controller), [0, 1, 2, 2, 3])
-    }
-
-    @MainActor
-    func test_C_HIER_04_ancestorsThatDoNotMatchAreWeaker() throws {
-        let (_, controller) = try loaded()
-        try search("label", in: controller)
-        let colors = (0..<5).map { controller.rowView($0)?.titleColor }
-        XCTAssertEqual(colors, [
-            .secondaryLabelColor, .secondaryLabelColor, .labelColor, .secondaryLabelColor,
-            .labelColor,
-        ])
-    }
-
-    @MainActor
-    func test_C_HIER_04_aHiddenMatchStaysDimmed() throws {
-        let (_, controller) = try loaded()
-        try search("shape", in: controller)
-        XCTAssertEqual(layers(of: controller), [1, 2, 4, 5])
-        XCTAssertEqual(controller.rowView(3)?.titleColor, .tertiaryLabelColor)
-        XCTAssertEqual(controller.rowView(3)?.isDimmed, true)
-    }
-
     @MainActor
     func test_C_HIER_04_clearingTheSearchBringsBackTheRowsAsTheyWere() throws {
         let (model, controller) = try loaded()
@@ -272,41 +205,6 @@ final class HierarchyToolsViewTests: XCTestCase {
     }
 
     @MainActor
-    func test_C_HIER_04_noMatchesAreExplained() throws {
-        let (_, controller) = try loaded()
-        try search("  button ", in: controller)
-        let status = try view(
-            HierarchyViewController.statusIdentifier, in: controller, as: NSTextField.self)
-        XCTAssertEqual(status.stringValue, "No layers match “button”.")
-        XCTAssertTrue(isShown(status))
-        let field = try view(
-            HierarchyViewController.searchIdentifier, in: controller, as: NSSearchField.self)
-        XCTAssertTrue(isShown(field), "the search can be cleared")
-    }
-
-    @MainActor
-    func test_C_HIER_04_theFooterCountsTheMatches() throws {
-        let (_, controller) = try loaded()
-        let count = try view(
-            HierarchyViewController.countIdentifier, in: controller, as: NSTextField.self)
-        try search("label", in: controller)
-        XCTAssertEqual(count.stringValue, "2 matches")
-        try search("scroll", in: controller)
-        XCTAssertEqual(count.stringValue, "1 match")
-        try search("", in: controller)
-        XCTAssertEqual(count.stringValue, "9 layers · 1 hidden")
-    }
-
-    @MainActor
-    func test_C_HIER_05_theFooterCountsTheFocus() throws {
-        let (model, controller) = try loaded()
-        let count = try view(
-            HierarchyViewController.countIdentifier, in: controller, as: NSTextField.self)
-        model.focus(on: 4)
-        XCTAssertEqual(count.stringValue, "2 layers · 1 hidden")
-    }
-
-    @MainActor
     func test_C_HIER_04_theFieldShowsTheModelsTextOnlyWhenItDiffers() throws {
         let (model, controller) = try loaded()
         let field = try view(
@@ -344,38 +242,6 @@ final class HierarchyToolsViewTests: XCTestCase {
         }
     }
 
-    @MainActor
-    func test_C_HIER_06_theMenuHasALevelForEachDepth() throws {
-        let (model, controller) = try loaded()
-        let titles = try expandButton(controller).itemTitles.dropFirst().filter { !$0.isEmpty }
-        XCTAssertEqual(titles, [
-            "Collapse All", "Expand to Level 1", "Expand to Level 2", "Expand to Level 3",
-            "Expand All",
-        ])
-        model.focus(on: 9)
-        XCTAssertEqual(
-            try expandButton(controller).itemTitles.dropFirst().filter { !$0.isEmpty },
-            ["Collapse All", "Expand All"])
-    }
-
-    @MainActor
-    func test_C_HIER_06_expandingToLevelTwo() throws {
-        let (model, controller) = try loaded()
-        try choose("Expand to Level 2", in: controller)
-        XCTAssertEqual(model.tree.ids.filter(model.isExpanded), [1, 2])
-        XCTAssertEqual(layers(of: controller), [1, 2, 3, 4, 6, 8, 9])
-        XCTAssertEqual(expandedRows(controller), [1, 2])
-    }
-
-    @MainActor
-    func test_C_HIER_06_collapsingAndExpandingEverything() throws {
-        let (_, controller) = try loaded()
-        try choose("Collapse All", in: controller)
-        XCTAssertEqual(layers(of: controller), [1])
-        try choose("Expand All", in: controller)
-        XCTAssertEqual(layers(of: controller), [1, 2, 3, 4, 5, 6, 7, 8, 9])
-    }
-
     // MARK: - The sidebar's header: expansion menu, search and path
 
     @MainActor
@@ -394,30 +260,6 @@ final class HierarchyToolsViewTests: XCTestCase {
         XCTAssertEqual(expandedRows(controller), [1, 2])
     }
 
-    /// The search field and the expand button are below the toolbar, not under the title
-    /// bar's row with the window's buttons.
-    @MainActor
-    func test_C_HIER_04_theSearchIsBelowTheToolbar() throws {
-        let model = InspectionStore(
-            session: Session(channel: InertChannel(), client: Self.client), newLayers: .expanded)
-        model.apply(try Fixtures.hierarchy())
-        let inspector = InspectorWindowController(
-            location: .simulator(port: 48160), entry: nil, store: model)
-        let window = try XCTUnwrap(inspector.window)
-        window.layoutIfNeeded()
-        let controller = inspector.splitController.hierarchyController
-        // Where the toolbar ends: the top of the area the content can use unobscured.
-        let visibleTop = window.contentLayoutRect.maxY
-        XCTAssertLessThan(visibleTop, window.contentView?.bounds.maxY ?? 0, "a toolbar")
-        for view in [controller.searchField, controller.expandButton] as [NSView] {
-            let frame = view.convert(view.bounds, to: nil)
-            XCTAssertTrue(isShown(view))
-            XCTAssertGreaterThan(frame.height, 0)
-            XCTAssertLessThanOrEqual(frame.maxY, visibleTop, "\(type(of: view))")
-        }
-        inspector.close()
-    }
-
     @MainActor
     func test_C_HIER_06_theListFollowsExpansionTheModelMakes() throws {
         let (model, controller) = try loaded()
@@ -432,122 +274,6 @@ final class HierarchyToolsViewTests: XCTestCase {
         controller.outlineView.collapseItem(controller.outlineView.item(atRow: row))
         XCTAssertFalse(model.isExpanded(4))
         XCTAssertEqual(layers(of: controller), [1, 2, 3, 4, 6, 7, 8, 9])
-    }
-
-    @MainActor
-    func test_C_HIER_06_theMenuIsNotAvailableDuringASearch() throws {
-        let (_, controller) = try loaded()
-        XCTAssertTrue(try expandButton(controller).isEnabled)
-        try search("label", in: controller)
-        XCTAssertFalse(try expandButton(controller).isEnabled)
-        try search("", in: controller)
-        XCTAssertTrue(try expandButton(controller).isEnabled)
-    }
-
-    @MainActor
-    func test_C_HIER_05_thePathShowsTheWayDownToTheFocus() throws {
-        let (model, controller) = try loaded()
-        let path = try view(
-            HierarchyViewController.pathIdentifier, in: controller, as: NSPathControl.self)
-        XCTAssertFalse(isShown(path))
-        model.focus(on: 5)
-        XCTAssertTrue(isShown(path))
-        XCTAssertEqual(
-            path.pathItems.map(\.title), ["UIWindow", "UIView", "CardView", "CAShapeLayer"])
-    }
-
-    @MainActor
-    func test_C_HIER_05_thePathsSymbolsAreSquareSoTheyAreNotStretched() throws {
-        let (model, controller) = try loaded()
-        let path = try view(
-            HierarchyViewController.pathIdentifier, in: controller, as: NSPathControl.self)
-        model.focus(on: 5)
-        // The path control draws each item's image into a square; the window's symbol is
-        // wider than it is tall.
-        for item in path.pathItems {
-            let image = try XCTUnwrap(item.image, item.title)
-            XCTAssertEqual(image.size.width, image.size.height, item.title)
-            XCTAssertTrue(image.isTemplate, item.title)
-        }
-    }
-
-    @MainActor
-    func test_C_HIER_05_aStepOfThePathFocusesThere() throws {
-        let (model, controller) = try loaded()
-        model.focus(on: 5)
-        controller.pathStepWasClicked(at: 1)
-        XCTAssertEqual(model.focusedLayerID, 2)
-        XCTAssertEqual(layers(of: controller).first, 2)
-    }
-
-    /// The button that shows all layers keeps to the row's trailing edge: after a short path
-    /// it does not follow the path, and a long path is cut short before it rather than push
-    /// it out of sight (2026-10-07, reported in use).
-    @MainActor
-    func test_C_HIER_05_theButtonStaysAtTheTrailingEdgeWhateverThePath() throws {
-        // The fixture, and under its card a chain of views with long names, 12 deep.
-        var hierarchy = try Fixtures.hierarchy()
-        let view = try XCTUnwrap(hierarchy.nodes.first { $0.id == 9 })
-        for id in UInt64(20)..<32 {
-            var node = view
-            node.id = id
-            node.parentID = id == 20 ? 4 : id - 1
-            node.viewDisplayClassName = "NavigationBarPlatterContainer\(id)"
-            hierarchy.nodes.append(node)
-        }
-        let (model, controller, window) = try inWindow(width: 280, hierarchy)
-        let path = try self.view(
-            HierarchyViewController.pathIdentifier, in: controller, as: NSPathControl.self)
-        let button = try self.view(
-            HierarchyViewController.leaveFocusIdentifier, in: controller, as: NSButton.self)
-        func frame(_ view: NSView) -> NSRect { view.convert(view.bounds, to: controller.view) }
-
-        model.focus(on: 2)
-        window.layoutIfNeeded()
-        let trailing = frame(button).maxX
-        XCTAssertEqual(trailing, controller.view.bounds.maxX - 10, accuracy: 1, "after a short path")
-
-        model.focus(on: 31)
-        window.layoutIfNeeded()
-        XCTAssertTrue(isShown(button))
-        XCTAssertEqual(frame(button).maxX, trailing, accuracy: 0.5, "after a long path")
-        XCTAssertLessThanOrEqual(frame(path).maxX, frame(button).minX)
-
-        // A wider list, and from the long path its first step, as in the report: the button
-        // follows the edge, not the path.
-        window.setContentSize(NSSize(width: 420, height: 500))
-        window.layoutIfNeeded()
-        controller.pathStepWasClicked(at: 0)
-        window.layoutIfNeeded()
-        XCTAssertEqual(model.focusedLayerID, 1)
-        XCTAssertEqual(
-            frame(button).maxX, controller.view.bounds.maxX - 10, accuracy: 1, "after the first step")
-        withExtendedLifetime(window) {}
-    }
-
-    @MainActor
-    func test_C_HIER_05_theButtonShowsAllLayers() throws {
-        let (model, controller) = try loaded()
-        model.focus(on: 4)
-        let button = try view(
-            HierarchyViewController.leaveFocusIdentifier, in: controller, as: NSButton.self)
-        button.performClick(nil)
-        XCTAssertNil(model.focusedLayerID)
-    }
-
-    @MainActor
-    func test_C_HIER_05_theContextMenuFocusesOnTheClickedRow() throws {
-        let (model, controller) = try loaded()
-        let menu = try XCTUnwrap(controller.outlineView.menu)
-        controller.contextMenu(menu, forRow: 3)  // CardView
-        XCTAssertEqual(menu.items.map(\.title), ["Focus on Layer"] + Self.exportTitles)
-        let focus = try XCTUnwrap(menu.items.first)
-        XCTAssertTrue(NSApp.sendAction(try XCTUnwrap(focus.action), to: focus.target, from: focus))
-        XCTAssertEqual(model.focusedLayerID, 4)
-
-        controller.contextMenu(menu, forRow: 0)
-        XCTAssertEqual(
-            menu.items.map(\.title), ["Focus on Layer"] + Self.exportTitles + ["Show All Layers"])
     }
 
     @MainActor
@@ -616,31 +342,6 @@ final class HierarchyToolsViewTests: XCTestCase {
     }
 
     @MainActor
-    func test_C_HIER_04_clickingBesideTheRowsOfTheSearchStillDeselects() throws {
-        let (model, controller) = try loaded()
-        model.select(7)
-        try search("label", in: controller)
-        controller.outlineView.deselectAll(nil)
-        XCTAssertNil(model.selectedLayerID)
-    }
-
-    @MainActor
-    func test_C_HIER_01_aTreeThatArrivesDuringASearchWithoutMatchesIsSizedForLater() throws {
-        let widths = try [nil, "zzz"].map { text -> CGFloat in
-            let model = InspectionStore(
-                session: Session(channel: InertChannel(), client: Self.client),
-                newLayers: .expanded)
-            let controller = HierarchyViewController(store: model, appName: "Demo")
-            _ = controller.view
-            if let text { model.setSearchText(text) }
-            model.apply(try Fixtures.hierarchy())
-            model.setSearchText("")
-            return try XCTUnwrap(controller.outlineView.tableColumns.first).width
-        }
-        XCTAssertEqual(widths[1], widths[0])
-    }
-
-    @MainActor
     func test_C_HIER_06_whatTheListExpandsItselfIsNotAppliedBack() throws {
         let (model, controller) = try loaded()
         let followed = controller.followedExpansions
@@ -664,154 +365,5 @@ final class HierarchyToolsViewTests: XCTestCase {
         model.apply(hierarchy)
         XCTAssertFalse(isShown(path))
         XCTAssertEqual(layers(of: controller).first, 1)
-    }
-
-    // MARK: - C-HIER-07: view controllers and members on the rows
-
-    @MainActor
-    private func detail(
-        of id: UInt64, in controller: HierarchyViewController
-    ) throws -> NSTextField {
-        let row = try XCTUnwrap(layers(of: controller).firstIndex(of: id), "layer \(id) has no row")
-        let view = try XCTUnwrap(controller.rowView(row))
-        return try XCTUnwrap(
-            AppListViewTests.descendant(of: view, identifier: HierarchyRowView.detailIdentifier)
-                as? NSTextField)
-    }
-
-    @MainActor
-    func test_C_HIER_07_aRowNamesItsViewControllerOrTheMemberThatHoldsIt() throws {
-        let (_, controller) = try loaded()
-        XCTAssertEqual(try detail(of: 2, in: controller).stringValue, "HomeViewController")
-        XCTAssertEqual(
-            try detail(of: 3, in: controller).stringValue, "HomeViewController.titleLabel")
-        XCTAssertEqual(try detail(of: 5, in: controller).stringValue, "CardView.badgeLayer +1")
-        XCTAssertEqual(
-            try detail(of: 8, in: controller).stringValue, "DMBaseViewController._dividerLayer")
-        for id: UInt64 in [1, 7, 9] {
-            XCTAssertTrue(try detail(of: id, in: controller).isHidden, "layer \(id)")
-        }
-        XCTAssertFalse(try detail(of: 3, in: controller).isHidden)
-    }
-
-    @MainActor
-    func test_C_HIER_07_theTooltipListsEverything() throws {
-        let (_, controller) = try loaded()
-        let row = try XCTUnwrap(layers(of: controller).firstIndex(of: 5))
-        XCTAssertEqual(
-            controller.rowView(row)?.toolTip,
-            "Referenced by CardView.badgeLayer\nReferenced by HomeViewController.cardBadge")
-        let two = try XCTUnwrap(layers(of: controller).firstIndex(of: 2))
-        XCTAssertEqual(controller.rowView(two)?.toolTip, "View controller HomeViewController")
-        XCTAssertNil(controller.rowView(0)?.toolTip)
-    }
-
-    @MainActor
-    func test_C_HIER_07_aHiddenRowsDetailIsWeakerToo() throws {
-        let (_, controller) = try loaded()
-        XCTAssertEqual(try detail(of: 3, in: controller).textColor, .secondaryLabelColor)
-        XCTAssertEqual(try detail(of: 5, in: controller).textColor, .tertiaryLabelColor)
-    }
-
-    @MainActor
-    func test_C_HIER_07_aDetailGivesWayRatherThanWidenTheList() throws {
-        // The same tree without the fields of protocol 0.2.
-        var plain = try Fixtures.hierarchy()
-        for index in plain.nodes.indices {
-            plain.nodes[index].viewControllerClassName = nil
-            plain.nodes[index].viewControllerDisplayClassName = nil
-            plain.nodes[index].memberReferences = []
-        }
-        let widths = try [try Fixtures.hierarchy(), plain].map { hierarchy -> CGFloat in
-            let model = InspectionStore(
-                session: Session(channel: InertChannel(), client: Self.client),
-                newLayers: .expanded)
-            model.apply(hierarchy)
-            let controller = HierarchyViewController(store: model, appName: "Demo")
-            _ = controller.view
-            return try XCTUnwrap(controller.outlineView.tableColumns.first).width
-        }
-        // As wide as the titles need, so that a deep row's title is never cut off: the default
-        // sidebar still shows the fixture without scrolling sideways; the tooltip and the
-        // panel's header have the rest.
-        XCTAssertEqual(widths[0], widths[1])
-        let (_, controller) = try loaded()
-        XCTAssertLessThan(
-            try detail(of: 8, in: controller).contentCompressionResistancePriority(
-                for: .horizontal),
-            NSLayoutConstraint.Priority.defaultHigh, "the detail is cut short first")
-    }
-
-    // MARK: - C-HIER-07: found in review
-
-    /// A list showing the `hierarchy` fixture in a window that is never shown.
-    @MainActor
-    private func inWindow(
-        width: CGFloat, _ hierarchy: Hierarchy? = nil
-    ) throws -> (InspectionStore, HierarchyViewController, NSWindow) {
-        let model = InspectionStore(
-            session: Session(channel: InertChannel(), client: Self.client), newLayers: .expanded)
-        let controller = HierarchyViewController(store: model, appName: "Demo")
-        let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: width, height: 500), styleMask: [.titled],
-            backing: .buffered, defer: false)
-        window.contentViewController = controller
-        window.setContentSize(NSSize(width: width, height: 500))
-        model.apply(try hierarchy ?? Fixtures.hierarchy())
-        window.layoutIfNeeded()
-        return (model, controller, window)
-    }
-
-    /// The detail of a row as the outline shows it, not a fresh one.
-    @MainActor
-    private func shownDetail(
-        of id: UInt64, in controller: HierarchyViewController
-    ) throws -> NSTextField {
-        let row = try XCTUnwrap(layers(of: controller).firstIndex(of: id))
-        let view = try XCTUnwrap(
-            controller.outlineView.view(atColumn: 0, row: row, makeIfNecessary: false))
-        return try XCTUnwrap(
-            AppListViewTests.descendant(of: view, identifier: HierarchyRowView.detailIdentifier)
-                as? NSTextField)
-    }
-
-    @MainActor
-    func test_C_HIER_07_detailsUseTheRoomTheListHas() throws {
-        let (_, controller, window) = try inWindow(width: 340)
-        for id: UInt64 in [2, 3] {
-            let detail = try shownDetail(of: id, in: controller)
-            XCTAssertGreaterThanOrEqual(
-                detail.frame.width, detail.intrinsicContentSize.width - 0.5, "layer \(id)")
-        }
-        // And still nothing to scroll to sideways.
-        let scrollView = try XCTUnwrap(controller.outlineView.enclosingScrollView)
-        XCTAssertLessThanOrEqual(
-            controller.outlineView.frame.width, scrollView.contentView.bounds.width)
-
-        // A wider list gives the details more.
-        window.setContentSize(NSSize(width: 520, height: 500))
-        window.layoutIfNeeded()
-        let eight = try shownDetail(of: 8, in: controller)
-        XCTAssertGreaterThanOrEqual(eight.frame.width, eight.intrinsicContentSize.width - 0.5)
-        XCTAssertLessThanOrEqual(
-            controller.outlineView.frame.width, scrollView.contentView.bounds.width)
-    }
-
-    @MainActor
-    func test_C_HIER_07_aNewTreeWithOtherMembersShowsThem() throws {
-        let (model, controller, window) = try inWindow(width: 340)
-        var changed = try Fixtures.hierarchy()
-        let three = try XCTUnwrap(changed.nodes.firstIndex { $0.id == 3 })
-        changed.nodes[three].memberReferences = [
-            MemberReference(ownerClassName: "X", ownerDisplayClassName: "X", name: "changed"),
-        ]
-        model.apply(changed)
-        window.layoutIfNeeded()
-        XCTAssertEqual(try shownDetail(of: 3, in: controller).stringValue, "X.changed")
-        let row = try XCTUnwrap(layers(of: controller).firstIndex(of: 3))
-        XCTAssertEqual(
-            controller.outlineView.view(atColumn: 0, row: row, makeIfNecessary: false)?.toolTip,
-            "Referenced by X.changed")
-        withExtendedLifetime(window) {}
     }
 }

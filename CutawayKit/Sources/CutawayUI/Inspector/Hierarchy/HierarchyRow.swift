@@ -1,7 +1,7 @@
 import CutawayModel
 
-/// What one row of the hierarchy list shows (C-HIER-01): the layer's title and the symbol for
-/// what it is; weaker for a layer that cannot be seen (C-HIER-03) or that the search shows only
+/// What one row of the hierarchy list shows (C-HIER-01): the layer's title and the icon for
+/// what it is (C-HIER-11); weaker for a layer that cannot be seen (C-HIER-03) or that the search shows only
 /// because a match is inside it (C-HIER-04); and the view controller and members that hold it
 /// (C-HIER-07).
 struct HierarchyRow: Equatable {
@@ -9,18 +9,18 @@ struct HierarchyRow: Equatable {
     var isDimmed: Bool
     /// A row the search shows only because a match is inside it (C-HIER-04).
     var isContext: Bool
-    var symbolName: String
+    var icon: LayerIcon
     var detail: String?
     var toolTip: String?
 
     init(
         title: String, isDimmed: Bool, isContext: Bool = false,
-        symbolName: String = LayerSymbol.view, detail: String? = nil, toolTip: String? = nil
+        icon: LayerIcon = LayerIcon(.container, .view, isAppClass: false), detail: String? = nil, toolTip: String? = nil
     ) {
         self.title = title
         self.isDimmed = isDimmed
         self.isContext = isContext
-        self.symbolName = symbolName
+        self.icon = icon
         self.detail = detail
         self.toolTip = toolTip
     }
@@ -30,7 +30,7 @@ struct HierarchyRow: Equatable {
         self.init(
             title: tree.displayTitle(of: id), isDimmed: tree.isDimmed(id),
             isContext: filter.map { !$0.matches.contains(id) } ?? false,
-            symbolName: LayerSymbol.name(for: tree.node(id)),
+            icon: LayerIcon(tree.node(id)),
             detail: Self.detail(tree, id), toolTip: Self.detailToolTip(tree, id))
     }
 
