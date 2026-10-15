@@ -4,9 +4,9 @@ import CutawayTransport
 import CutawayWire
 import DeclarativeAppKit
 
-/// One row of the app list (C-LIST-01 to C-LIST-03): the icon, the name and version, the
-/// bundle ID, the device and system, a capsule for an app that is not active or not
-/// compatible, and a chevron for one that can be opened.
+/// One row of the app list (C-LIST-01 to C-LIST-04): the icon, the name and version, a capsule
+/// for an app that is not active or not compatible, and the second line. The selected row says
+/// that Return inspects it.
 final class AppRowView: NSTableCellView {
     /// Accessibility identifiers of the row's parts.
     enum Identifier {
@@ -15,25 +15,19 @@ final class AppRowView: NSTableCellView {
         static let name = "app.name"
         static let version = "app.version"
         static let badge = "app.badge"
-        static let bundle = "app.bundle"
-        static let device = "app.device"
-        static let deviceSymbol = "app.deviceSymbol"
-        static let compatibility = "app.compatibility"
-        static let chevron = "app.chevron"
+        static let subtitle = "app.subtitle"
+        static let returnHint = "app.returnHint"
     }
 
-    static let iconSize: CGFloat = 40
+    static let iconSize: CGFloat = 36
 
     private let iconView = NSImageView()
     private let placeholderView = NSImageView()
     private let nameLabel = NSTextField(labelWithString: "")
     private let versionLabel = NSTextField(labelWithString: "")
     let badge = StatusCapsule()
-    private let bundleLabel = NSTextField(labelWithString: "")
-    private let deviceSymbol = NSImageView()
-    private let deviceLabel = NSTextField(labelWithString: "")
-    private let compatibilityLabel = NSTextField(labelWithString: "")
-    private let chevron = NSImageView()
+    private let subtitleLabel = NSTextField(labelWithString: "")
+    let returnHint = KeyHintView(text: localized("appList.returnHint"))
 
     init() {
         super.init(frame: .zero)
@@ -44,7 +38,7 @@ final class AppRowView: NSTableCellView {
         tile.layer?.masksToBounds = true
         tile.layer?.borderWidth = 0.5
         tile.addContent(placeholderView
-            .image(Theme.symbol(Theme.Symbol.appPlaceholder, size: 22, weight: .light))
+            .image(Theme.symbol(Theme.Symbol.appPlaceholder, size: 20, weight: .light))
             .contentTintColor(.tertiaryLabelColor)
             .imageScaling(.scaleNone)
             .accessibilityIdentifier(Identifier.iconPlaceholder))
@@ -56,7 +50,9 @@ final class AppRowView: NSTableCellView {
         addHStack(alignment: .center, spacing: Theme.Spacing.medium) {
             tile.frame(width: Self.iconSize, height: Self.iconSize)
             VStack(alignment: .leading, spacing: 1) {
-                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                // Centred, not on the baseline: the capsule has none, and the name and version
+                // are the same size.
+                HStack(alignment: .center, spacing: 6) {
                     nameLabel
                         .font(Theme.Font.bodyEmphasized)
                         .lineBreakMode(.byTruncatingTail)
@@ -70,34 +66,19 @@ final class AppRowView: NSTableCellView {
                         .accessibilityIdentifier(Identifier.version)
                     badge
                 }
-                bundleLabel
+                subtitleLabel
                     .font(Theme.Font.caption)
                     .textColor(.secondaryLabelColor)
                     .lineBreakMode(.byTruncatingMiddle)
-                    .accessibilityIdentifier(Identifier.bundle)
-                HStack(alignment: .center, spacing: Theme.Spacing.tight) {
-                    deviceSymbol
-                        .contentTintColor(.secondaryLabelColor)
-                        .accessibilityIdentifier(Identifier.deviceSymbol)
-                    deviceLabel
-                        .font(Theme.Font.caption)
-                        .textColor(.secondaryLabelColor)
-                        .lineBreakMode(.byTruncatingTail)
-                        .accessibilityIdentifier(Identifier.device)
-                }
-                compatibilityLabel
-                    .font(Theme.Font.caption)
-                    .textColor(.secondaryLabelColor)
-                    .lineBreakMode(.byTruncatingTail)
-                    .accessibilityIdentifier(Identifier.compatibility)
+                    .compressionResistancePriority(.defaultLow, for: .horizontal)
+                    .accessibilityIdentifier(Identifier.subtitle)
             }
             Spacer()
-            chevron
-                .image(Theme.symbol(Theme.Symbol.chevron, size: 11, weight: .semibold))
-                .contentTintColor(.tertiaryLabelColor)
-                .accessibilityIdentifier(Identifier.chevron)
+            returnHint
+                .accessibilityIdentifier(Identifier.returnHint)
         }
-        .padding(horizontal: Theme.Spacing.small, vertical: 6)
+        .padding(horizontal: 10, vertical: 7)
+        returnHint.isHidden = true
         updateColors()
     }
 
@@ -121,20 +102,20 @@ final class AppRowView: NSTableCellView {
         }
     }
 
+    /// The selected row, on the accent colour, shows the hint.
+    override var backgroundStyle: NSView.BackgroundStyle {
+        didSet { returnHint.isHidden = backgroundStyle != .emphasized }
+    }
+
     func configure(with entry: AppEntry) {
         let presentation = AppEntryPresentation(entry)
         nameLabel.stringValue = presentation.name
         show(presentation.version, in: versionLabel)
-        show(presentation.bundleID, in: bundleLabel)
-        show(presentation.deviceLine, in: deviceLabel)
-        deviceSymbol.image = Theme.symbol(presentation.deviceSymbolName, size: 10)
-        deviceSymbol.isHidden = presentation.deviceLine == nil
+        show(presentation.subtitle, in: subtitleLabel)
         iconView.image = entry.icon?.makeImage()
         placeholderView.isHidden = iconView.image != nil
 
         badge.show(presentation.badge)
-        show(presentation.compatibility, in: compatibilityLabel)
-        chevron.isHidden = presentation.isDimmed
         // Dimmed: it is listed, but it is not a choice.
         alphaValue = presentation.isDimmed ? 0.55 : 1
     }
@@ -143,5 +124,47 @@ final class AppRowView: NSTableCellView {
     private func show(_ text: String?, in label: NSTextField) {
         label.stringValue = text ?? ""
         label.isHidden = text == nil
+    }
+}
+
+/// A key and what it does, outlined, as the selected row of the app list shows it: "⏎ Inspect".
+/// Drawn in white, for the accent colour under it.
+final class KeyHintView: NSView {
+    let text: String
+    private let attributed: NSAttributedString
+    private static let inset = NSSize(width: 6, height: 1)
+
+    init(text: String) {
+        self.text = text
+        attributed = NSAttributedString(string: text, attributes: [
+            .font: Theme.Font.caption,
+            .foregroundColor: NSColor.white.withAlphaComponent(0.85),
+        ])
+        super.init(frame: .zero)
+        setContentHuggingPriority(.required, for: .horizontal)
+        setContentCompressionResistancePriority(.required, for: .horizontal)
+        setAccessibilityElement(true)
+        setAccessibilityRole(.staticText)
+        setAccessibilityValue(text)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) is not supported")
+    }
+
+    override var intrinsicContentSize: NSSize {
+        let size = attributed.size()
+        return NSSize(
+            width: ceil(size.width) + Self.inset.width * 2, height: ceil(size.height) + Self.inset.height * 2)
+    }
+
+    override func draw(_ dirtyRect: NSRect) {
+        let outline = NSBezierPath(roundedRect: bounds.insetBy(dx: 0.5, dy: 0.5), xRadius: 4, yRadius: 4)
+        outline.lineWidth = 1
+        NSColor.white.withAlphaComponent(0.5).setStroke()
+        outline.stroke()
+        let size = attributed.size()
+        attributed.draw(at: NSPoint(x: Self.inset.width, y: (bounds.height - size.height) / 2))
     }
 }

@@ -7,31 +7,44 @@ import DeclarativeCombine
 
 /// The list of apps that can be inspected, grouped by where they run, or an explanation when
 /// there are none. A click on an app, or Return on the selected one, opens it (C-LIST-01);
-/// the arrow keys only move the selection.
+/// the arrow keys only move the selection, from one app that can be inspected to the next
+/// (C-LIST-04). The first such app is selected as soon as there is one.
 final class AppListViewController: NSViewController {
     /// The accessibility identifier of the view shown when the list is empty.
     static let emptyStateIdentifier = "apps.empty"
+    static let emptyLinkIdentifier = "apps.empty.link"
+    static let emptyImageIdentifier = "apps.empty.image"
+    /// The empty list's picture: the layers of the app's icon, apart (C-LIST-04).
+    static var emptyImage: NSImage? { Bundle.module.image(forResource: "EmptyLayers") }
+    static let emptyImageOpacity: CGFloat = 0.35
     static let groupIdentifier = "apps.group"
+    static let groupViaIdentifier = "apps.group.via"
+    static let groupTileIdentifier = "apps.group.tile"
 
     private static let appRowIdentifier = NSUserInterfaceItemIdentifier("AppRow")
     private static let groupRowIdentifier = NSUserInterfaceItemIdentifier("AppGroupRow")
-    static let appRowHeight: CGFloat = 60
-    static let groupRowHeight: CGFloat = 28
-    static let incompatibleRowHeight: CGFloat = 76
+    static let appRowHeight: CGFloat = 50
+    static let groupRowHeight: CGFloat = 32
 
     private let store: AppListStore
     /// What a chosen app is handed to. Without it the store inspects the app: for tests, as
     /// the app always hands it to the window coordinator.
     private let onChoose: ((AppLocation) -> Void)?
+    /// Opens a page on the web: the empty list's link to the integration guide.
+    private let openURL: @MainActor (URL) -> Void
     private(set) var list = AppListRows()
     /// The table's rows.
     var rows: [AppListRows.Row] { list.rows }
     private var cancellables = Set<AnyCancellable>()
     let tableView = AppTableView()
 
-    init(store: AppListStore, onChoose: ((AppLocation) -> Void)? = nil) {
+    init(
+        store: AppListStore, onChoose: ((AppLocation) -> Void)? = nil,
+        openURL: @escaping @MainActor (URL) -> Void = { NSWorkspace.shared.open($0) }
+    ) {
         self.store = store
         self.onChoose = onChoose
+        self.openURL = openURL
         super.init(nibName: nil, bundle: nil)
     }
 
@@ -57,6 +70,7 @@ final class AppListViewController: NSViewController {
             guard let self else { return }
             self.choose(row: self.tableView.selectedRow)
         }
+        tableView.onArrow = { [weak self] direction in self?.move(direction) }
 
         let scrollView = NSScrollView()
         scrollView.documentView = tableView
@@ -66,19 +80,25 @@ final class AppListViewController: NSViewController {
 
         let root = NSView()
         root.addVStack(alignment: .fill) {
-            VStack(alignment: .center, spacing: Theme.Spacing.small) {
+            // The layers of the app's icon, apart (C-LIST-04).
+            VStack(alignment: .center, spacing: 18) {
                 Spacer()
                 NSImageView()
-                    .image(Theme.symbol(Theme.Symbol.noApps, size: 44, weight: .light))
-                    .contentTintColor(.tertiaryLabelColor)
-                NSTextField(labelWithString: localized("appList.empty.title"))
-                    .font(.systemFont(ofSize: 15, weight: .semibold))
-                NSTextField(
-                    wrappingLabelWithString:
-                    localized("appList.empty.detail")
-                )
-                .textColor(.secondaryLabelColor)
-                .alignment(.center)
+                    .image(Self.emptyImage)
+                    .imageScaling(.scaleProportionallyUpOrDown)
+                    .frame(width: 160, height: 120)
+                    // Faint: a placeholder, not the first thing the eye goes to.
+                    .alphaValue(Self.emptyImageOpacity)
+                    .accessibilityIdentifier(Self.emptyImageIdentifier)
+                VStack(alignment: .center, spacing: 6) {
+                    NSTextField(labelWithString: localized("appList.empty.title"))
+                        .font(.systemFont(ofSize: 15, weight: .semibold))
+                    NSTextField(wrappingLabelWithString: localized("appList.empty.detail"))
+                        .textColor(.secondaryLabelColor)
+                        .alignment(.center)
+                }
+                emptyLink
+                    .accessibilityIdentifier(Self.emptyLinkIdentifier)
                 Spacer()
             }
             .padding(horizontal: 48, vertical: 24)
@@ -93,22 +113,62 @@ final class AppListViewController: NSViewController {
         store.$entries
             .sink { [weak self] entries in self?.show(entries) }
             .store(in: &cancellables)
-        // Back in the list, no row is selected: a reload must not find a selection to act on.
+        // Back in the list, the app just inspected is selected again, or else the first one.
+        // Selecting opens nothing: only a click or Return does.
         store.$inspectedApp
-            .filter { $0 == nil }
-            .sink { [weak self] _ in self?.tableView.deselectAll(nil) }
+            .sink { [weak self] app in
+                guard let self else { return }
+                if app == nil, let left = self.inspected {
+                    self.select(self.list.choosableRow(of: left) ?? self.list.firstChoosableRow)
+                }
+                self.inspected = app
+            }
             .store(in: &cancellables)
     }
+
+    /// The app being inspected, as last published.
+    private var inspected: AppLocation?
 
     private func show(_ entries: [AppEntry]) {
         let selected = rows.indices.contains(tableView.selectedRow)
             ? rows[tableView.selectedRow] : nil
         list = AppListRows(entries)
         tableView.reloadData()
-        // The selection is only where the keyboard is; keep it on the same app.
-        if let row = list.tableRow(ofSameAppAs: selected) {
-            tableView.selectRowIndexes([row], byExtendingSelection: false)
+        // The selection is only where the keyboard is; keep it on the same app, or else on the
+        // first one that can be inspected.
+        let same: Int? = if case .app(let entry)? = selected { list.choosableRow(of: entry.id) } else { nil }
+        select(same ?? list.firstChoosableRow)
+    }
+
+    /// Selects `row` and scrolls to it; nil selects nothing.
+    private func select(_ row: Int?) {
+        guard let row else {
+            tableView.deselectAll(nil)
+            return
         }
+        tableView.selectRowIndexes([row], byExtendingSelection: false)
+        tableView.scrollRowToVisible(row)
+    }
+
+    /// Moves the selection to the next app that can be inspected; at the end it stays.
+    func move(_ direction: AppListRows.Direction) {
+        guard let row = list.nextChoosableRow(from: tableView.selectedRow, direction: direction)
+        else { return }
+        select(row)
+    }
+
+    /// The link to the integration guide under the empty list's explanation.
+    private(set) lazy var emptyLink: NSButton = .init(
+        title: "", target: self, action: #selector(openIntegrationGuide(_:))
+    ).configure {
+        $0.isBordered = false
+        $0.attributedTitle = NSAttributedString(
+            string: localized("appList.empty.link"),
+            attributes: [.font: NSFont.systemFont(ofSize: 12), .foregroundColor: NSColor.linkColor])
+    }
+
+    @objc func openIntegrationGuide(_ sender: Any?) {
+        openURL(Links.integrationGuide)
     }
 
     @objc private func tableWasClicked(_ sender: NSTableView) {
@@ -150,12 +210,8 @@ extension AppListViewController: NSTableViewDataSource, NSTableViewDelegate {
     }
 
     func tableView(_ tableView: NSTableView, heightOfRow row: Int) -> CGFloat {
-        guard rows.indices.contains(row) else { return Self.appRowHeight }
-        switch rows[row] {
-        case .group: return Self.groupRowHeight
-        // One more line: the two protocol versions.
-        case .app(let entry): return entry.isInspectable ? Self.appRowHeight : Self.incompatibleRowHeight
-        }
+        guard rows.indices.contains(row), case .group = rows[row] else { return Self.appRowHeight }
+        return Self.groupRowHeight
     }
 
     func tableView(_ tableView: NSTableView, isGroupRow row: Int) -> Bool {
@@ -174,12 +230,12 @@ extension AppListViewController: NSTableViewDataSource, NSTableViewDelegate {
     ) -> NSView? {
         guard rows.indices.contains(row) else { return nil }
         switch rows[row] {
-        case .group(let title, let symbol):
+        case .group(let group):
             let view =
                 tableView.makeView(withIdentifier: Self.groupRowIdentifier, owner: nil)
                     as? AppGroupHeaderView ?? AppGroupHeaderView()
             view.identifier = Self.groupRowIdentifier
-            view.configure(title: title, symbol: symbol)
+            view.configure(with: group)
             return view
         case .app(let entry):
             let view =
@@ -199,23 +255,30 @@ extension AppListViewController: NSTableViewDataSource, NSTableViewDelegate {
     }
 }
 
-/// The table of the app list. Return opens the selected app.
+/// The table of the app list. Return opens the selected app; the arrow keys move between the
+/// apps that can be inspected, which the table's own handling does not promise to do.
 final class AppTableView: NSTableView {
     var onReturn: () -> Void = {}
+    var onArrow: (AppListRows.Direction) -> Void = { _ in }
 
     override func keyDown(with event: NSEvent) {
+        // The arrow keys carry the numeric pad and function flags by themselves.
+        let plain = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+            .subtracting([.numericPad, .function]).isEmpty
+        switch event.keyCode {
         // Return and the keypad's Enter.
-        if event.keyCode == 36 || event.keyCode == 76 {
-            onReturn()
-        } else {
-            super.keyDown(with: event)
+        case 36, 76: onReturn()
+        case 126 where plain: onArrow(.up)
+        case 125 where plain: onArrow(.down)
+        default: super.keyDown(with: event)
         }
     }
 }
 
-/// A row that lightens under the pointer, so that a row reads as something to click.
+/// A row that lightens under the pointer, so that a row reads as something to click; with the
+/// hierarchy list's fill (C-LIST-04).
 final class HoverRowView: NSTableRowView {
-    private(set) var isHovered = false {
+    var isHovered = false {
         didSet { if isHovered != oldValue { needsDisplay = true } }
     }
 
@@ -242,31 +305,44 @@ final class HoverRowView: NSTableRowView {
     override func drawBackground(in dirtyRect: NSRect) {
         super.drawBackground(in: dirtyRect)
         guard isHovered, !isSelected else { return }
-        NSColor.labelColor.withAlphaComponent(0.05).setFill()
+        Theme.hoverFill.setFill()
+        // The shape of the inset table's selection.
         NSBezierPath(
-            roundedRect: bounds, xRadius: Theme.Radius.control,
+            roundedRect: HierarchyTableRowView.hoverRect(in: bounds), xRadius: Theme.Radius.control,
             yRadius: Theme.Radius.control
         ).fill()
     }
 }
 
-/// The header of a group of apps: a symbol and a name.
+/// The header of a group of apps (C-LIST-04): a tile for where they run, the name, and how it
+/// is reached.
 final class AppGroupHeaderView: NSTableCellView {
-    private let symbolView = NSImageView()
+    static let tileSide: CGFloat = 18
+
+    private let tileView = NSImageView()
     private let titleLabel = NSTextField(labelWithString: "")
+    private let viaLabel = NSTextField(labelWithString: "")
 
     init() {
         super.init(frame: .zero)
-        addHStack(alignment: .center, spacing: 6) {
-            symbolView.contentTintColor(.secondaryLabelColor)
-            titleLabel
-                .font(Theme.Font.captionEmphasized)
-                .textColor(.secondaryLabelColor)
-                .lineBreakMode(.byTruncatingTail)
-                .accessibilityIdentifier(AppListViewController.groupIdentifier)
+        addHStack(alignment: .center, spacing: Theme.Spacing.small) {
+            tileView
+                .frame(width: Self.tileSide, height: Self.tileSide)
+                .accessibilityIdentifier(AppListViewController.groupTileIdentifier)
+            HStack(alignment: .firstTextBaseline, spacing: Theme.Spacing.small) {
+                titleLabel
+                    .font(.systemFont(ofSize: 12, weight: .semibold))
+                    .lineBreakMode(.byTruncatingTail)
+                    .compressionResistancePriority(.defaultLow, for: .horizontal)
+                    .accessibilityIdentifier(AppListViewController.groupIdentifier)
+                viaLabel
+                    .font(Theme.Font.caption)
+                    .textColor(.secondaryLabelColor)
+                    .accessibilityIdentifier(AppListViewController.groupViaIdentifier)
+            }
             Spacer()
         }
-        .padding(top: 8, leading: Theme.Spacing.tight, bottom: 2, trailing: Theme.Spacing.tight)
+        .padding(top: 10, leading: 10, bottom: 4, trailing: 10)
     }
 
     @available(*, unavailable)
@@ -274,8 +350,17 @@ final class AppGroupHeaderView: NSTableCellView {
         fatalError("init(coder:) is not supported")
     }
 
-    func configure(title: String, symbol: String) {
-        titleLabel.stringValue = title
-        symbolView.image = Theme.symbol(symbol, size: 11, weight: .medium)
+    /// The tile of a place: this Mac in the window's colour, a USB device in the bars'.
+    static func tile(of place: AppListRows.Place) -> NSImage {
+        switch place {
+        case .thisMac: LayerIconImage.deviceTile(.simulator, .window, side: tileSide)
+        case .usb: LayerIconImage.deviceTile(.phone, .bar, side: tileSide)
+        }
+    }
+
+    func configure(with group: AppListRows.Group) {
+        tileView.image = Self.tile(of: group.place)
+        titleLabel.stringValue = group.title
+        viaLabel.stringValue = group.via
     }
 }
