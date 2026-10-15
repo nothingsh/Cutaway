@@ -28,15 +28,8 @@ final class ArchiveCaptureTests: XCTestCase {
 
     private var destination: URL { directory.appendingPathComponent("Demo.cutaway") }
 
-    static func server(
-        _ responder: MockResponder, serverMinor: UInt16? = nil
-    ) async throws -> MockServer {
-        var steps = try MockScript.fixtures("handshake").steps
-        if let serverMinor, case .send(var hello) = steps[1], case .hello(var body) = hello.body {
-            body.protocolVersion = Version(major: 0, minor: serverMinor)
-            hello.body = .hello(body)
-            steps[1] = .send(hello)
-        }
+    static func server(_ responder: MockResponder) async throws -> MockServer {
+        let steps = try MockScript.fixtures("handshake").steps
         return try await MockServer.start(script: MockScript(steps: steps + [.respond(responder)]))
     }
 
@@ -167,25 +160,6 @@ final class ArchiveCaptureTests: XCTestCase {
         XCTAssertNoThrow(try finished.get())
         let afterwards = await Self.detailRequests(server).count
         XCTAssertEqual(afterwards, 2)
-        await session.close()
-        await server.stop()
-    }
-
-    func test_C_ARCH_02_aCaptureBelow0_4AsksForNoConstraints() async throws {
-        let server = try await Self.server(try MockResponder.demo(), serverMinor: 3)
-        let session = try await Self.session(to: server, protocolVersion: Fixtures.zeroMajorProtocol)
-
-        let outcome = await Self.capture(session, to: destination)
-        XCTAssertNoThrow(try outcome.get())
-        let requests = await Self.detailRequests(server)
-        XCTAssertFalse(requests.isEmpty)
-        XCTAssertTrue(requests.allSatisfy { $0.requests.allSatisfy { !$0.wantConstraints } })
-        // The manifest has the negotiated 0.3, which this Cutaway, at 1.0, no longer opens.
-        let data = try Data(contentsOf: destination)
-        XCTAssertThrowsError(try ArchiveDecoder(data)) {
-            XCTAssertEqual(
-                $0 as? ArchiveError, .differentProtocolMajor(Version(major: 0, minor: 3)))
-        }
         await session.close()
         await server.stop()
     }

@@ -8,13 +8,17 @@ import Foundation
 /// range takes its default and leaves the others alone. The scene's types stay out of the
 /// format: cameras are written field by field.
 public struct ArchiveState: Equatable, Sendable {
-    public var expanded: Set<UInt64> = []
+    /// The expanded layers; nil when the archive does not say, and the tree opens as a new
+    /// inspection's does (C-HIER-09).
+    public var expanded: Set<UInt64>?
     public var selected: UInt64?
     public var focused: UInt64?
     public var previewMode: PreviewMode = .twoD
     public var cameras = PreviewCameras()
     public var showsHiddenLayers = false
-    public var showsBorders = true
+    public var borders = BorderOptions()
+    /// Whether every end of the selected layer's constraints is marked (C-PREV-18).
+    public var showsConstraintEnds = false
 
     /// The state of an inspection that was just opened.
     public init() {}
@@ -24,12 +28,14 @@ public struct ArchiveState: Equatable, Sendable {
         previewMode = start.previewMode
         cameras = start.cameras
         showsHiddenLayers = start.showsHiddenLayers
-        showsBorders = start.showsBorders
+        borders = start.borders
+        showsConstraintEnds = start.showsConstraintEnds
     }
 
     public init(
-        expanded: Set<UInt64>, selected: UInt64?, focused: UInt64?, previewMode: PreviewMode,
-        cameras: PreviewCameras, showsHiddenLayers: Bool, showsBorders: Bool
+        expanded: Set<UInt64>?, selected: UInt64?, focused: UInt64?, previewMode: PreviewMode,
+        cameras: PreviewCameras, showsHiddenLayers: Bool, borders: BorderOptions,
+        showsConstraintEnds: Bool = false
     ) {
         self.expanded = expanded
         self.selected = selected
@@ -37,7 +43,8 @@ public struct ArchiveState: Equatable, Sendable {
         self.previewMode = previewMode
         self.cameras = cameras
         self.showsHiddenLayers = showsHiddenLayers
-        self.showsBorders = showsBorders
+        self.borders = borders
+        self.showsConstraintEnds = showsConstraintEnds
     }
 
     /// Reads the section. What it lacks is taken from `start`, the settings when the archive
@@ -70,6 +77,7 @@ private struct StateJSON: Codable {
 
     enum Key: String, CodingKey {
         case expanded, selected, focused, mode, cameras, showsHiddenLayers, showsBorders
+        case borderStyle, onlyAppClasses, showsConstraintEnds
     }
 
     enum CameraKey: String, CodingKey {
@@ -102,8 +110,21 @@ private struct StateJSON: Codable {
         if let shows = try? container.decode(Bool.self, forKey: .showsHiddenLayers) {
             state.showsHiddenLayers = shows
         }
-        if let shows = try? container.decode(Bool.self, forKey: .showsBorders) {
-            state.showsBorders = shows
+        // The style, or for an archive of an earlier version the switch it had (C-PREV-17).
+        if let raw = try? container.decode(String.self, forKey: .borderStyle),
+           let style = BorderStyle(rawValue: raw)
+        {
+            state.borders.style = style
+        } else if let shows = try? container.decode(Bool.self, forKey: .showsBorders) {
+            // Such an archive has no "only the app's classes": the settings' stays (C-PREF-02).
+            state.borders = BorderOptions(showsBorders: shows)
+            state.borders.onlyAppClasses = start.borders.onlyAppClasses
+        }
+        if let only = try? container.decode(Bool.self, forKey: .onlyAppClasses) {
+            state.borders.onlyAppClasses = only
+        }
+        if let shows = try? container.decode(Bool.self, forKey: .showsConstraintEnds) {
+            state.showsConstraintEnds = shows
         }
         self.state = state
     }
@@ -131,7 +152,7 @@ private struct StateJSON: Codable {
 
     func encode(to encoder: any Encoder) throws {
         var container = encoder.container(keyedBy: Key.self)
-        try container.encode(state.expanded.sorted(), forKey: .expanded)
+        try container.encodeIfPresent(state.expanded?.sorted(), forKey: .expanded)
         try container.encode(state.selected, forKey: .selected)
         try container.encode(state.focused, forKey: .focused)
         try container.encode(state.previewMode == .twoD ? "2d" : "3d", forKey: .mode)
@@ -139,7 +160,11 @@ private struct StateJSON: Codable {
         try Self.encode(state.cameras.twoD, in: &cameras, at: .twoD)
         try Self.encode(state.cameras.threeD, in: &cameras, at: .threeD)
         try container.encode(state.showsHiddenLayers, forKey: .showsHiddenLayers)
-        try container.encode(state.showsBorders, forKey: .showsBorders)
+        try container.encode(state.borders.style.rawValue, forKey: .borderStyle)
+        try container.encode(state.borders.onlyAppClasses, forKey: .onlyAppClasses)
+        try container.encode(state.showsConstraintEnds, forKey: .showsConstraintEnds)
+        // For earlier versions, which know only the switch.
+        try container.encode(state.borders.showsBorders, forKey: .showsBorders)
     }
 
     private static func encode(

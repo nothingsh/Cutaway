@@ -54,4 +54,20 @@ final class SceneConversionTests: XCTestCase {
         XCTAssertNil(layers[2].solo)
         XCTAssertNil(layers[2].group)
     }
+
+    // MARK: - The scene's tests make their input without the model
+
+    func test_C_SCENE_01_theSceneTestsInputIsTheTreesOwn() throws {
+        let textures: [UInt64: LayerTextures] = [4: LayerTextures(
+            solo: TextureKey(layerID: 4, kind: .solo, revision: 1),
+            group: TextureKey(layerID: 4, kind: .group, revision: 2))]
+        XCTAssertEqual(
+            try SceneInput.hierarchyFixture(textures: textures),
+            try LayerTree(try Fixtures.hierarchy()).sceneLayers(textures: textures))
+    }
+
+    func test_C_SCALE_01_theScaleSceneLayersAreTheTreesOwn() throws {
+        XCTAssertEqual(
+            try SceneInput.scaleScene(), try LayerTree(ScaleScene.hierarchy()).sceneLayers())
+    }
 }

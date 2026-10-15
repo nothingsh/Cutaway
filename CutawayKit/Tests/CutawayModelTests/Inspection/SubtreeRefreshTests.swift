@@ -548,36 +548,4 @@ final class SubtreeRefreshTests: XCTestCase {
         await session.close()
         await server.stop()
     }
-
-    // MARK: - Protocol 0.2
-
-    @MainActor
-    func test_C_DET_07_anOlderServerIsNotAskedForSubtrees() async throws {
-        var steps = try MockScript.fixtures("handshake", "hierarchy").steps
-        guard case .send(var hello) = steps[1], case .hello(var body) = hello.body else {
-            XCTFail("the handshake script changed shape")
-            return
-        }
-        body.protocolVersion = Version(major: 0, minor: 2)
-        hello.body = .hello(body)
-        steps[1] = .send(hello)
-        let server = try await MockServer.start(script: MockScript(steps: steps))
-        let session = try await Self.session(to: server, protocolVersion: Fixtures.zeroMajorProtocol)
-        let model = InspectionStore(session: session, newLayers: .expanded)
-        model.rowsWait = .seconds(30)
-        model.enter()
-        let loaded = await Wait.until { await model.loadState == .loaded }
-        XCTAssertTrue(loaded)
-        try await Task.sleep(for: .milliseconds(100))
-        XCTAssertFalse(model.canRefreshSubtrees)
-
-        model.refreshSubtree(of: 4)
-        XCTAssertFalse(model.isLoading)
-        try await Task.sleep(for: .milliseconds(100))
-        let kinds = await Self.kinds(server)
-        XCTAssertEqual(kinds, [.hello, .getHierarchy])
-
-        await session.close()
-        await server.stop()
-    }
 }

@@ -172,7 +172,7 @@ final class ReconnectionTests: XCTestCase {
         old.setPreviewMode(.threeD)
         old.rotate(byDragOf: 30, 10)
         old.setShowsHiddenLayers(true)
-        old.setShowsBorders(false)
+        old.setBorderStyle(.off)
         old.setSearchText("label")
         old.setExpanded(6, false)
         old.select(4)
@@ -219,18 +219,18 @@ final class ReconnectionTests: XCTestCase {
         model.apply(.found(twin, Self.demo, session()))
         XCTAssertEqual(
             model.inspectedApp, Self.first, "a twin found while inspecting is just listed")
-        try XCTUnwrap(model.inspection(at: Self.first)).setShowsBorders(false)
+        try XCTUnwrap(model.inspection(at: Self.first)).setBorderStyle(.off)
         model.apply(.lost(Self.first))
         model.inspect(twin)
         XCTAssertNil(model.awaitingReconnection)
-        XCTAssertFalse(try XCTUnwrap(model.inspection(at: twin)).showsBorders)
+        XCTAssertFalse(try XCTUnwrap(model.inspection(at: twin)).borders.showsBorders)
     }
 
     @MainActor
     func test_C_WIN_04_choosingAnotherAppByHandWhileWaitingCarriesNothingOver() throws {
         let model = inspecting()
         let old = try XCTUnwrap(model.inspection(at: Self.first))
-        old.setShowsBorders(false)
+        old.setBorderStyle(.off)
         model.apply(.lost(Self.first))
         // The user's choice comes first: the app is listed, and chosen, before the model
         // would have inspected it on its own. Here: found with another identity first.
@@ -240,7 +240,7 @@ final class ReconnectionTests: XCTestCase {
         XCTAssertNil(model.inspectedApp)
         model.inspect(Self.later)
         XCTAssertTrue(
-            try XCTUnwrap(model.inspection(at: Self.later)).showsBorders,
+            try XCTUnwrap(model.inspection(at: Self.later)).borders.showsBorders,
             "another app: nothing is carried over")
     }
 
@@ -290,5 +290,15 @@ final class ReconnectionTests: XCTestCase {
         XCTAssertEqual(
             model.inspection(at: Self.first)?.enteredAfter, icon,
             "the first hierarchy waits for this icon")
+    }
+
+    @MainActor
+    func test_C_PREV_18_aReconnectedInspectionKeepsTheConstraintEndsSwitch() throws {
+        let model = inspecting()
+        let old = try XCTUnwrap(model.inspection(at: Self.first))
+        old.toggleConstraintEnds()
+        model.apply(.lost(Self.first))
+        model.apply(.found(Self.later, Self.demo, session()))
+        XCTAssertEqual(model.inspection(at: Self.later)?.showsAllConstraintEnds, true)
     }
 }

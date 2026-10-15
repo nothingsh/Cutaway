@@ -25,7 +25,7 @@ final class InspectionStartTests: XCTestCase {
     }
 
     private static let threeDAt80 = InspectionStart(
-        previewMode: .threeD, layerSpacing: 80, showsHiddenLayers: true, showsBorders: false)
+        previewMode: .threeD, layerSpacing: 80, showsHiddenLayers: true, borders: BorderOptions(style: .off))
 
     /// The settings the store reads a new inspection's start from.
     @MainActor
@@ -66,14 +66,14 @@ final class InspectionStartTests: XCTestCase {
         XCTAssertEqual(inspection.cameras.threeD.layerSpacing, 80)
         XCTAssertEqual(inspection.cameras.twoD, Camera.flat)
         XCTAssertTrue(inspection.showsHiddenLayers)
-        XCTAssertFalse(inspection.showsBorders)
+        XCTAssertFalse(inspection.borders.showsBorders)
         XCTAssertEqual(inspection.start, Self.threeDAt80)
 
         // The one opened before is as it was.
         XCTAssertEqual(earlier.previewMode, .twoD)
         XCTAssertEqual(earlier.cameras.threeD.layerSpacing, 50)
         XCTAssertFalse(earlier.showsHiddenLayers)
-        XCTAssertTrue(earlier.showsBorders)
+        XCTAssertTrue(earlier.borders.showsBorders)
 
         // Settings changed later reach neither.
         settings.start = InspectionStart()
@@ -111,7 +111,7 @@ final class InspectionStartTests: XCTestCase {
         XCTAssertEqual(new.previewMode, .twoD)
         XCTAssertEqual(new.cameras.threeD.layerSpacing, 50)
         XCTAssertFalse(new.showsHiddenLayers)
-        XCTAssertTrue(new.showsBorders)
+        XCTAssertTrue(new.borders.showsBorders)
 
         // Its Reset View is the old inspection's.
         XCTAssertEqual(new.start, InspectionStart())

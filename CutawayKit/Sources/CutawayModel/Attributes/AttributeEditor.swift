@@ -48,7 +48,9 @@ final class AttributeEditor {
     }
 
     private let source: any InspectionSource
-    private unowned let delegate: any AttributeEditorDelegate
+    /// Weak: a task may hold the editor while it delivers an answer after the attributes are
+    /// gone, which then does nothing.
+    private weak var delegate: (any AttributeEditorDelegate)?
     /// The name of a change in the Edit menu, from its attribute's title (C-LOC-01).
     private let undoActionName: @Sendable (String) -> String
 
@@ -62,7 +64,7 @@ final class AttributeEditor {
 
     /// The changes under way and the ones that failed, by attribute (C-ATTR-06).
     private(set) var edits: [AttributeKey: EditStatus] = [:] {
-        didSet { delegate.editorDidChangeEdits(self) }
+        didSet { delegate?.editorDidChangeEdits(self) }
     }
 
     private var editingSupported = false
@@ -85,8 +87,8 @@ final class AttributeEditor {
         self.delegate = delegate
     }
 
-    /// Whether attributes may be changed: the server speaks 0.3 or later (P-HELLO-04), the
-    /// app is active (P-APP-01), and no archive is being saved (C-ARCH-02).
+    /// Whether attributes may be changed: the source is an app (C-ATTR-04), the app is active
+    /// (P-APP-01), and no archive is being saved (C-ARCH-02).
     var canEdit: Bool {
         editingSupported && isAppActive && !isSuspended
     }
@@ -115,14 +117,29 @@ final class AttributeEditor {
             if !continuous { finish(key) }
             return
         }
-        guard value?.isFinite ?? true else {
+        let failure: EditFailure? = if !(value?.isFinite ?? true) {
+            .notFinite
+        } else if let violation = violation(of: value, for: key) {
+            .outOfRange(violation)
+        } else {
+            nil
+        }
+        if let failure {
             // The row shows the value from before, as after any change that failed. A drag
             // under way keeps its last good value and ends when it would have.
             if changes[key] == nil {
-                edits[key] = .failed(.notFinite)
+                edits[key] = .failed(failure)
             } else if !continuous {
                 finish(key)
             }
+            return
+        }
+        // A continuous change (the colour panel) that gives the value it gave last sends
+        // nothing more; its end ends it.
+        if let current = changes[key], !current.isFinished, current.step == nil,
+           current.latest == value
+        {
+            if !continuous { finish(key) }
             return
         }
         change(key, to: value, continuous: continuous, step: nil)
@@ -144,12 +161,12 @@ final class AttributeEditor {
         }
         changes[key] = nil
         edits[key] = nil
-        let after = delegate.editor(self, heldAttribute: key)?.value ?? current.latest
+        let after = delegate?.editor(self, heldAttribute: key)?.value ?? current.latest
         if current.step == nil, after != current.before {
             record(EditStep(key: key, before: current.before, after: after, title: current.title))
         }
         // The layer's constraints may be asked for again now (C-LAYOUT-01).
-        delegate.editorDidSettle(self)
+        delegate?.editorDidSettle(self)
     }
 
     /// Forgets what can be undone: it belongs to one visit (C-ATTR-08).
@@ -183,7 +200,7 @@ final class AttributeEditor {
                 send(key, value)
             }
         } else {
-            let attribute = delegate.editor(self, heldAttribute: key)
+            let attribute = delegate?.editor(self, heldAttribute: key)
             changes[key] = Change(
                 before: attribute?.value, title: attribute?.title ?? key.attributeID,
                 step: step, latest: value, isFinished: !continuous)
@@ -196,7 +213,7 @@ final class AttributeEditor {
         changes[key]?.isSending = true
         changes[key]?.waiting = nil
         let request = SetAttribute(layerID: key.layerID, attributeID: key.attributeID, value: value)
-        let cancelling = delegate.editorWillSendChange(self)
+        let cancelling = delegate?.editorWillSendChange(self)
         // One after another: the app takes them in order (P-REQ-06), and one that waits for a
         // cancel must not be overtaken by the next (C-DET-06).
         let previous = lastSend
@@ -214,11 +231,16 @@ final class AttributeEditor {
     }
 
     private func finishChange(_ key: AttributeKey, _ outcome: Result<SetAttributeResult, any Error>) {
+        // The attributes are gone: nothing is shown, and nothing more is sent.
+        guard delegate != nil else {
+            changes[key] = nil
+            return
+        }
         guard var current = changes[key] else { return }
         current.isSending = false
         switch outcome {
         case .success(let result):
-            delegate.editor(self, changed: key, to: result)
+            delegate?.editor(self, changed: key, to: result)
             if let waiting = current.waiting {
                 changes[key] = current
                 send(key, waiting)
@@ -244,7 +266,7 @@ final class AttributeEditor {
             switch error as? RequestError {
             case .layerNotFound:
                 // The panel says it, as for an answer to `GetLayerDetails` (P-DET-02).
-                delegate.editor(self, foundLayerGone: key.layerID)
+                delegate?.editor(self, foundLayerGone: key.layerID)
                 edits[key] = nil
             case .disconnected:
                 // The window says it (C-WIN-03).
@@ -258,9 +280,9 @@ final class AttributeEditor {
             default:
                 edits[key] = .failed(.noAnswer)
             }
-            delegate.editorDidFailToChange(self)
+            delegate?.editorDidFailToChange(self)
         }
-        delegate.editorDidSettle(self)
+        delegate?.editorDidSettle(self)
     }
 
     /// Registers a change that succeeded, as one step of the undo manager (C-ATTR-08).
@@ -277,14 +299,29 @@ final class AttributeEditor {
         undoManager.registerUndo(withTarget: step) { [weak self] step in
             MainActor.assumeIsolated {
                 guard let self else { return }
+                let value = towardBefore ? step.before : step.after
+                // A value outside the limits the attribute has now is not sent: the step
+                // fails and leaves the stack, as one whose layer is gone (C-ATTR-13).
+                if let violation = self.violation(of: value, for: step.key) {
+                    self.undoManager.removeAllActions(withTarget: step)
+                    self.steps.removeAll { $0 === step }
+                    self.edits[step.key] = .failed(.outOfRange(violation))
+                    self.delegate?.editorDidFailToChange(self)
+                    return
+                }
                 // Registered while the undo manager undoes or redoes: it is the way back.
                 self.register(step, towardBefore: !towardBefore)
-                self.change(
-                    step.key, to: towardBefore ? step.before : step.after, continuous: false,
-                    step: step)
+                self.change(step.key, to: value, continuous: false, step: step)
             }
         }
         undoManager.setActionName(undoActionName(step.title))
+    }
+
+    /// The component of a value outside the limits the attribute has now, as the panel last
+    /// received them (P-SET-07). The panel checks first; this holds for every way a value
+    /// takes, undo and redo among them.
+    private func violation(of value: AttributeValue?, for key: AttributeKey) -> LimitViolation? {
+        delegate?.editor(self, heldAttribute: key)?.limitViolation(of: value)
     }
 
     static func attribute(_ key: AttributeKey, in groups: [AttributeGroup]) -> Attribute? {

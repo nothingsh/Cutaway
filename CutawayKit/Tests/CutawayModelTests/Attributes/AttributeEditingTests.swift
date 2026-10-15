@@ -65,6 +65,44 @@ final class AttributeEditingTests: XCTestCase {
         }
     }
 
+    /// The app as a test's script plays it, except that a layer's details asked for again
+    /// after a change of it succeeded (C-LAYOUT-01) are answered here, with the attributes the
+    /// change returned and no constraints: the scripts are about the changes.
+    private actor AnsweringAgain: InspectionSource {
+        let session: Session
+        private var changed: [UInt64: [AttributeGroup]] = [:]
+
+        init(_ session: Session) {
+            self.session = session
+        }
+
+        nonisolated var isLive: Bool { true }
+        var negotiatedVersion: Version? { get async { await session.negotiatedVersion } }
+
+        func hierarchy() async throws -> Hierarchy { try await session.hierarchy() }
+        func subtree(of rootID: UInt64) async throws -> Hierarchy {
+            try await session.subtree(of: rootID)
+        }
+
+        func layerDetails(_ request: GetLayerDetails) async -> LayerDetailsStream {
+            guard let asked = request.requests.first, request.requests.count == 1,
+                  let groups = changed[asked.layerID]
+            else { return await session.layerDetails(request) }
+            let (chunks, continuation) = AsyncThrowingStream.makeStream(of: [LayerDetail].self)
+            continuation.yield([LayerDetail(
+                layerID: asked.layerID, status: .ok, solo: nil, group: nil,
+                attributeGroups: groups)])
+            continuation.finish()
+            return LayerDetailsStream(chunks: chunks, cancelAction: {})
+        }
+
+        func setAttribute(_ request: SetAttribute) async throws -> SetAttributeResult {
+            let result = try await session.setAttribute(request)
+            changed[result.layerID] = result.attributeGroups
+            return result
+        }
+    }
+
     /// handshake and layer 3's attributes, then `steps`.
     private static func script(_ steps: [MockScript.Step]) throws -> MockScript {
         MockScript(steps: try MockScript.fixtures("handshake", "layer-details").steps + steps)
@@ -79,7 +117,8 @@ final class AttributeEditingTests: XCTestCase {
         let server = try await MockServer.start(script: script)
         let session = try await AttributesStoreTests.session(
             to: server, requestTimeout: requestTimeout)
-        let model = AttributesStore(session: session, undoActionName: undoActionName)
+        let model = AttributesStore(
+            source: AnsweringAgain(session), undoActionName: undoActionName)
         model.setOpen(true)
         model.setEditingSupported(true)
         model.select(3)
@@ -126,7 +165,7 @@ final class AttributeEditingTests: XCTestCase {
     }
 
     @MainActor
-    func test_C_ATTR_04_editingNeedsProtocol03AndAnActiveApp() async throws {
+    func test_C_ATTR_04_editingNeedsASourceThatTakesChangesAndAnActiveApp() async throws {
         let (model, session, server) = try await editing(try Self.script([]))
         XCTAssertTrue(model.canEdit)
 
@@ -138,7 +177,7 @@ final class AttributeEditingTests: XCTestCase {
         XCTAssertTrue(model.canEdit)
 
         model.setEditingSupported(false)
-        XCTAssertFalse(model.canEdit, "a server below 0.3 (P-HELLO-04)")
+        XCTAssertFalse(model.canEdit, "an archive (C-ARCH-05)")
         model.set(Self.key(3, "label.text"), to: .string("Hi"), continuous: false)
         try await Task.sleep(for: .milliseconds(100))
         let sets = await Self.sets(server)
@@ -156,7 +195,7 @@ final class AttributeEditingTests: XCTestCase {
         XCTAssertFalse(inspection.attributes.canEdit)
         inspection.enter()
         let told = await Wait.until { await inspection.attributes.canEdit }
-        XCTAssertTrue(told, "the fixture's server speaks 0.3")
+        XCTAssertTrue(told, "an app can be changed")
 
         await session.close()
         await server.stop()
@@ -198,16 +237,16 @@ final class AttributeEditingTests: XCTestCase {
             await model.state == .loaded(try! Fixtures.layerFourBeforeEditing())
         }
         XCTAssertTrue(loaded)
-        model.set(Self.key(4, "layer.backgroundColor"), to: .color(Self.blue), continuous: false)
+        model.set(Self.key(4, "view.backgroundColor"), to: .color(Self.blue), continuous: false)
         answered = await Wait.until { await model.state == .loaded(results[2].attributeGroups) }
         XCTAssertTrue(answered)
         model.set(Self.key(4, "view.alpha"), to: .double(0.5), continuous: false)
         answered = await Wait.until { await model.state == .loaded(results[3].attributeGroups) }
         XCTAssertTrue(answered)
         if case .loaded(let groups, _) = model.state {
-            XCTAssertEqual(Self.value("layer.opacity", in: groups), .some(.double(0.5)))
+            XCTAssertEqual(Self.value("view.alpha", in: groups), .some(.double(0.5)))
         }
-        model.set(Self.key(4, "layer.backgroundColor"), to: nil, continuous: false)
+        model.set(Self.key(4, "view.backgroundColor"), to: nil, continuous: false)
         answered = await Wait.until { await model.state == .loaded(results[4].attributeGroups) }
         XCTAssertTrue(answered)
 
@@ -224,7 +263,10 @@ final class AttributeEditingTests: XCTestCase {
     @MainActor
     func test_C_ATTR_06_rejectionsShowInTheRowAndTheValueStays() async throws {
         let (model, session, server) = try await editing(
-            try Self.script(Array(try MockScript.fixtures("set-attribute-rejected").steps.dropFirst(2))
+            // Without the two values outside the limits (1.1), which the client never sends
+            // (P-SET-07), and the layer's attributes of two pairs, which
+            // layer 3 does not have (P-ATTR-11).
+            try Self.script(Array(try MockScript.fixtures("set-attribute-rejected").steps.dropFirst(2).dropLast(8))
                 + Self.errorSteps(.appNotActive, as: 30)
                 + [.expect(.setAttribute, as: 31)]),
             requestTimeout: .milliseconds(300))
@@ -234,7 +276,7 @@ final class AttributeEditingTests: XCTestCase {
         model.set(frame, to: .rect(.zero), continuous: false)
         var failed = await Wait.until { await model.edits[frame] == .failed(.notEditable) }
         XCTAssertTrue(failed)
-        let opacity = Self.key(3, "layer.opacity")
+        let opacity = Self.key(3, "view.alpha")
         model.set(opacity, to: .string("half"), continuous: false)
         failed = await Wait.until { await model.edits[opacity] == .failed(.rejected) }
         XCTAssertTrue(failed)
@@ -246,7 +288,7 @@ final class AttributeEditingTests: XCTestCase {
         model.set(text, to: .string("Hi"), continuous: false)
         failed = await Wait.until { await model.edits[text] == .failed(.appNotActive) }
         XCTAssertTrue(failed)
-        let hidden = Self.key(3, "layer.hidden")
+        let hidden = Self.key(3, "view.isHidden")
         model.set(hidden, to: .bool(true), continuous: false)
         failed = await Wait.until { await model.edits[hidden] == .failed(.noAnswer) }
         XCTAssertTrue(failed, "no answer in time")
@@ -310,12 +352,12 @@ final class AttributeEditingTests: XCTestCase {
         let gate = MockGate()
         let layerThree = try AttributesStoreTests.layerThree()
         var steps = Self.resultSteps(
-            3, Self.replacing("layer.opacity", with: .double(0.99), in: layerThree), as: 30)
+            3, Self.replacing("view.alpha", with: .double(0.99), in: layerThree), as: 30)
         steps.insert(.hold(gate), at: 1)
         steps += Self.resultSteps(
-            3, Self.replacing("layer.opacity", with: .double(0.5), in: layerThree), as: 31)
+            3, Self.replacing("view.alpha", with: .double(0.5), in: layerThree), as: 31)
         let (model, session, server) = try await editing(try Self.script(steps))
-        let opacity = Self.key(3, "layer.opacity")
+        let opacity = Self.key(3, "view.alpha")
 
         model.set(opacity, to: .double(0.99), continuous: true)
         let first = await Wait.until { await Self.sets(server).count == 1 }
@@ -333,7 +375,7 @@ final class AttributeEditingTests: XCTestCase {
         XCTAssertEqual(sent.map(\.value), [.double(0.99), .double(0.99 - 100 * 0.0049)])
         // What the app read back is shown (P-SET-04).
         if case .loaded(let groups, _) = model.state {
-            XCTAssertEqual(Self.value("layer.opacity", in: groups), .some(.double(0.5)))
+            XCTAssertEqual(Self.value("view.alpha", in: groups), .some(.double(0.5)))
         } else {
             XCTFail("\(model.state)")
         }
@@ -386,19 +428,19 @@ final class AttributeEditingTests: XCTestCase {
     func test_C_ATTR_08_aDragIsOneStepAndFailuresAreNotRecorded() async throws {
         let layerThree = try AttributesStoreTests.layerThree()
         let steps = Self.resultSteps(
-            3, Self.replacing("layer.opacity", with: .double(0.8), in: layerThree), as: 30)
+            3, Self.replacing("view.alpha", with: .double(0.8), in: layerThree), as: 30)
             + Self.resultSteps(
-                3, Self.replacing("layer.opacity", with: .double(0.6), in: layerThree), as: 31)
+                3, Self.replacing("view.alpha", with: .double(0.6), in: layerThree), as: 31)
             + Self.errorSteps(.invalidAttributeValue, as: 32)
             + Self.resultSteps(3, layerThree, as: 33)
         let (model, session, server) = try await editing(try Self.script(steps))
-        let opacity = Self.key(3, "layer.opacity")
+        let opacity = Self.key(3, "view.alpha")
         let undo = model.undoManager
 
         model.set(opacity, to: .double(0.8), continuous: true)
         let first = await Wait.until {
             await model.state == .loaded(
-                Self.replacing("layer.opacity", with: .double(0.8), in: layerThree))
+                Self.replacing("view.alpha", with: .double(0.8), in: layerThree))
         }
         XCTAssertTrue(first, "the drag's first value was answered")
         XCTAssertEqual(model.edits[opacity], .sending(.double(0.8)), "the drag goes on")
@@ -507,10 +549,10 @@ final class AttributeEditingTests: XCTestCase {
     @MainActor
     func test_C_ATTR_07_aDragCutShortByTheAppStillEnds() async throws {
         let layerThree = try AttributesStoreTests.layerThree()
-        let dragged = Self.replacing("layer.opacity", with: .double(0.8), in: layerThree)
+        let dragged = Self.replacing("view.alpha", with: .double(0.8), in: layerThree)
         let (model, session, server) = try await editing(
             try Self.script(Self.resultSteps(3, dragged, as: 30)))
-        let opacity = Self.key(3, "layer.opacity")
+        let opacity = Self.key(3, "view.alpha")
         model.set(opacity, to: .double(0.8), continuous: true)
         let answered = await Wait.until { await model.state == .loaded(dragged) }
         XCTAssertTrue(answered)
@@ -550,10 +592,10 @@ final class AttributeEditingTests: XCTestCase {
     @MainActor
     func test_C_ATTR_07_aDragGoingOnAfterAnotherSelectionSendsNothingMore() async throws {
         let layerThree = try AttributesStoreTests.layerThree()
-        let dragged = Self.replacing("layer.opacity", with: .double(0.8), in: layerThree)
+        let dragged = Self.replacing("view.alpha", with: .double(0.8), in: layerThree)
         let (model, session, server) = try await editing(
             try Self.script(Self.resultSteps(3, dragged, as: 30)))
-        let opacity = Self.key(3, "layer.opacity")
+        let opacity = Self.key(3, "view.alpha")
         model.set(opacity, to: .double(0.8), continuous: true)
         let answered = await Wait.until { await model.state == .loaded(dragged) }
         XCTAssertTrue(answered)
@@ -567,6 +609,237 @@ final class AttributeEditingTests: XCTestCase {
         try await Task.sleep(for: .milliseconds(100))
         let sent = await Self.sets(server)
         XCTAssertEqual(sent.map(\.value), [.double(0.8)], "only the value before the selection moved")
+
+        await session.close()
+        await server.stop()
+    }
+
+    // MARK: - C-ATTR-13
+
+    private static func bounds(_ x: Double, _ y: Double, _ width: Double, _ height: Double) -> AttributeValue {
+        .rect(Rect(origin: Point(x: x, y: y), size: Size(width: width, height: height)))
+    }
+
+    /// The groups with one attribute's limits replaced, as an answer may give them.
+    private static func limiting(
+        _ id: String, to limits: [NumberLimit]?, in groups: [AttributeGroup]
+    ) -> [AttributeGroup] {
+        groups.map { group in
+            var group = group
+            group.attributes = group.attributes.map { attribute in
+                var attribute = attribute
+                if attribute.id == id { attribute.limits = limits }
+                return attribute
+            }
+            return group
+        }
+    }
+
+    /// Opacity 1.4, a negative width and a font size of 0 go nowhere and say why; a negative
+    /// x, which is free, and values on the bounds go (P-SET-07).
+    @MainActor
+    func test_C_ATTR_13_aValueOutsideTheLimitsIsNeverSent() async throws {
+        let layerThree = try AttributesStoreTests.layerThree()
+        let steps = Self.resultSteps(3, layerThree, as: 30) + Self.resultSteps(3, layerThree, as: 31)
+            + Self.resultSteps(3, layerThree, as: 32)
+        let (model, session, server) = try await editing(try Self.script(steps))
+        let opacity = Self.key(3, "view.alpha")
+        let bounds = Self.key(3, "layer.bounds")
+        let fontSize = Self.key(3, "label.fontSize")
+
+        model.set(opacity, to: .double(1.4), continuous: false)
+        XCTAssertEqual(
+            model.edits[opacity],
+            .failed(.outOfRange(LimitViolation(
+                component: nil, reason: .outOfRange(NumberLimit(minimum: 0, maximum: 1))))))
+        model.set(bounds, to: Self.bounds(0, 0, -20, 24), continuous: false)
+        XCTAssertEqual(
+            model.edits[bounds],
+            .failed(.outOfRange(LimitViolation(component: 2, reason: .outOfRange(NumberLimit(minimum: 0))))))
+        model.set(fontSize, to: .double(0), continuous: false)
+        if case .failed(.outOfRange) = model.edits[fontSize] {} else {
+            XCTFail("a font size of 0 is outside > 0")
+        }
+
+        model.set(bounds, to: Self.bounds(-20, 0, 200, 24), continuous: false)
+        var settled = await Wait.until { await model.edits[bounds] == nil }
+        XCTAssertTrue(settled)
+        model.set(opacity, to: .double(1), continuous: false)
+        settled = await Wait.until { await model.edits[opacity] == nil }
+        XCTAssertTrue(settled)
+        model.set(bounds, to: Self.bounds(0, 0, 0, 0), continuous: false)
+        settled = await Wait.until { await model.edits[bounds] == nil }
+        XCTAssertTrue(settled)
+
+        let sent = await Self.sets(server)
+        XCTAssertEqual(
+            sent.map(\.value), [Self.bounds(-20, 0, 200, 24), .double(1), Self.bounds(0, 0, 0, 0)])
+        let mismatches = await server.mismatches
+        XCTAssertEqual(mismatches, [])
+
+        await session.close()
+        await server.stop()
+    }
+
+    /// The two requests of `set-attribute-rejected` that are outside the limits are what a
+    /// client must not send: this one does not.
+    @MainActor
+    func test_C_ATTR_13_theFixturesTwoValuesOutsideTheLimitsAreNotSent() async throws {
+        let requests = try Fixtures.frames(scenario: "set-attribute-rejected")
+            .filter { $0.fileName.contains("out-of-range") || $0.fileName.contains("negative-width") }
+            .compactMap { fixture -> SetAttribute? in
+                guard case .setAttribute(let request) = try FrameCodec.decode(fixture.payload).body
+                else { return nil }
+                return request
+            }
+        XCTAssertEqual(requests.map(\.attributeID), ["view.alpha", "layer.bounds"])
+        let (model, session, server) = try await editing(try Self.script([]))
+        for request in requests {
+            let key = Self.key(request.layerID, try XCTUnwrap(request.attributeID))
+            model.set(key, to: request.value, continuous: false)
+            if case .failed(.outOfRange) = model.edits[key] {} else {
+                XCTFail("\(key.attributeID) was not held back")
+            }
+        }
+        try await Task.sleep(for: .milliseconds(100))
+        let sent = await Self.sets(server)
+        XCTAssertEqual(sent, [])
+
+        await session.close()
+        await server.stop()
+    }
+
+    /// A drag past the bound keeps the last value within it, and ends as one step to that
+    /// value (C-ATTR-07).
+    @MainActor
+    func test_C_ATTR_13_aDragThatCrossesTheBoundKeepsItsLastGoodValue() async throws {
+        let layerThree = try AttributesStoreTests.layerThree()
+        let dragged = Self.replacing("view.alpha", with: .double(0.8), in: layerThree)
+        let (model, session, server) = try await editing(
+            try Self.script(Self.resultSteps(3, dragged, as: 30)))
+        let opacity = Self.key(3, "view.alpha")
+
+        model.set(opacity, to: .double(0.8), continuous: true)
+        let answered = await Wait.until { await model.state == .loaded(dragged) }
+        XCTAssertTrue(answered)
+        model.set(opacity, to: .double(1.2), continuous: true)
+        XCTAssertEqual(model.edits[opacity], .sending(.double(0.8)), "the last good value")
+        model.set(opacity, to: .double(1.3), continuous: false)
+        XCTAssertNil(model.edits[opacity])
+        XCTAssertTrue(model.undoManager.canUndo, "the drag to 0.8 is one step")
+        try await Task.sleep(for: .milliseconds(100))
+        let sent = await Self.sets(server)
+        XCTAssertEqual(sent.map(\.value), [.double(0.8)])
+
+        await session.close()
+        await server.stop()
+    }
+
+    /// A drag held on a bound gives the same value again and again: only the first goes, and
+    /// its end sends nothing more (reported by the user: the spinner showed while held).
+    @MainActor
+    func test_C_ATTR_13_aDragHeldOnTheBoundSendsNothingMore() async throws {
+        let layerThree = try AttributesStoreTests.layerThree()
+        let dragged = Self.replacing("view.alpha", with: .double(0.5), in: layerThree)
+        let (model, session, server) = try await editing(
+            try Self.script(Self.resultSteps(3, dragged, as: 30)))
+        let opacity = Self.key(3, "view.alpha")
+
+        model.set(opacity, to: .double(0.5), continuous: true)
+        model.set(opacity, to: .double(0.5), continuous: true)
+        let answered = await Wait.until { await model.state == .loaded(dragged) }
+        XCTAssertTrue(answered)
+        model.set(opacity, to: .double(0.5), continuous: true)
+        model.set(opacity, to: .double(0.5), continuous: false)
+        XCTAssertNil(model.edits[opacity], "the drag ended")
+        XCTAssertTrue(model.undoManager.canUndo, "one step")
+        try await Task.sleep(for: .milliseconds(100))
+        let sent = await Self.sets(server)
+        XCTAssertEqual(sent.map(\.value), [.double(0.5)])
+
+        await session.close()
+        await server.stop()
+    }
+
+    /// Undo and redo send nothing outside the limits the attribute has now; the step fails
+    /// and leaves the stack (C-ATTR-08).
+    @MainActor
+    func test_C_ATTR_13_undoToAValueOutsideTheLimitsIsNotSentAndLeavesTheStack() async throws {
+        let layerThree = try AttributesStoreTests.layerThree()
+        let free = NumberLimit()
+        // The answer to a width of 10 says widths now go up to 100: 200 is outside.
+        let narrowed = Self.limiting(
+            "layer.bounds", to: [free, free, NumberLimit(minimum: 0, maximum: 100), NumberLimit(minimum: 0)],
+            in: Self.replacing("layer.bounds", with: Self.bounds(0, 0, 10, 24), in: layerThree))
+        let fifty = Self.replacing("layer.bounds", with: Self.bounds(0, 0, 50, 24), in: layerThree)
+        // The answer to undoing that says widths are now at least 60: redoing 50 is outside.
+        let widened = Self.limiting(
+            "layer.bounds", to: [free, free, NumberLimit(minimum: 60), NumberLimit(minimum: 0)],
+            in: Self.replacing("layer.bounds", with: Self.bounds(0, 0, 10, 24), in: layerThree))
+        let steps = Self.resultSteps(3, narrowed, as: 30) + Self.resultSteps(3, fifty, as: 31)
+            + Self.resultSteps(3, widened, as: 32)
+        let (model, session, server) = try await editing(try Self.script(steps))
+        let bounds = Self.key(3, "layer.bounds")
+        let undo = model.undoManager
+
+        model.set(bounds, to: Self.bounds(0, 0, 10, 24), continuous: false)
+        var done = await Wait.until { @MainActor in model.state == .loaded(narrowed) && model.edits.isEmpty }
+        XCTAssertTrue(done)
+        undo.undo()
+        if case .failed(.outOfRange(let violation)) = model.edits[bounds] {
+            XCTAssertEqual(violation.component, 2)
+        } else {
+            XCTFail("the undo was not held back")
+        }
+        XCTAssertFalse(undo.canUndo, "the step left the stack")
+        XCTAssertFalse(undo.canRedo)
+
+        // Redo: a width of 50, undone, and the answer makes redoing it impossible.
+        model.set(bounds, to: Self.bounds(0, 0, 50, 24), continuous: false)
+        done = await Wait.until { @MainActor in model.state == .loaded(fifty) && model.edits.isEmpty }
+        XCTAssertTrue(done)
+        undo.undo()
+        done = await Wait.until { @MainActor in model.state == .loaded(widened) && model.edits.isEmpty }
+        XCTAssertTrue(done)
+        XCTAssertTrue(undo.canRedo)
+        undo.redo()
+        if case .failed(.outOfRange) = model.edits[bounds] {} else {
+            XCTFail("the redo was not held back")
+        }
+        XCTAssertFalse(undo.canRedo, "the step left the stack")
+
+        let sent = await Self.sets(server)
+        XCTAssertEqual(
+            sent.map(\.value),
+            [Self.bounds(0, 0, 10, 24), Self.bounds(0, 0, 50, 24), Self.bounds(0, 0, 10, 24)])
+
+        await session.close()
+        await server.stop()
+    }
+
+    /// A width the app set outside the limits itself is shown, and a change that keeps it is
+    /// not sent (P-SET-07).
+    @MainActor
+    func test_C_ATTR_13_anAppSetValueOutsideTheLimitsIsKeptButNotSentAgain() async throws {
+        let layerThree = try AttributesStoreTests.layerThree()
+        let negative = Self.replacing("layer.bounds", with: Self.bounds(0, 0, -20, 24), in: layerThree)
+        let (model, session, server) = try await editing(
+            try Self.script(Self.resultSteps(3, negative, as: 30)))
+        let bounds = Self.key(3, "layer.bounds")
+        // The app answers a change of the height with a negative width of its own.
+        model.set(bounds, to: Self.bounds(0, 0, 200, 30), continuous: false)
+        let answered = await Wait.until { await model.state == .loaded(negative) }
+        XCTAssertTrue(answered)
+
+        model.set(bounds, to: Self.bounds(5, 0, -20, 24), continuous: false)
+        if case .failed(.outOfRange(let violation)) = model.edits[bounds] {
+            XCTAssertEqual(violation.component, 2)
+        } else {
+            XCTFail("a value that keeps the negative width was sent")
+        }
+        try await Task.sleep(for: .milliseconds(100))
+        let sent = await Self.sets(server)
+        XCTAssertEqual(sent.map(\.value), [Self.bounds(0, 0, 200, 30)])
 
         await session.close()
         await server.stop()

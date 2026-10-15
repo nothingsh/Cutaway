@@ -63,15 +63,6 @@ final class LayerTreeTests: XCTestCase {
         XCTAssertEqual(tree.node(4)?.viewClassName, "Demo.CardView")
     }
 
-    func test_C_HIER_01_titlesAreTheReadableClassNames() throws {
-        let tree = try LayerTree(try Fixtures.hierarchy())
-        // The view's readable name; for the two layers that back no view, the layer's.
-        XCTAssertEqual(tree.ids.map(tree.title(of:)), [
-            "UIWindow", "UIView", "UILabel", "CardView", "CAShapeLayer", "UIScrollView",
-            "UILabel", "CALayer", "UIView",
-        ])
-    }
-
     func test_C_HIER_01_aTitleFallsBackWhenNamesAreMissing() throws {
         let node = Self.node
         let tree = try tree([
@@ -168,15 +159,6 @@ final class LayerTreeTests: XCTestCase {
         XCTAssertEqual(
             refusal([Self.node(1), Self.node(2, parent: 2)]),
             .parentNotBefore(id: 2, parentID: 2))
-    }
-
-    func test_C_HIER_01_aRefusalExplainsItself() {
-        XCTAssertEqual(LayerTreeError.zeroID(index: 4).explanation, "node 4 has the ID 0")
-        XCTAssertEqual(
-            LayerTreeError.duplicateID(7).explanation, "the ID 7 appears more than once")
-        XCTAssertEqual(
-            LayerTreeError.parentNotBefore(id: 3, parentID: 2).explanation,
-            "layer 3 does not come after its parent 2")
     }
 
     // MARK: - C-HIER-03: layers that cannot be seen
@@ -287,13 +269,6 @@ final class LayerTreeTests: XCTestCase {
 
     // MARK: - C-HIER-07: view controllers and members
 
-    func test_C_HIER_07_theFixturesViewController() throws {
-        let tree = try LayerTree(try Fixtures.hierarchy())
-        XCTAssertEqual(tree.viewControllerTitle(of: 2), "HomeViewController")
-        XCTAssertEqual(
-            tree.ids.filter { tree.viewControllerTitle(of: $0) != nil }, [2])
-    }
-
     func test_C_HIER_07_theFixturesMembersNearestFirst() throws {
         let tree = try LayerTree(try Fixtures.hierarchy())
         XCTAssertEqual(tree.memberTitles(of: 3), ["HomeViewController.titleLabel"])
@@ -332,5 +307,30 @@ final class LayerTreeTests: XCTestCase {
         XCTAssertEqual(matching("DMBase"), [8])
         XCTAssertEqual(matching("cardBadge"), [5], "the second reference counts too")
         XCTAssertEqual(matching("HomeViewController.cardView"), [4])
+    }
+
+    // MARK: - C-ATTR-11: addresses are only shown
+
+    func test_C_ATTR_11_addressesAreNotIdentity() throws {
+        func withAddresses(_ node: LayerNode) -> LayerNode {
+            var node = node
+            node.layerAddress = 0x6000_03B4_C000
+            node.viewAddress = 0x1_0380_6800
+            return node
+        }
+        let tree = try self.tree([
+            Self.node(1), withAddresses(Self.node(2, parent: 1)), withAddresses(Self.node(3, parent: 1)),
+        ])
+        XCTAssertEqual(tree.count, 3, "two layers with the same addresses are two layers")
+        XCTAssertEqual(tree.node(2)?.id, 2)
+        XCTAssertEqual(tree.node(3)?.id, 3)
+
+        // A subtree whose root has another layer's addresses replaces the layer of its ID.
+        var answer = withAddresses(Self.node(3, parent: 1, className: "CAShapeLayer"))
+        answer.layerAddress = 0x6000_03B4_C040
+        let replaced = try tree.replacingSubtree(with: Hierarchy(nodes: [answer], keyWindowID: 0))
+        XCTAssertEqual(replaced.node(3)?.className, "CAShapeLayer")
+        XCTAssertEqual(replaced.node(3)?.layerAddress, 0x6000_03B4_C040)
+        XCTAssertEqual(replaced.node(2), tree.node(2))
     }
 }

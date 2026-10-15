@@ -91,10 +91,17 @@ public final class InspectionStore: ObservableObject {
 
     /// The attributes of the selected layer (C-ATTR-01).
     public let attributes: AttributesStore
-    /// The other ends of the selected layer's constraints, for the preview to mark
-    /// (C-LAYOUT-04). Empty while its constraints are not held, and when the server gives
-    /// none (P-HELLO-04). Ends not in the tree are left for the scene to pass over.
-    @Published public private(set) var constraintEnds: [ConstraintEnd] = []
+    /// The other ends of the selected layer's constraints that the preview marks: all of them
+    /// with `showsAllConstraintEnds` (C-LAYOUT-04), otherwise those of the constraints and the
+    /// chip the pointer is on in the attribute panel (C-LAYOUT-07). Empty while its
+    /// constraints are not held. Ends not in the tree are left for the scene to pass over.
+    @Published public internal(set) var constraintEnds: [ConstraintEnd] = []
+    /// The ends the preview stresses while the other ends fade: the chip's the pointer is on
+    /// (C-LAYOUT-06), or else the row's (C-LAYOUT-07). Empty while there are none.
+    @Published public internal(set) var emphasizedConstraintEnds: [SceneMark] = []
+    /// Whether every end of the selected layer's constraints is marked, or only those pointed
+    /// at (C-PREV-18).
+    @Published public internal(set) var showsAllConstraintEnds = false
     /// The layer under the pointer in the preview (C-PREV-03).
     @Published public private(set) var hoveredLayerID: UInt64?
     @Published public internal(set) var previewMode: PreviewMode = .twoD
@@ -103,8 +110,8 @@ public final class InspectionStore: ObservableObject {
     @Published public internal(set) var cameras = PreviewCameras()
     /// Whether layers that cannot be seen are drawn, as ghosts (C-PREV-08).
     @Published public internal(set) var showsHiddenLayers = false
-    /// Whether layers are outlined (C-PREV-09).
-    @Published public internal(set) var showsBorders = true
+    /// How layers are outlined (C-PREV-09, C-PREV-17).
+    @Published public internal(set) var borders = BorderOptions()
     /// The layers' images by layer ID, compressed as they arrived (C-DET-08). Only layers of
     /// `tree` have an entry. Their pixels are handed out once, by `arrivingPixels`, and
     /// decompressed again only when asked for (`pixels(for:)`). Not published: a chunk of
@@ -151,9 +158,8 @@ public final class InspectionStore: ObservableObject {
     @Published public internal(set) var detailProgress = DetailProgress.none
     /// Shown while the tree is shown. Nil when there is nothing to say.
     @Published public internal(set) var notice: Notice?
-    /// Whether the app's server can send a subtree: both sides speak 0.3 or later
-    /// (P-HELLO-04). False until the session has told, which `enter()` asks it. Set by
-    /// tests that have no server.
+    /// Whether the source can send a subtree: an app can, an archive cannot (C-DET-07). False
+    /// until the source has told, which `enter()` asks it. Set by tests that have no server.
     @Published public internal(set) var canRefreshSubtrees = false
     /// Saving an archive (C-ARCH-02). Ended saves stay until `dismissArchiveSave()`.
     @Published public internal(set) var archiveSave = ArchiveSaveState.idle
@@ -181,6 +187,9 @@ public final class InspectionStore: ObservableObject {
     let arrivingPixelsSubject = PassthroughSubject<[TextureKey: Bitmap], Never>()
     let imagesChangedSubject = PassthroughSubject<[UInt64], Never>()
     private var attributesState: AnyCancellable?
+    /// The selected layer's constraints while they are held, and what the pointer is on
+    /// among them (C-LAYOUT-04): what `constraintEnds` is made from.
+    var heldConstraints = HeldConstraints()
 
     // MARK: - What the store keeps besides what it publishes
 
@@ -237,18 +246,21 @@ public final class InspectionStore: ObservableObject {
         previewMode = start.previewMode
         cameras = start.cameras
         showsHiddenLayers = start.showsHiddenLayers
-        showsBorders = start.showsBorders
+        borders = start.borders
+        showsAllConstraintEnds = start.showsConstraintEnds
         self.maxTextureDimension = maxTextureDimension
         self.attributes = AttributesStore(source: source, undoActionName: text.undoActionName)
         attributes.delegate = self
         // The attributes store sets the layer its state is about before the state.
         attributesState = attributes.$state.sink { [weak self] state in
             guard let self else { return }
-            var ends: [ConstraintEnd] = []
-            if case .loaded(_, let constraints?) = state, let id = self.attributes.selectedID {
-                ends = ConstraintEnd.ends(of: constraints, selected: id)
+            var constraints: [LayoutConstraint] = []
+            if case .loaded(_, let held) = state, self.attributes.selectedID != nil {
+                constraints = held
             }
-            if ends != self.constraintEnds { self.constraintEnds = ends }
+            if self.heldConstraints.hold(constraints, of: self.attributes.selectedID) {
+                self.showConstraintEnds()
+            }
         }
     }
 

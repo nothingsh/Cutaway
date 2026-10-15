@@ -7,7 +7,8 @@ import XCTest
 
 @testable import CutawayModel
 
-/// The other ends of the selected layer's constraints, which the preview marks (C-LAYOUT-04).
+/// The other ends of the selected layer's constraints, which the preview marks (C-LAYOUT-04,
+/// C-LAYOUT-07).
 final class ConstraintEndsStoreTests: XCTestCase {
     /// The safe area of layer 2 in the `layout-constraints` fixture.
     private static let safeArea = SceneRect(x: 0, y: 59, width: 393, height: 759)
@@ -125,25 +126,16 @@ final class ConstraintEndsStoreTests: XCTestCase {
 
     // MARK: - The inspection
 
-    /// An inspection of a server speaking 0.`minor` whose panel gets layers 3 and 4 (as
-    /// requests 10 and 11), with the hierarchy loaded. Screenshots are held back.
+    /// An inspection whose panel gets layers 3 and 4 (as requests 10 and 11), with the
+    /// hierarchy loaded. Screenshots are held back.
     @MainActor
-    private func openInspection(
-        serverMinor minor: UInt16
-    ) async throws -> (InspectionStore, Session, MockServer) {
+    private func openInspection() async throws -> (InspectionStore, Session, MockServer) {
         var steps = try MockScript.fixtures("handshake").steps
-        guard case .send(var hello) = steps[1], case .hello(var body) = hello.body else {
-            throw XCTSkip("the handshake script changed shape")
-        }
-        body.protocolVersion = Version(major: 0, minor: minor)
-        hello.body = .hello(body)
-        steps[1] = .send(hello)
         steps += try MockScript.fixtures("hierarchy").steps
         steps += MockScript.layerDetailsSteps([try Fixtures.panelDetail(of: 3)], as: 10)
         steps += MockScript.layerDetailsSteps([try Fixtures.panelDetail(of: 4)], as: 11)
         let server = try await MockServer.start(script: MockScript(steps: steps))
-        let session = try await AttributesStoreTests.session(
-            to: server, protocolVersion: Fixtures.zeroMajorProtocol)
+        let session = try await AttributesStoreTests.session(to: server)
         let inspection = InspectionStore(session: session)
         inspection.rowsWait = .seconds(30)
         inspection.enter()
@@ -158,7 +150,8 @@ final class ConstraintEndsStoreTests: XCTestCase {
     func test_C_LAYOUT_04_theInspectionGivesTheSelectedLayersEndsOnceItsConstraintsArrive()
         async throws
     {
-        let (inspection, session, server) = try await openInspection(serverMinor: 4)
+        let (inspection, session, server) = try await openInspection()
+        inspection.setShowsAllConstraintEnds(true)
         var published: [[ConstraintEnd]] = []
         let subscription = inspection.$constraintEnds.sink { published.append($0) }
         XCTAssertEqual(inspection.constraintEnds, [])
@@ -181,14 +174,66 @@ final class ConstraintEndsStoreTests: XCTestCase {
     }
 
     @MainActor
-    func test_C_LAYOUT_04_aServerBelow04GivesNoEnds() async throws {
-        let (inspection, session, server) = try await openInspection(serverMinor: 3)
+    func test_C_LAYOUT_07_withTheSwitchOffOnlyThePointedRowsEndsAreMarked() async throws {
+        let (inspection, session, server) = try await openInspection()
+        inspection.select(3)
+        let three = ConstraintEnd.ends(of: try Fixtures.constraints(of: 3), selected: 3)
+        let loaded = await Wait.until {
+            if case .loaded = await inspection.attributes.state { return true }
+            return false
+        }
+        XCTAssertTrue(loaded)
+        XCTAssertEqual(inspection.constraintEnds, [], "selecting marks nothing")
+
+        inspection.pointConstraints([1], stresses: true)
+        XCTAssertEqual(inspection.constraintEnds, [three[1]])
+        XCTAssertEqual(inspection.emphasizedConstraintEnds, [three[1].mark])
+
+        // The next row is entered before the last one is left.
+        inspection.pointConstraints([3], stresses: true)
+        inspection.leaveConstraints([1])
+        XCTAssertEqual(inspection.constraintEnds, [three[2]])
+        inspection.leaveConstraints([3])
+        XCTAssertEqual(inspection.constraintEnds, [])
+        XCTAssertEqual(inspection.emphasizedConstraintEnds, [])
+
+        // The switch shows them all, the pointed one stressed.
+        inspection.pointConstraints([1], stresses: true)
+        inspection.toggleConstraintEnds()
+        XCTAssertEqual(inspection.constraintEnds, three)
+        XCTAssertEqual(inspection.emphasizedConstraintEnds, [three[1].mark])
+        inspection.toggleConstraintEnds()
+
+        // Another layer forgets what was pointed at.
+        inspection.select(4)
+        let four = await Wait.until {
+            if case .loaded = await inspection.attributes.state {
+                return await inspection.attributes.selectedID == 4
+            }
+            return false
+        }
+        XCTAssertTrue(four)
+        XCTAssertEqual(inspection.constraintEnds, [])
+        XCTAssertEqual(inspection.emphasizedConstraintEnds, [])
+
+        await session.close()
+        await server.stop()
+    }
+
+    @MainActor
+    func test_C_LAYOUT_06_aChipShowsAndStressesItsEndWithTheSwitchOff() async throws {
+        let (inspection, session, server) = try await openInspection()
         inspection.select(3)
         let loaded = await Wait.until {
             if case .loaded = await inspection.attributes.state { return true }
             return false
         }
         XCTAssertTrue(loaded)
+        inspection.hoverConstraintEnd(.layer(4), layerID: 4)
+        XCTAssertEqual(inspection.constraintEnds.map(\.mark), [.layer(4)])
+        XCTAssertEqual(inspection.emphasizedConstraintEnds, [.layer(4)])
+        XCTAssertEqual(inspection.hoveredLayerID, 4)
+        inspection.hoverConstraintEnd(nil, layerID: nil)
         XCTAssertEqual(inspection.constraintEnds, [])
 
         await session.close()

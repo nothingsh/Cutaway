@@ -152,7 +152,7 @@ final class HierarchyViewStateTests: XCTestCase {
         var state = HierarchyViewState()
         let restoring = ArchiveState(
             expanded: [1, 2], selected: nil, focused: 5, previewMode: .twoD,
-            cameras: PreviewCameras(), showsHiddenLayers: false, showsBorders: true)
+            cameras: PreviewCameras(), showsHiddenLayers: false, borders: BorderOptions())
         XCTAssertEqual(
             state.take(tree, restoring: restoring, newLayers: .expanded), [.expansion, .focus])
         XCTAssertEqual(state.focus, 5)

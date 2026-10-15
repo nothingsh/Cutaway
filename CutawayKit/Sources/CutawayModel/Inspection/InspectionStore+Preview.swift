@@ -51,8 +51,8 @@ extension InspectionStore {
         InspectionSettings(
             previewMode: previewMode,
             cameras: focusedLayerID == nil ? cameras : PreviewCameras.fitted(cameras),
-            showsHiddenLayers: showsHiddenLayers, showsBorders: showsBorders,
-            searchText: searchText, start: start)
+            showsHiddenLayers: showsHiddenLayers, borders: borders,
+            showsConstraintEnds: showsAllConstraintEnds, searchText: searchText, start: start)
     }
 
     /// Takes over what an inspection of the same app over an earlier connection showed
@@ -61,7 +61,8 @@ extension InspectionStore {
         setPreviewMode(settings.previewMode)
         if settings.cameras != cameras { cameras = settings.cameras }
         setShowsHiddenLayers(settings.showsHiddenLayers)
-        setShowsBorders(settings.showsBorders)
+        setBorders(settings.borders)
+        setShowsAllConstraintEnds(settings.showsConstraintEnds)
         setSearchText(settings.searchText)
     }
 
@@ -80,8 +81,28 @@ extension InspectionStore {
         fetchNext()
     }
 
-    /// Outlines the layers or not (C-PREV-09). Only the drawing changes.
-    public func setShowsBorders(_ shows: Bool) {
-        if shows != showsBorders { showsBorders = shows }
+    /// How the layers are outlined (C-PREV-17). Only the drawing changes.
+    public func setBorderStyle(_ style: BorderStyle) {
+        var new = borders
+        new.style = style
+        setBorders(new)
+    }
+
+    /// Outlines only the app's own classes, or every layer (C-PREV-17).
+    public func setOnlyAppClasses(_ only: Bool) {
+        var new = borders
+        new.onlyAppClasses = only
+        setBorders(new)
+    }
+
+    /// Turns the borders off, or back to the style they last had (⇧⌘B, C-PREV-17).
+    public func toggleBorders() {
+        var new = borders
+        new.toggle()
+        setBorders(new)
+    }
+
+    func setBorders(_ new: BorderOptions) {
+        if new != borders { borders = new }
     }
 }
