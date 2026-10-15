@@ -77,6 +77,18 @@ final class ArchiveSaveExitTests: XCTestCase {
         AppWindows.views(identifier: identifier).contains { AppWindows.isShown($0) }
     }
 
+    /// A button of the toolbar's app capsule (C-WIN-06).
+    @MainActor
+    private func capsuleButton(_ identifier: String) throws -> NSButton {
+        try XCTUnwrap(AppWindows.views(identifier: identifier).first as? NSButton, identifier)
+    }
+
+    /// What the toolbar's app capsule says under the app's name.
+    @MainActor
+    private func subtitle() -> String? {
+        (AppWindows.views(identifier: "toolbar.capsule.subtitle").first as? NSButton)?.title
+    }
+
     @MainActor
     private func text(_ identifier: String) -> String? {
         (AppWindows.views(identifier: identifier).first as? NSTextField)?.stringValue
@@ -103,28 +115,29 @@ final class ArchiveSaveExitTests: XCTestCase {
 
         let held = await eventually { await Self.archiveBatchArrived(server) }
         XCTAssertTrue(held, "the archive's first batch was not asked for")
-        let progressShown = await eventually { self.shown("preview.archiveProgress") }
-        XCTAssertTrue(progressShown, "no progress while saving")
+        // The toolbar's capsule says so (C-WIN-06).
+        let progressShown = await eventually {
+            self.shown("toolbar.capsule.progress")
+                && self.subtitle()?.hasPrefix("Saving") == true
+        }
+        XCTAssertTrue(progressShown, "no progress while saving: \(self.subtitle() ?? "-")")
 
         // Refreshing and saving again are off; browsing is not.
         XCTAssertFalse(inspector.validateMenuItem(try menuItem("Refresh")))
         XCTAssertFalse(inspector.validateMenuItem(save))
-        // Each item is asked itself: in a window as narrow as a 1024-point screen allows, the
-        // items are in the toolbar's overflow menu, which validateVisibleItems() passes over.
-        let refreshItem = try XCTUnwrap(
-            inspector.window?.toolbar?.items.first { $0.itemIdentifier.rawValue == "inspector.refresh" })
-        refreshItem.validate()
-        XCTAssertFalse(refreshItem.isEnabled)
-        let saveItem = try XCTUnwrap(
-            inspector.window?.toolbar?.items.first {
-                $0.itemIdentifier.rawValue == "inspector.saveArchive"
-            })
-        saveItem.validate()
-        XCTAssertFalse(saveItem.isEnabled)
+        // The capsule's refresh is off; its save button now cancels.
+        XCTAssertFalse(try capsuleButton("toolbar.capsule.refresh").isEnabled)
+        let saveButton = try capsuleButton("toolbar.capsule.save")
+        XCTAssertTrue(saveButton.isEnabled)
+        XCTAssertEqual(saveButton.toolTip, "Cancel Saving")
         let outline = try XCTUnwrap(
             AppWindows.views(identifier: "hierarchy.outline").first as? NSOutlineView)
         outline.selectRowIndexes([3], byExtendingSelection: false)
-        let selected = await eventually { self.text("preview.readout.title") == "CardView" }
+        let selected = await eventually {
+            AppWindows.views(identifier: "preview.tag.selected").contains {
+                AppWindows.isShown($0) && $0.accessibilityLabel()?.hasPrefix("CardView") == true
+            }
+        }
         XCTAssertTrue(selected, "selecting stopped while saving")
 
         await gate.open()
@@ -140,9 +153,9 @@ final class ArchiveSaveExitTests: XCTestCase {
             Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String)
         XCTAssertEqual(decoder.manifest.cutawayVersion, AppVersion.current.version)
 
-        let saved = await eventually { self.shown("preview.archiveSaved") }
+        let saved = await eventually { self.subtitle() == "Saved \u{00B7} Show in Finder" }
         XCTAssertTrue(saved, "nothing said the archive was saved")
-        XCTAssertEqual(text("preview.archiveSaved.text"), "Saved \u{201C}Demo\u{201D}")
+        XCTAssertEqual(try capsuleButton("toolbar.capsule.save").toolTip, "Show in Finder")
         let refreshable = await eventually { inspector.validateMenuItem(try! self.menuItem("Refresh")) }
         XCTAssertTrue(refreshable)
     }
@@ -190,12 +203,6 @@ final class ArchiveSaveExitTests: XCTestCase {
         let lost = await eventually { inspector.isDisconnected }
         XCTAssertTrue(lost)
         XCTAssertFalse(inspector.validateMenuItem(save))
-        // Asked itself, as above: it may be in the toolbar's overflow menu.
-        let saveItem = try XCTUnwrap(
-            inspector.window?.toolbar?.items.first {
-                $0.itemIdentifier.rawValue == "inspector.saveArchive"
-            })
-        saveItem.validate()
-        XCTAssertFalse(saveItem.isEnabled)
+        XCTAssertFalse(try capsuleButton("toolbar.capsule.save").isEnabled)
     }
 }

@@ -7,8 +7,8 @@ import XCTest
 
 @testable import Cutaway
 
-/// End to end: in the running app, selecting layer 3 marks layer 2, its
-/// safe area and layer 4 in the preview (C-LAYOUT-04, C-REND-07).
+/// End to end: in the running app, with View › Show Constraint Ends on, selecting layer 3
+/// marks layer 2, its safe area and layer 4 in the preview (C-LAYOUT-04, C-REND-07, C-PREV-18).
 final class ConstraintEndsExitTests: XCTestCase {
     @MainActor
     private func waitUntil(_ condition: @MainActor () -> Bool) async throws -> Bool {
@@ -47,9 +47,21 @@ final class ConstraintEndsExitTests: XCTestCase {
         XCTAssertEqual(preview.imageMarkCorners.count, 0)
         let outline = try XCTUnwrap(
             AppWindows.views(identifier: "hierarchy.outline").first as? NSOutlineView)
+        let inspector = try XCTUnwrap(
+            AppWindows.inspectorWindows().first?.windowController as? InspectorWindowController)
 
-        // Select the label, layer 3.
+        // Select the label, layer 3: with the switch off, nothing is marked.
         outline.selectRowIndexes([2], byExtendingSelection: false)
+        try await Task.sleep(for: .milliseconds(500))
+        XCTAssertEqual(preview.imageMarkCorners.count, 0)
+
+        // View › Show Constraint Ends, as the menu chooses it.
+        let item = try XCTUnwrap(
+            NSApp.mainMenu?.items.compactMap(\.submenu).flatMap(\.items)
+                .first { $0.title == "Show Constraint Ends" })
+        XCTAssertTrue(inspector.validateMenuItem(item))
+        XCTAssertEqual(item.state, .off)
+        XCTAssertTrue(NSApp.sendAction(try XCTUnwrap(item.action), to: inspector, from: item))
         let marked = try await waitUntil { preview.imageMarkCorners.count == 3 }
         XCTAssertTrue(marked, "\(preview.imageMarkCorners.count) marks")
 

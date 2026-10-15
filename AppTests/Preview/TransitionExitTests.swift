@@ -118,7 +118,7 @@ final class TransitionExitTests: XCTestCase {
         let last = try XCTUnwrap(
             transition.project(
                 progress: 1 - 1e-9, lens: Lens(inspection.camera),
-                viewport: Viewport(width: preview.bounds.width, height: preview.bounds.height),
+                viewport: preview.viewport,
                 selected: inspection.selectedLayerID, hovered: inspection.hoveredLayerID
             ).items.first { $0.layerID == 3 }?.center)
         let onNode2 = CGPoint(x: last.x * scale, y: last.y * scale)
