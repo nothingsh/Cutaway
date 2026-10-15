@@ -2,8 +2,8 @@ import AppKit
 import CutawayModel
 
 /// The settings window (C-PREF-01): one only, fixed in size, closed but never minimized or
-/// zoomed. Its pages are tabs in the toolbar, General (C-LOC-01) and Preview; the window is
-/// titled with the page shown and opens on the page last shown.
+/// zoomed. Its pages are tabs in the toolbar, General (C-LOC-01, C-PREF-03) and Preview; the
+/// window is titled with the page shown and opens on the page last shown.
 @MainActor
 final class SettingsWindowController: NSWindowController {
     let generalPage: GeneralSettingsViewController
@@ -19,13 +19,14 @@ final class SettingsWindowController: NSWindowController {
         restart: @escaping () -> Void
     ) {
         generalPage = GeneralSettingsViewController(
-            language: language, shownLanguage: shownLanguage, systemPreferences: systemPreferences,
-            restart: restart)
+            settings: settings, language: language, shownLanguage: shownLanguage,
+            systemPreferences: systemPreferences, restart: restart)
         previewPage = PreviewSettingsViewController(settings: settings)
         tabs = SettingsTabViewController(settings: settings)
         tabs.tabStyle = .toolbar
         for (page, symbol) in [
-            (generalPage as NSViewController, "gearshape"), (previewPage, "square.3.layers.3d"),
+            (generalPage as NSViewController, Theme.Symbol.generalSettings),
+            (previewPage, Theme.Symbol.previewSettings),
         ] {
             let item = NSTabViewItem(viewController: page)
             item.image = NSImage(systemSymbolName: symbol, accessibilityDescription: page.title)
