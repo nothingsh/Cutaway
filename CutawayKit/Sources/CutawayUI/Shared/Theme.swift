@@ -1,4 +1,5 @@
 import AppKit
+import CutawayRender
 
 /// The constants the interface is drawn with: spacing, corner radii, fonts and the SF Symbols
 /// it uses. Colours are the system's semantic colours, so light and dark follow the system.
@@ -18,8 +19,8 @@ enum Theme {
     enum Radius {
         static let control: CGFloat = 6
         static let panel: CGFloat = 8
-        /// A 40-point app icon.
-        static let appIcon: CGFloat = 9
+        /// A 36-point app icon.
+        static let appIcon: CGFloat = 8
     }
 
     @MainActor
@@ -38,20 +39,11 @@ enum Theme {
     /// error, so a test loads each of them.
     enum Symbol {
         static let appPlaceholder = "app.dashed"
-        static let thisMac = "laptopcomputer"
-        static let usbDevice = "cable.connector"
-        static let phone = "iphone"
-        static let pad = "ipad"
-        static let mac = "desktopcomputer"
-        static let unknownDevice = "questionmark.square.dashed"
-        static let chevron = "chevron.right"
         static let inactive = "pause.circle.fill"
         static let background = "moon.fill"
         static let incompatible = "exclamationmark.triangle.fill"
-        static let noApps = "iphone.gen3.radiowaves.left.and.right"
         static let twoD = "square"
         static let threeD = "square.3.layers.3d"
-        static let apps = "square.grid.2x2"
         static let notActive = "moon.zzz.fill"
         static let screenshotsFailed = "exclamationmark.triangle.fill"
         static let disconnected = "cable.connector.slash"
@@ -60,21 +52,48 @@ enum Theme {
         static let noMatches = "magnifyingglass"
         static let showHidden = "eye"
         static let hideHidden = "eye.slash"
-        static let borders = "square.dashed"
         static let refresh = "arrow.clockwise"
-        /// The grip a number is dragged by (C-ATTR-05).
-        static let scrub = "arrow.left.and.right"
         static let editFailed = "exclamationmark.triangle.fill"
         static let saveArchive = "archivebox"
-        static let archiveSaved = "checkmark.circle.fill"
         static let archiveFailed = "exclamationmark.triangle.fill"
+        /// The app capsule's save button while saving, and once saved (C-WIN-06).
+        static let cancelSave = "stop.fill"
+        static let saved = "checkmark"
+        static let showApps = "chevron.down"
+        /// Above the hierarchy's status text (C-HIER-01).
+        static let hierarchyNotActive = "moon.zzz"
+        static let hierarchyFailed = "exclamationmark.triangle"
+        static let emptyTree = "rectangle.dashed"
+        /// The mark of a hidden layer's row (C-HIER-03).
+        static let hiddenLayer = "eye.slash"
+        /// The open triangle of a sticky row (C-HIER-13).
+        static let stickyRowOpen = "chevron.down"
+        /// The settings' pages (C-PREF-01).
+        static let generalSettings = "gearshape"
+        static let previewSettings = "square.3.layers.3d"
 
         static let all = [
-            appPlaceholder, thisMac, usbDevice, phone, pad, mac, unknownDevice, chevron, inactive,
-            background, incompatible, noApps, twoD, threeD, apps, notActive, screenshotsFailed,
-            disconnected, expandMenu, leaveFocus, noMatches, showHidden, hideHidden, borders,
-            refresh, scrub, editFailed, saveArchive, archiveSaved, archiveFailed,
+            appPlaceholder, inactive, background, incompatible, twoD, threeD, notActive,
+            screenshotsFailed,
+            disconnected, expandMenu, leaveFocus, noMatches, showHidden, hideHidden, refresh,
+            editFailed, saveArchive, archiveFailed, cancelSave, saved, showApps,
+            hierarchyNotActive, hierarchyFailed, emptyTree, hiddenLayer, stickyRowOpen,
+            generalSettings, previewSettings,
         ]
+    }
+
+    /// The fill of a row under the pointer, in the hierarchy list (C-HIER-15) and the app list
+    /// (C-LIST-04).
+    static var hoverFill: NSColor { .quaternaryLabelColor }
+
+    /// The other ends of constraints (C-LAYOUT-04, C-LAYOUT-06): the preview's marks, so that
+    /// the panel's constraint icon and chips read as the same thing. Taken from the render
+    /// style of the appearance it is drawn in.
+    static var constraintEnd: NSColor {
+        NSColor(name: nil) { appearance in
+            let dark = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+            return RenderStyle.preview(dark: dark).endBorder.nsColor
+        }
     }
 
     /// An SF Symbol at a point size and weight, or nil when the system does not have it.

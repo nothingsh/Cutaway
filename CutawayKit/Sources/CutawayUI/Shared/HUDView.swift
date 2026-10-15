@@ -11,6 +11,7 @@ final class HUDView: NSView {
 
     /// Whether the panel takes the pointer itself, as one with a button must.
     var takesPointer = false
+
     private let background: NSView
 
     init(content: NSView) {
