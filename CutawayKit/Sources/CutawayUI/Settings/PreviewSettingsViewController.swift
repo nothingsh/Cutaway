@@ -13,7 +13,9 @@ final class PreviewSettingsViewController: NSViewController {
     static let spacingSliderIdentifier = "settings.spacing.slider"
     static let spacingFieldIdentifier = "settings.spacing.field"
     static let showsHiddenIdentifier = "settings.showsHidden"
-    static let showsBordersIdentifier = "settings.showsBorders"
+    static let borderStyleIdentifier = "settings.borderStyle"
+    static let onlyAppClassesIdentifier = "settings.onlyAppClasses"
+    static let constraintEndsIdentifier = "settings.constraintEnds"
     static let restoreIdentifier = "settings.restore"
 
     let settings: AppSettings
@@ -38,6 +40,7 @@ final class PreviewSettingsViewController: NSViewController {
             [Self.label(localized("settings.newInspectionMode")), makeModeControl()],
             [Self.label(localized("settings.layerSpacing")), makeSpacingRow()],
             [Self.label(localized("settings.layers")), makeLayersColumn()],
+            [Self.label(localized("settings.borders")), makeBordersColumn()],
             [NSGridCell.emptyContentView, Self.help(
                 localized("settings.explanation"))],
         ]).configure {
@@ -114,11 +117,36 @@ final class PreviewSettingsViewController: NSViewController {
                 .sink(\.statePublisher) { [weak settings] state in
                     settings?.showsHiddenLayers = state == .on
                 }
-            Self.checkbox(localized("settings.showBorders"))
-                .accessibilityIdentifier(Self.showsBordersIdentifier)
-                .bind(\.state, to: settings.$showsBorders.map { $0 ? .on : .off })
+        }
+    }
+
+    /// The borders' style and whether only the app's own classes are outlined (C-PREV-17), and
+    /// whether every constraint end is marked (C-PREV-18).
+    private func makeBordersColumn() -> NSView {
+        VStack(alignment: .leading, spacing: 7) {
+            NSPopUpButton(frame: .zero, pullsDown: false)
+                .configure { button in
+                    button.addItems(withTitles: BorderStyle.allCases.map(BordersButton.title(of:)))
+                }
+                .accessibilityIdentifier(Self.borderStyleIdentifier)
+                .onReceive(settings.$borderStyle) { button, style in
+                    button.selectItem(at: BorderStyle.allCases.firstIndex(of: style) ?? 0)
+                }
+                .sink(\.indexOfSelectedItemPublisher) { [weak settings] index in
+                    guard BorderStyle.allCases.indices.contains(index) else { return }
+                    settings?.borderStyle = BorderStyle.allCases[index]
+                }
+            Self.checkbox(localized("settings.onlyAppClasses"))
+                .accessibilityIdentifier(Self.onlyAppClassesIdentifier)
+                .bind(\.state, to: settings.$onlyAppClasses.map { $0 ? .on : .off })
                 .sink(\.statePublisher) { [weak settings] state in
-                    settings?.showsBorders = state == .on
+                    settings?.onlyAppClasses = state == .on
+                }
+            Self.checkbox(localized("settings.constraintEnds"))
+                .accessibilityIdentifier(Self.constraintEndsIdentifier)
+                .bind(\.state, to: settings.$showsConstraintEnds.map { $0 ? .on : .off })
+                .sink(\.statePublisher) { [weak settings] state in
+                    settings?.showsConstraintEnds = state == .on
                 }
         }
     }
