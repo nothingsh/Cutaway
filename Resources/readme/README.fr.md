@@ -46,13 +46,14 @@ d'exécution.
 
 **Travailler dans le détail**
 
-- Les attributs du calque et de la vue sélectionnés, groupés tels que l'app les rapporte. Les
-  attributs modifiables ont des contrôles : texte, nombres que l'on fait glisser, interrupteurs,
-  sélecteurs de couleur, menus locaux pour les énumérations. Les modifications sont appliquées
-  aussitôt dans l'app en cours d'exécution, et ⌘Z les annule.
+- Les attributs du calque et de la vue sélectionnés, en cinq sections selon leur rôle, avec les
+  attributs liés, comme l'épaisseur et la couleur d'une bordure, sur une même ligne. Les attributs
+  modifiables ont des contrôles : texte, nombres, cases à cocher, champs de couleur, menus locaux et
+  contrôles segmentés pour les énumérations. Les modifications sont appliquées aussitôt dans l'app
+  en cours d'exécution, et ⌘Z les annule.
 - Les contraintes Auto Layout qui font référence à la vue sélectionnée, avec celles qui ne sont pas
-  en vigueur signalées, et l'autre extrémité de chaque contrainte signalée dans l'aperçu. Cliquez sur
-  l'autre extrémité pour vous y rendre.
+  en vigueur signalées. Pointez une contrainte pour signaler son autre extrémité dans l'aperçu, ou
+  signalez-les toutes. Cliquez sur l'autre extrémité pour vous y rendre.
 - Rechercher dans l'arbre, se concentrer sur un sous-arbre, déplier jusqu'à une profondeur donnée,
   rafraîchir un sous-arbre seul.
 
@@ -116,7 +117,9 @@ aussi compiler Cutaway depuis les sources ; voir [Développement](#development).
 La barre latérale liste les calques de chaque fenêtre sous forme d'arbre. Une ligne montre la classe
 du calque, la vue qu'il porte, le view controller dont il est la vue racine, et la variable membre
 qui le détient, par exemple `HomeViewController.titleLabel`. Les lignes grisées sont masquées ou
-entièrement transparentes.
+entièrement transparentes. L'icône indique le type de calque, pleine pour les classes propres à
+l'app et en contour pour celles du système. Pendant le défilement, les ancêtres de la ligne du haut
+restent épinglés au-dessus d'elle.
 
 - **Filtrez** l'arbre avec le champ en haut : les lignes dont le titre ou la classe contient le texte
   restent, avec leurs ancêtres.
@@ -140,27 +143,43 @@ l'arbre arrive, puis que chaque capture d'écran arrive.
   (réinitialiser la vue, ⌘0) revient au point de départ.
 - **L'espacement des calques** en 3D est le curseur sous l'aperçu, de 0 à 200 points.
 - **Show Hidden Layers** (afficher les calques masqués, ⇧⌘H) dessine aussi les calques masqués ou
-  transparents, dans leur propre style. **Show Borders** (afficher les bordures, ⇧⌘B) trace le
-  contour de chaque calque. Les deux interrupteurs sont aussi sous l'aperçu.
+  transparents, dans leur propre style. Les **Borders** (bordures) tracent le contour des calques
+  d'une seule couleur ou selon leur type, dans les couleurs des icônes de la liste, et peuvent se
+  limiter aux classes propres à l'app ; **Show Borders** (afficher les bordures, ⇧⌘B) les désactive
+  et les réactive. **Show Constraint Ends** (afficher les extrémités des contraintes, ⇧⌘K) signale
+  toutes les autres extrémités des contraintes de la vue sélectionnée. Ces commandes sont aussi sous
+  l'aperçu.
 - **Mesurer** : un calque étant sélectionné, maintenez ⌥ et pointez un autre calque. Les distances
   entre les deux sont dessinées avec leurs valeurs en points, en 2D comme en 3D.
 - Cliquez sur un calque pour le sélectionner ; la liste et les attributs suivent. Le calque sous le
-  pointeur est mis en évidence.
+  pointeur est mis en évidence. Une étiquette à côté du calque sélectionné indique son nom et sa
+  taille.
 
 ### Attributs
 
-L'inspecteur à droite montre les attributs du calque sélectionné et de sa vue, dans les groupes que
-l'app rapporte, tels que `layer`, `view` et `label`. Cutaway n'a pas de liste à lui : ce qui
+L'inspecteur à droite montre le calque sélectionné et sa vue. Sous le nom du calque, ses ancêtres
+les plus proches remontent l'arbre ; **Select Parent Layer** (sélectionner le calque parent, ⌘↑) et
+**Select First Child Layer** (sélectionner le premier calque enfant, ⌘↓) permettent de s'y
+déplacer. Les attributs suivent en cinq sections selon leur rôle : Content (contenu), Appearance
+(apparence), Layout, Behavior (comportement) et Object (objet). Les attributs qui vont ensemble
+partagent une ligne, comme Frame, Border, Shadow et Corners. Cutaway n'a pas de liste à lui : ce qui
 apparaît est ce que [CutawayServer](https://github.com/nothingsh/CutawayServer) envoie, il montre donc tout ce que connaît la version du serveur
 intégrée à l'app.
 
+- **Filtrez** les attributs par titre ou par ID avec le champ au-dessus de la liste. Les sections se
+  replient ; l'en-tête de celle du haut reste visible pendant le défilement, et un ⌥-clic sur un
+  en-tête les replie ou les déplie toutes.
 - Les attributs que l'app marque modifiables ont des contrôles : un champ de texte, un champ
-  numérique que l'on fait glisser, un interrupteur, un sélecteur de couleur avec opacité, un menu
-  local pour les énumérations, et des champs par composante pour les points, les tailles, les
-  rectangles, les marges (insets) et les transformations.
+  numérique, une case à cocher, un champ de couleur avec sa valeur hexadécimale et son opacité, un
+  menu local ou un contrôle segmenté pour les énumérations, et des champs par composante pour les
+  points, les tailles, les rectangles, les marges (insets) et les transformations. Les longueurs
+  sont indiquées en points ; les proportions comme l'opacité sont affichées et saisies en
+  pourcentages, et l'opacité a aussi un curseur.
 - Une modification est envoyée dès que vous la validez, ou en continu pendant que vous faites
-  glisser. L'app répond avec les attributs du calque, de sorte qu'un attribut qui change avec un
-  autre (comme l'opacité d'un calque avec l'alpha de sa vue) est mis à jour lui aussi.
+  glisser le curseur d'opacité ou utilisez le sélecteur de couleur. Une valeur hors de la plage
+  acceptée par l'app n'est pas envoyée, et le champ en indique la raison. L'app répond avec les
+  attributs du calque, de sorte qu'un attribut qui change avec un autre (comme l'opacité d'un calque
+  avec l'alpha de sa vue) est mis à jour lui aussi.
 - ⌘Z annule la dernière modification et ⇧⌘Z la rétablit, tant que dure l'inspection.
 - Une modification que l'app refuse est expliquée dans la ligne, et la valeur précédente revient.
 
@@ -168,12 +187,13 @@ Après une modification, Cutaway rafraîchit les captures d'écran des calques q
 
 ### Contraintes
 
-Sous les attributs, les contraintes Auto Layout d'une vue sont listées telles que l'app les
+Dans la section Layout, les contraintes Auto Layout d'une vue sont listées telles que l'app les
 rapporte : `self.leading = Safe Area of UIView.leading + 16`, avec la priorité quand elle est
 inférieure à 1000 et l'identifiant quand il y en a un. Les contraintes qui ne sont pas en vigueur
 sont grisées et signalées ; celles que génère UIKit sont repliées en une seule ligne. Cliquez sur
-l'autre extrémité d'une contrainte pour sélectionner cette vue. Dans l'aperçu, les autres extrémités
-des contraintes de la vue sélectionnée sont signalées.
+l'autre extrémité d'une contrainte pour sélectionner cette vue. Pointez une contrainte pour signaler
+son autre extrémité dans l'aperçu ; **Show Constraint Ends** (afficher les extrémités des
+contraintes, ⇧⌘K) signale toutes les autres extrémités à la fois.
 
 ### Rafraîchissement
 
@@ -200,10 +220,11 @@ l'opacité propres au calque.
 
 ### Réglages
 
-**Settings…** (réglages, ⌘,) a deux pages. **General** (général) choisit la langue : celle du
-système, ou l'une des cinq. **Preview** (aperçu) choisit comment démarre une nouvelle inspection :
-2D ou 3D, l'espacement des calques, et si les calques masqués et les bordures sont affichés. Les
-fenêtres déjà ouvertes gardent leur aspect.
+**Settings…** (réglages, ⌘,) a deux pages. **General** (général) choisit la langue, celle du
+système ou l'une des cinq, et l'apparence : celle du système, claire ou sombre. **Preview** (aperçu)
+choisit comment démarre une nouvelle inspection : 2D ou 3D, l'espacement des calques, si les calques
+masqués sont affichés, le style des bordures, et si toutes les extrémités de contraintes sont
+signalées. Les fenêtres déjà ouvertes gardent leur aspect.
 
 ### Raccourcis clavier
 
@@ -217,7 +238,8 @@ fenêtres déjà ouvertes gardent leur aspect.
 | Tout rafraîchir / le sous-arbre sélectionné | ⌘R / ⇧⌘R |
 | 2D / 3D | ⌘1 / ⌘2 |
 | Zoom avant / zoom arrière / réinitialiser la vue | ⌘= / ⌘- / ⌘0 |
-| Afficher les calques masqués / afficher les bordures | ⇧⌘H / ⇧⌘B |
+| Afficher les calques masqués / afficher les bordures / afficher les extrémités des contraintes | ⇧⌘H / ⇧⌘B / ⇧⌘K |
+| Sélectionner le calque parent / le premier calque enfant | ⌘↑ / ⌘↓ |
 | Se concentrer sur le calque sélectionné / afficher tous les calques | ⌥⌘↓ / ⌥⌘↑ |
 | Tout déplier / tout replier | ⌥⌘→ / ⌥⌘← |
 | Afficher ou masquer la barre latérale / l'inspecteur | ⌃⌘S / ⌥⌘I |
@@ -280,8 +302,6 @@ Comment il y parvient :
 Voici les orientations prévues après la 1.0, partagées avec [CutawayServer](https://github.com/nothingsh/CutawayServer). L'ordre et le périmètre
 peuvent changer.
 
-- **Protocole 1.0.** Figer le [protocole Cutaway](https://github.com/nothingsh/CutawayProtocol), afin que les fonctionnalités ultérieures ne fassent
-  qu'y ajouter.
 - **Analyse des interactions.** Afficher les gesture recognizers et les paires target–action ; activer
   et désactiver des gestes ; appeler des méthodes sur des objets.
 - **API d'extension pour les apps hôtes.** Attributs personnalisés, nœuds enfants virtuels, et

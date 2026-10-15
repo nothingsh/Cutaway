@@ -22,7 +22,7 @@ running app.
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="Resources/readme/overview-dark.png">
-    <img src="Resources/readme/overview-light.png" alt="Cutaway inspecting an app in 3D: the layer tree, the layers spread apart with measurements, and the attributes of the selected layer." width="850">
+    <img src="Resources/readme/overview-light.png" alt="Cutaway inspecting an app in 3D: the layer tree, the layers spread apart, and the attributes of the selected layer." width="850">
   </picture>
 </p>
 
@@ -40,12 +40,13 @@ running app.
 
 **Work with the details**
 
-- The attributes of the selected layer and view, grouped as the app reports them. Editable
-  attributes have controls: text, numbers you can drag, switches, color pickers, pop-ups for
-  enumerations. Changes are applied in the running app at once, and ⌘Z undoes them.
+- The attributes of the selected layer and view, in five sections by purpose, with related
+  attributes such as a border's width and color in one row. Editable attributes have controls:
+  text, numbers, checkboxes, color fields, pop-ups and segmented controls for enumerations.
+  Changes are applied in the running app at once, and ⌘Z undoes them.
 - The Auto Layout constraints that refer to the selected view, with the ones that are not in
-  effect marked, and the other end of each constraint marked in the preview. Click the other end
-  to go to it.
+  effect marked. Point at a constraint to mark its other end in the preview, or mark them all.
+  Click the other end to go to it.
 - Search the tree, focus on a subtree, expand to a given depth, refresh a subtree alone.
 
 **Keep what you found**
@@ -100,7 +101,9 @@ from source; see [Development](#development).
 
 The sidebar lists the layers of every window as a tree. A row shows the layer's class, the view
 it backs, the view controller whose root view it is, and the member variable that holds it, such
-as `HomeViewController.titleLabel`. Dimmed rows are hidden or fully transparent.
+as `HomeViewController.titleLabel`. Dimmed rows are hidden or fully transparent. The icon tells the kind of layer, filled for the
+app's own classes and outlined for the system's. While you scroll, the ancestors of the row at the
+top stay pinned above it.
 
 - **Filter** the tree with the field at the top: rows whose title or class contains the text
   stay, with their ancestors.
@@ -122,24 +125,36 @@ tree arrives and then as each screenshot arrives.
   with ⌘ and the scroll wheel, around the pointer. **Reset View** (⌘0) goes back to the start.
 - **Layer spacing** in 3D is the slider below the preview, from 0 to 200 points.
 - **Show Hidden Layers** (⇧⌘H) also draws the layers that are hidden or transparent, in their own
-  style. **Show Borders** (⇧⌘B) outlines every layer. Both switches are below the preview too.
+  style. **Borders** outline the layers in one color or by kind, in the colors of the list's
+  icons, and can be limited to the app's own classes; **Show Borders** (⇧⌘B) turns them off and
+  back on. **Show Constraint Ends** (⇧⌘K) marks every other end of the selected view's
+  constraints. These are below the preview too.
 - **Measure**: with a layer selected, hold ⌥ and point at another layer. The distances between
   the two are drawn with their values in points, in 2D and in 3D.
 - Click a layer to select it; the list and the attributes follow. The layer under the pointer is
-  highlighted.
+  highlighted. A tag beside the selected layer shows its name and size.
 
 ### Attributes
 
-The inspector on the right shows the attributes of the selected layer and its view in the
-groups the app reports, such as `layer`, `view` and `label`. Cutaway has no list of its own: what
-appears is what [CutawayServer](https://github.com/nothingsh/CutawayServer) sends, so it shows whatever the app's version of the server knows.
+The inspector on the right shows the selected layer and its view. Under the layer's name, its
+nearest ancestors lead up the tree; **Select Parent Layer** (⌘↑) and **Select First Child Layer**
+(⌘↓) move along it. The attributes follow in five sections by purpose: Content, Appearance,
+Layout, Behavior and Object. Attributes that belong together share one row, such as Frame,
+Border, Shadow and Corners. Cutaway has no list of its own: what appears is what
+[CutawayServer](https://github.com/nothingsh/CutawayServer) sends, so it shows whatever the app's version of the server knows.
 
-- Attributes the app marks editable have controls: a text field, a number field you can drag, a
-  switch, a color picker with opacity, a pop-up for enumerations, and fields per component for
-  points, sizes, rectangles, insets and transforms.
-- A change is sent as soon as you commit it, or continuously while you drag. The app answers
-  with the layer's attributes, so an attribute that changes with another (such as a layer's
-  opacity with its view's alpha) is updated too.
+- **Filter** the attributes by title or ID with the field above the list. Sections fold; the
+  header of the one at the top stays in view while you scroll, and ⌥-clicking a header folds or
+  unfolds them all.
+- Attributes the app marks editable have controls: a text field, a number field, a checkbox, a
+  color field with its hex value and opacity, a pop-up or segmented control for enumerations,
+  and fields per component for points, sizes, rectangles, insets and transforms. Lengths are
+  marked in points; proportions such as opacity are shown and typed as percentages, and opacity
+  has a slider too.
+- A change is sent as soon as you commit it, or continuously while you drag the opacity slider
+  or use the color picker. A value outside the range the app accepts is not sent, and the field
+  says why. The app answers with the layer's attributes, so an attribute that changes with
+  another (such as a layer's opacity with its view's alpha) is updated too.
 - ⌘Z undoes the last change and ⇧⌘Z redoes it, for as long as the inspection lasts.
 - A change the app rejects is explained in the row, and the previous value comes back.
 
@@ -147,11 +162,12 @@ After a change, Cutaway refreshes the screenshots of the layers it could have af
 
 ### Constraints
 
-Below the attributes, a view's Auto Layout constraints are listed as the app reports them:
+In the Layout section, a view's Auto Layout constraints are listed as the app reports them:
 `self.leading = Safe Area of UIView.leading + 16`, with the priority when it is below 1000 and the
 identifier when there is one. Constraints that are not in effect are dimmed and marked; the ones
 UIKit generates are folded into one row. Click the other end of a constraint to select that view.
-In the preview, the other ends of the selected view's constraints are marked.
+Point at a constraint to mark its other end in the preview; **Show Constraint Ends** (⇧⌘K) marks
+every other end at once.
 
 ### Refreshing
 
@@ -175,9 +191,10 @@ own transform or opacity.
 
 ### Settings
 
-**Settings…** (⌘,) has two pages. **General** chooses the language: the system's, or one of the
-five. **Preview** chooses how a new inspection starts: 2D or 3D, the layer spacing, and whether
-hidden layers and borders are shown. Windows already open keep their look.
+**Settings…** (⌘,) has two pages. **General** chooses the language, the system's or one of the
+five, and the appearance, the system's, light or dark. **Preview** chooses how a new inspection
+starts: 2D or 3D, the layer spacing, whether hidden layers are shown, the borders' style, and
+whether every constraint end is marked. Windows already open keep their look.
 
 ### Keyboard shortcuts
 
@@ -191,7 +208,8 @@ hidden layers and borders are shown. Windows already open keep their look.
 | Refresh everything / the selected subtree | ⌘R / ⇧⌘R |
 | 2D / 3D | ⌘1 / ⌘2 |
 | Zoom in / zoom out / reset the view | ⌘= / ⌘- / ⌘0 |
-| Show hidden layers / show borders | ⇧⌘H / ⇧⌘B |
+| Show hidden layers / show borders / show constraint ends | ⇧⌘H / ⇧⌘B / ⇧⌘K |
+| Select the parent layer / the first child layer | ⌘↑ / ⌘↓ |
 | Focus on the selected layer / show all layers | ⌥⌘↓ / ⌥⌘↑ |
 | Expand all / collapse all | ⌥⌘→ / ⌥⌘← |
 | Show or hide the sidebar / the inspector | ⌃⌘S / ⌥⌘I |
@@ -246,7 +264,6 @@ How it gets there:
 
 These are the directions planned after 1.0, shared with [CutawayServer](https://github.com/nothingsh/CutawayServer). Order and scope may change.
 
-- **Protocol 1.0.** Freeze the [Cutaway protocol](https://github.com/nothingsh/CutawayProtocol), so later features only add to it.
 - **Interaction analysis.** Show gesture recognizers and target–action pairs; enable and disable
   gestures; call methods on objects.
 - **Extension API for host apps.** Custom attributes, virtual child nodes, and configuration such

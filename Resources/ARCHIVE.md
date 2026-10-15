@@ -56,6 +56,7 @@ The state of the interface at the time of saving, restored when the archive is o
 
 ```json
 {
+  "borderStyle": "byKind",
   "cameras": {
     "threeD": { "layerSpacing": 50, "panX": -12, "panY": 30, "pitch": 0.2618, "yaw": 0.5236, "zoom": 1.4 },
     "twoD":   { "layerSpacing": 0, "panX": 0, "panY": 0, "pitch": 0, "yaw": 0, "zoom": 1 }
@@ -63,25 +64,30 @@ The state of the interface at the time of saving, restored when the archive is o
   "expanded": [1, 2, 4],
   "focused": null,
   "mode": "3d",
+  "onlyAppClasses": false,
   "selected": 3,
   "showsBorders": true,
+  "showsConstraintEnds": false,
   "showsHiddenLayers": false
 }
 ```
 
-| Key | Meaning | Default |
+| Key | Meaning | When missing |
 |---|---|---|
-| `expanded` | The layer IDs of the expanded nodes, in ascending order | Empty |
+| `expanded` | The layer IDs of the expanded nodes, in ascending order. An empty list collapses every node | The tree opens as a new inspection's does (C-HIER-09) |
 | `selected` | The selected layer ID, or `null` | Nothing selected |
 | `focused` | The root of the focused subtree, or `null` | Not focused |
-| `mode` | `"2d"` or `"3d"` | `"2d"` |
-| `cameras` | Each mode's own camera: the angles about the vertical and horizontal axes (`yaw`, `pitch`, in radians), `zoom`, the pan (`panX`, `panY`, in points of the viewport), and the layer spacing (`layerSpacing`, in points). The projection follows from the mode and is not saved | The mode's default camera, item by item |
-| `showsHiddenLayers` | "Show Hidden Layers" | `false` |
-| `showsBorders` | "Show Borders" | `true` |
+| `mode` | `"2d"` or `"3d"` | The mode for new inspections in Settings (`"2d"` until it is changed) |
+| `cameras` | Each mode's own camera: the angles about the vertical and horizontal axes (`yaw`, `pitch`, in radians), `zoom`, the pan (`panX`, `panY`, in points of the viewport), and the layer spacing (`layerSpacing`, in points). The projection follows from the mode and is not saved | The mode's default camera, item by item; the 3D camera's layer spacing is the one in Settings |
+| `showsHiddenLayers` | "Show Hidden Layers" | As in Settings (`false` until it is changed) |
+| `borderStyle` | The borders' style: `"off"`, `"plain"` or `"byKind"` | `showsBorders` read as below; without it too, the style in Settings (`"byKind"` until it is changed) |
+| `onlyAppClasses` | "Only the App's Own Classes": only layers of the app's own classes are outlined | As in Settings (`false` until it is changed), also when `showsBorders` stands for the style |
+| `showsConstraintEnds` | "Show Constraint Ends": every other end of the selected view's constraints is marked, not only those pointed at (C-PREV-18) | As in Settings (`false` until it is changed) |
+| `showsBorders` | Whether the borders are on; written for readers of earlier versions. Read only when `borderStyle` is missing or not one of its values: `true` is `"byKind"`, `false` is `"off"` | Not read |
 
 The layer IDs come from the same connection as the frames in the archive. The text of the search field is not saved.
 
-When reading, each key is parsed on its own: if it is missing, has the wrong type, or is a number that is not finite, that item takes its default and the other items are unaffected; unknown keys are ignored; if the section as a whole is not a JSON object (including when it is empty), every item takes its default. Failing to understand this section never makes the archive count as damaged. An ID that refers to a layer that does not exist is treated as the default when the archive is opened (C-ARCH-03).
+When reading, each key is parsed on its own: if it is missing, has the wrong type, or is a number that is not finite, that item takes the value in the last column, which for most items is the one in Settings when the archive is opened (C-PREF-02), and the other items are unaffected; unknown keys are ignored; if the section as a whole is not a JSON object (including when it is empty), every item takes the value in the last column. Failing to understand this section never makes the archive count as damaged. An ID that refers to a layer that does not exist is treated as the default when the archive is opened (C-ARCH-03).
 
 ## Reading
 

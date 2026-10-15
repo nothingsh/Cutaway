@@ -47,13 +47,15 @@ App angewendet.
 
 **Mit den Details arbeiten**
 
-- Die Attribute des ausgewählten Layers und der View, gruppiert, wie die App sie meldet.
-  Bearbeitbare Attribute haben Bedienelemente: Text, Zahlen, die Sie ziehen können, Schalter,
-  Farbwähler, Pop-ups für Aufzählungen. Änderungen werden sofort in der laufenden App angewendet,
-  und ⌘Z macht sie rückgängig.
+- Die Attribute des ausgewählten Layers und der View, in fünf Abschnitten nach Zweck, wobei
+  zusammengehörige Attribute wie Breite und Farbe eines Rahmens in einer Zeile stehen. Bearbeitbare
+  Attribute haben Bedienelemente: Text, Zahlen, Checkboxen, Farbfelder, Pop-ups und segmentierte
+  Steuerelemente für Aufzählungen. Änderungen werden sofort in der laufenden App angewendet, und ⌘Z
+  macht sie rückgängig.
 - Die Auto-Layout-Constraints, die sich auf die ausgewählte View beziehen, mit Markierung
-  derjenigen, die nicht wirksam sind, und mit Markierung des anderen Endes jedes Constraints in der
-  Vorschau. Klicken Sie auf das andere Ende, um dorthin zu springen.
+  derjenigen, die nicht wirksam sind. Zeigen Sie auf einen Constraint, um sein anderes Ende in der
+  Vorschau zu markieren, oder markieren Sie alle. Klicken Sie auf das andere Ende, um dorthin zu
+  springen.
 - Den Baum durchsuchen, auf einen Teilbaum fokussieren, bis zu einer bestimmten Tiefe aufklappen,
   einen Teilbaum allein aktualisieren.
 
@@ -118,7 +120,9 @@ Cutaway auch aus dem Quellcode bauen; siehe [Entwicklung](#development).
 Die Seitenleiste listet die Layer jedes Fensters als Baum auf. Eine Zeile zeigt die Klasse des
 Layers, die View, die er trägt, den View-Controller, dessen Root-View er ist, und die
 Member-Variable, die ihn hält, etwa `HomeViewController.titleLabel`. Abgeblendete Zeilen sind
-ausgeblendet oder vollständig transparent.
+ausgeblendet oder vollständig transparent. Das Symbol zeigt die Art des Layers, gefüllt für die
+eigenen Klassen der App und umrandet für die des Systems. Beim Scrollen bleiben die Vorfahren der
+obersten Zeile über ihr angeheftet.
 
 - **Filtern** Sie den Baum mit dem Feld oben: Zeilen, deren Titel oder Klasse den Text enthält,
   bleiben, zusammen mit ihren Vorfahren.
@@ -143,26 +147,41 @@ Screenshot, sobald der Baum eintrifft und dann, sobald jeder einzelne Screenshot
   **Reset View** (Ansicht zurücksetzen, ⌘0) kehrt zum Ausgangszustand zurück.
 - **Layer-Abstand** in 3D ist der Schieberegler unter der Vorschau, von 0 bis 200 Punkten.
 - **Show Hidden Layers** (ausgeblendete Layer einblenden, ⇧⌘H) zeichnet auch die Layer, die
-  ausgeblendet oder transparent sind, in einem eigenen Stil. **Show Borders** (Rahmen anzeigen,
-  ⇧⌘B) umrandet jeden Layer. Beide Schalter finden sich auch unter der Vorschau.
+  ausgeblendet oder transparent sind, in einem eigenen Stil. **Borders** (Rahmen) umranden die
+  Layer in einer Farbe oder nach Art, in den Farben der Symbole der Liste, und lassen sich auf die
+  eigenen Klassen der App beschränken; **Show Borders** (Rahmen anzeigen, ⇧⌘B) schaltet sie aus und
+  wieder ein. **Show Constraint Ends** (Constraint-Enden anzeigen, ⇧⌘K) markiert alle anderen Enden
+  der Constraints der ausgewählten View. Auch diese finden sich unter der Vorschau.
 - **Messen**: Halten Sie bei ausgewähltem Layer ⌥ gedrückt und zeigen Sie auf einen anderen Layer.
   Die Abstände zwischen den beiden werden mit ihren Werten in Punkten gezeichnet, in 2D und in 3D.
 - Klicken Sie auf einen Layer, um ihn auszuwählen; Liste und Attribute folgen. Der Layer unter dem
-  Zeiger wird hervorgehoben.
+  Zeiger wird hervorgehoben. Ein Etikett neben dem ausgewählten Layer zeigt seinen Namen und seine
+  Größe.
 
 ### Attribute
 
-Der Inspektor rechts zeigt die Attribute des ausgewählten Layers und seiner View in den Gruppen,
-die die App meldet, etwa `layer`, `view` und `label`. Cutaway hat keine eigene Liste: Was
-erscheint, ist das, was [CutawayServer](https://github.com/nothingsh/CutawayServer) sendet; es zeigt also, was die Server-Version der App kennt.
+Der Inspektor rechts zeigt den ausgewählten Layer und seine View. Unter dem Namen des Layers
+führen seine nächsten Vorfahren den Baum hinauf; **Select Parent Layer** (übergeordneten Layer
+auswählen, ⌘↑) und **Select First Child Layer** (ersten untergeordneten Layer auswählen, ⌘↓)
+bewegen sich an ihm entlang. Die Attribute folgen in fünf Abschnitten nach Zweck: Content
+(Inhalt), Appearance (Erscheinungsbild), Layout, Behavior (Verhalten) und Object (Objekt).
+Zusammengehörige Attribute teilen sich eine Zeile, etwa Frame, Border, Shadow und Corners. Cutaway
+hat keine eigene Liste: Was erscheint, ist das, was [CutawayServer](https://github.com/nothingsh/CutawayServer) sendet; es zeigt also, was die Server-Version der App kennt.
 
+- **Filtern** Sie die Attribute nach Titel oder ID mit dem Feld über der Liste. Abschnitte lassen
+  sich zuklappen; die Überschrift des obersten bleibt beim Scrollen sichtbar, und ein ⌥-Klick auf
+  eine Überschrift klappt alle zu oder auf.
 - Attribute, die die App als bearbeitbar markiert, haben Bedienelemente: ein Textfeld, ein
-  Zahlenfeld, das Sie ziehen können, einen Schalter, einen Farbwähler mit Deckkraft, ein Pop-up
-  für Aufzählungen und Felder pro Komponente für Punkte, Größen, Rechtecke, Insets und
-  Transformationen.
-- Eine Änderung wird gesendet, sobald Sie sie bestätigen, oder fortlaufend, während Sie ziehen.
-  Die App antwortet mit den Attributen des Layers, sodass ein Attribut, das sich mit einem anderen
-  ändert (etwa die Opacity eines Layers mit dem Alpha seiner View), ebenfalls aktualisiert wird.
+  Zahlenfeld, eine Checkbox, ein Farbfeld mit Hex-Wert und Deckkraft, ein Pop-up oder ein
+  segmentiertes Steuerelement für Aufzählungen und Felder pro Komponente für Punkte, Größen,
+  Rechtecke, Insets und Transformationen. Längen sind in Punkten angegeben; Anteile wie die
+  Deckkraft werden als Prozentwerte angezeigt und eingegeben, und für die Deckkraft gibt es
+  zusätzlich einen Schieberegler.
+- Eine Änderung wird gesendet, sobald Sie sie bestätigen, oder fortlaufend, während Sie den
+  Schieberegler der Deckkraft ziehen oder den Farbwähler benutzen. Ein Wert außerhalb des Bereichs,
+  den die App akzeptiert, wird nicht gesendet, und das Feld nennt den Grund. Die App antwortet mit
+  den Attributen des Layers, sodass ein Attribut, das sich mit einem anderen ändert (etwa die
+  Opacity eines Layers mit dem Alpha seiner View), ebenfalls aktualisiert wird.
 - ⌘Z macht die letzte Änderung rückgängig und ⇧⌘Z stellt sie wieder her, solange die Inspektion
   dauert.
 - Eine Änderung, die die App ablehnt, wird in der Zeile erklärt, und der vorherige Wert kehrt
@@ -173,12 +192,13 @@ könnten.
 
 ### Constraints
 
-Unter den Attributen werden die Auto-Layout-Constraints einer View so aufgeführt, wie die App sie
+Im Abschnitt Layout werden die Auto-Layout-Constraints einer View so aufgeführt, wie die App sie
 meldet: `self.leading = Safe Area of UIView.leading + 16`, mit der Priorität, wenn sie unter 1000
 liegt, und dem Identifier, wenn es einen gibt. Constraints, die nicht wirksam sind, sind
 abgeblendet und markiert; die von UIKit erzeugten sind zu einer Zeile zusammengefaltet. Klicken
-Sie auf das andere Ende eines Constraints, um diese View auszuwählen. In der Vorschau sind die
-anderen Enden der Constraints der ausgewählten View markiert.
+Sie auf das andere Ende eines Constraints, um diese View auszuwählen. Zeigen Sie auf einen
+Constraint, um sein anderes Ende in der Vorschau zu markieren; **Show Constraint Ends**
+(Constraint-Enden anzeigen, ⇧⌘K) markiert alle anderen Enden auf einmal.
 
 ### Aktualisieren
 
@@ -205,10 +225,11 @@ Opacity des Layers.
 
 ### Einstellungen
 
-**Settings…** (Einstellungen, ⌘,) hat zwei Seiten. **General** (Allgemein) wählt die Sprache: die
-des Systems oder eine der fünf. **Preview** (Vorschau) legt fest, wie eine neue Inspektion
-beginnt: 2D oder 3D, der Layer-Abstand und ob ausgeblendete Layer und Rahmen angezeigt werden.
-Bereits geöffnete Fenster behalten ihr Aussehen.
+**Settings…** (Einstellungen, ⌘,) hat zwei Seiten. **General** (Allgemein) wählt die Sprache, die
+des Systems oder eine der fünf, und das Erscheinungsbild: das des Systems, hell oder dunkel.
+**Preview** (Vorschau) legt fest, wie eine neue Inspektion beginnt: 2D oder 3D, der Layer-Abstand,
+ob ausgeblendete Layer angezeigt werden, der Stil der Rahmen und ob alle Constraint-Enden markiert
+werden. Bereits geöffnete Fenster behalten ihr Aussehen.
 
 ### Tastaturkurzbefehle
 
@@ -222,7 +243,8 @@ Bereits geöffnete Fenster behalten ihr Aussehen.
 | Alles / den ausgewählten Teilbaum aktualisieren | ⌘R / ⇧⌘R |
 | 2D / 3D | ⌘1 / ⌘2 |
 | Vergrößern / verkleinern / Ansicht zurücksetzen | ⌘= / ⌘- / ⌘0 |
-| Ausgeblendete Layer einblenden / Rahmen anzeigen | ⇧⌘H / ⇧⌘B |
+| Ausgeblendete Layer einblenden / Rahmen anzeigen / Constraint-Enden anzeigen | ⇧⌘H / ⇧⌘B / ⇧⌘K |
+| Den übergeordneten Layer / den ersten untergeordneten Layer auswählen | ⌘↑ / ⌘↓ |
 | Auf den ausgewählten Layer fokussieren / alle Layer zeigen | ⌥⌘↓ / ⌥⌘↑ |
 | Alles aufklappen / alles zuklappen | ⌥⌘→ / ⌥⌘← |
 | Seitenleiste / Inspektor ein- oder ausblenden | ⌃⌘S / ⌥⌘I |
@@ -285,8 +307,6 @@ Wie es das erreicht:
 Dies sind die für die Zeit nach 1.0 geplanten Richtungen, gemeinsam mit [CutawayServer](https://github.com/nothingsh/CutawayServer).
 Reihenfolge und Umfang können sich ändern.
 
-- **Protokoll 1.0.** Das [Cutaway-Protokoll](https://github.com/nothingsh/CutawayProtocol) einfrieren, sodass spätere Funktionen es nur noch
-  erweitern.
 - **Interaktionsanalyse.** Gesture-Recognizer und Target-Action-Paare anzeigen; Gesten aktivieren
   und deaktivieren; Methoden auf Objekten aufrufen.
 - **Erweiterungs-API für Host-Apps.** Benutzerdefinierte Attribute, virtuelle Kindknoten und
