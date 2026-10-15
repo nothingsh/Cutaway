@@ -27,12 +27,17 @@ final class DecodedAttributeMutationTests: XCTestCase {
                 guard let frame = try? FrameCodec.decode(mutation.applied(to: payload)),
                       case .layerDetailsChunk(let chunk) = frame.body
                 else { continue }
-                for attribute in chunk.details.flatMap(\.attributeGroups).flatMap(\.attributes) {
-                    _ = AttributeText.text(of: attribute.value)
-                    // Making the view formats every part of the value; laying it out is
-                    // left to the panel's own tests, which would make this run too long.
-                    _ = AttributeValueView(value: attribute.value)
-                    shown += 1
+                // The editors go when each chunk is done: kept to the end of the test, they
+                // took time that grows faster than their number to tear down.
+                autoreleasepool {
+                    for attribute in chunk.details.flatMap(\.attributeGroups).flatMap(\.attributes) {
+                        _ = AttributeText.text(of: attribute.value)
+                        // Making the read-only editor shows every part of the value; laying
+                        // it out is left to the panel's own tests, which would make this run
+                        // too long.
+                        _ = AttributeEditorView(attribute: attribute, isReadOnly: true)
+                        shown += 1
+                    }
                 }
             }
         }

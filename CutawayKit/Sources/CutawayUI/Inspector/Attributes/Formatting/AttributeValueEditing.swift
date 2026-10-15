@@ -1,24 +1,19 @@
+import CutawayModel
 import CutawayWire
 import Foundation
 
-/// The reading and arithmetic of the attribute editors (C-ATTR-05, C-ATTR-07): a value taken
-/// apart into numbers and put back together, a colour written and read as a hexadecimal code,
-/// a typed number, and the steps of a drag. The editors keep what is on screen and when it is
+/// The reading and arithmetic of the attribute editors (C-ATTR-05): a value taken apart into
+/// numbers and put back together, a colour written and read as a hexadecimal code, and a
+/// typed number. The editors keep what is on screen and when it is
 /// sent.
 enum AttributeValueEditing {
     // MARK: - Components
 
     /// The numbers of a point, size, rectangle, insets or transform, in the order the editor
-    /// shows them; nil for any other value.
+    /// shows them, which is the protocol's (P-ATTR-09); nil for any other value.
     static func components(of value: AttributeValue?) -> [Double]? {
-        switch value {
-        case .point(let point): return [point.x, point.y]
-        case .size(let size): return [size.width, size.height]
-        case .rect(let rect): return [rect.origin.x, rect.origin.y, rect.size.width, rect.size.height]
-        case .insets(let insets): return [insets.top, insets.left, insets.bottom, insets.right]
-        case .transform(let transform): return entries(of: transform)
-        default: return nil
-        }
+        guard let numbers = value?.numericComponents, numbers.count > 1 else { return nil }
+        return numbers
     }
 
     static func value(_ kind: AttributeValueKind, _ components: [Double]) -> AttributeValue? {
@@ -60,11 +55,22 @@ enum AttributeValueEditing {
         return rgb + String(format: "%02X", Int((color.alpha * 255).rounded()))
     }
 
+    /// A colour from "#RRGGBB" or "#RRGGBBAA", the "#" optional. Six digits take `alpha`
+    /// when it is given, the opacity the field shows beside them (C-ATTR-22), and otherwise
+    /// make the colour opaque.
+    static func color(fromHex text: String, keepingAlpha alpha: Float?) -> Color? {
+        guard var color = color(fromHex: text) else { return nil }
+        let digits = text.trimmingCharacters(in: .whitespaces).drop { $0 == "#" }
+        if digits.count == 6, let alpha { color.alpha = alpha }
+        return color
+    }
+
     /// A colour from "#RRGGBB" or "#RRGGBBAA", the "#" optional.
     static func color(fromHex text: String) -> Color? {
         var digits = text.trimmingCharacters(in: .whitespaces)
         if digits.hasPrefix("#") { digits.removeFirst() }
-        guard digits.count == 6 || digits.count == 8,
+        // Hex digits only: the integer parser would also take a sign.
+        guard digits.count == 6 || digits.count == 8, digits.allSatisfy(\.isHexDigit),
               let packed = UInt32(digits, radix: 16)
         else { return nil }
         let full = digits.count == 6 ? packed << 8 | 0xFF : packed
@@ -75,35 +81,20 @@ enum AttributeValueEditing {
     // MARK: - Numbers
 
     /// What was typed, as a number: a finite one, or for an integer only one a Double holds
-    /// exactly; nil when it does not read as one (C-ATTR-05).
-    static func number(typed text: String, isInteger: Bool) -> Double? {
+    /// exactly; otherwise why it is not one (C-ATTR-05).
+    static func number(typed text: String, isInteger: Bool) -> Result<Double, LimitText.InputProblem> {
         let trimmed = text.trimmingCharacters(in: .whitespaces)
         if isInteger {
             // Only an integer a Double holds exactly: it travels as one here.
-            return Int64(trimmed).flatMap { integer in
+            if let integer = Int64(trimmed) {
                 let double = Double(integer)
-                return Int64(exactly: double) == integer ? double : nil
+                return Int64(exactly: double) == integer ? .success(double) : .failure(.tooLarge)
             }
+            guard let double = Double(trimmed), double.isFinite else { return .failure(.notANumber) }
+            return .failure(double.rounded() == double ? .tooLarge : .notWhole)
         } else {
-            return Double(trimmed).flatMap { $0.isFinite ? $0 : nil }
+            guard let double = Double(trimmed), double.isFinite else { return .failure(.notANumber) }
+            return .success(double)
         }
-    }
-
-    /// How much one point of a drag changes a number: 1 for an integer; for a decimal 0.01
-    /// when it starts within -1 to 1 (an opacity), otherwise 1. `tenth` (Option) makes it a
-    /// tenth, `tenfold` (Shift) ten times; an integer never goes below 1.
-    static func step(from start: Double, isInteger: Bool, tenth: Bool, tenfold: Bool) -> Double {
-        var step = isInteger || abs(start) > 1 ? 1.0 : 0.01
-        if tenth { step /= 10 }
-        if tenfold { step *= 10 }
-        return isInteger ? max(1, step.rounded()) : step
-    }
-
-    /// `start` moved by `distance` steps, rounded to the step's decimals, so that a drag does
-    /// not give 0.30000000000000004.
-    static func scrubbed(_ start: Double, by distance: CGFloat, step: Double) -> Double {
-        let decimals = max(0, Int((-log10(step)).rounded(.up)))
-        let scale = pow(10, Double(decimals))
-        return ((start + Double(distance) * step) * scale).rounded() / scale
     }
 }
