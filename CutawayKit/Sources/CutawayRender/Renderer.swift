@@ -166,9 +166,16 @@ public final class Renderer {
             closed: 1)
         encoder.setVertexBytes(&lines, length: MemoryLayout<LineSettings>.stride, index: 1)
         encoder.setFragmentSamplerState(sampler, index: 0)
-        encodeItems(list.items, textures: textures, style: style, into: encoder)
+        // The borders step back while something is pointed out (C-PREV-17).
+        let receding = !list.marks.isEmpty || list.measurement != nil
+        encodeItems(
+            list.items, textures: textures, style: style, receding: receding, into: encoder)
         let marksStart = list.items.count * Self.verticesPerItem
-        encodeMarks(list.marks, from: marksStart, style: style, into: encoder)
+        var markLines = lines
+        markLines.halfWidth = style.markLineWidth * pixelsPerPoint / 2
+        encodeMarks(
+            list.marks, from: marksStart, style: style, lines: markLines,
+            pixelsPerPoint: pixelsPerPoint, into: encoder)
 
         // The measurement over everything: solid lines, then the dashed extensions and copy,
         // then the dotted links.
@@ -197,7 +204,7 @@ public final class Renderer {
 
     /// The layers' images, fills and borders, whose vertices come first.
     private func encodeItems(
-        _ items: [DrawItem], textures: TextureCache, style: RenderStyle,
+        _ items: [DrawItem], textures: TextureCache, style: RenderStyle, receding: Bool,
         into encoder: any MTLRenderCommandEncoder
     ) {
         // The state is set only when it changes: with thousands of layers, setting it for
@@ -222,7 +229,7 @@ public final class Renderer {
                 encoder.setFragmentBytes(&fill, length: MemoryLayout<SIMD4<Float>>.size, index: 0)
                 encoder.drawPrimitives(type: .triangleStrip, vertexStart: first, vertexCount: 4)
             }
-            if var border = style.border(for: item) {
+            if var border = style.border(for: item, receding: receding) {
                 use(linePipeline)
                 encoder.setFragmentBytes(
                     &border, length: MemoryLayout<SIMD4<Float>>.size, index: 0)
@@ -231,11 +238,13 @@ public final class Renderer {
         }
     }
 
-    /// The guides' tints, then their dashes, so that no tint lies over another's dashes; the
-    /// views' borders last. The marks' vertices start at `marksStart`.
+    /// The views' faint tints first, then the guides' tints and their dashes, so that no tint
+    /// lies over a dash; the views' borders last, as wide as `lines` says, and a stressed
+    /// view's wider (C-LAYOUT-06). Each in its colour for its emphasis. The marks' vertices
+    /// start at `marksStart`.
     private func encodeMarks(
-        _ marks: [DrawMark], from marksStart: Int, style: RenderStyle,
-        into encoder: any MTLRenderCommandEncoder
+        _ marks: [DrawMark], from marksStart: Int, style: RenderStyle, lines: LineSettings,
+        pixelsPerPoint: Float, into encoder: any MTLRenderCommandEncoder
     ) {
         let guides = marks.indices.filter {
             if case .area = marks[$0].mark { true } else { false }
@@ -243,23 +252,37 @@ public final class Renderer {
         let views = marks.indices.filter {
             if case .layer = marks[$0].mark { true } else { false }
         }
-        var guideFill = style.guideFill, guideBorder = style.guideBorder
-        var endBorder = style.endBorder
+        func setColor(_ color: SIMD4<Float>, _ index: Int, isEdge: Bool) {
+            var color = style.markColor(color, marks[index].emphasis, isEdge: isEdge)
+            encoder.setFragmentBytes(&color, length: MemoryLayout<SIMD4<Float>>.size, index: 0)
+        }
         encoder.setRenderPipelineState(colorPipeline)
-        encoder.setFragmentBytes(&guideFill, length: MemoryLayout<SIMD4<Float>>.size, index: 0)
+        for index in views {
+            setColor(style.endFill, index, isEdge: false)
+            encoder.drawPrimitives(
+                type: .triangleStrip, vertexStart: marksStart + index * Self.verticesPerItem,
+                vertexCount: 4)
+        }
         for index in guides {
+            setColor(style.guideFill, index, isEdge: false)
             encoder.drawPrimitives(
                 type: .triangleStrip, vertexStart: marksStart + index * Self.verticesPerItem,
                 vertexCount: 4)
         }
         encoder.setRenderPipelineState(dashPipeline)
-        encoder.setFragmentBytes(&guideBorder, length: MemoryLayout<SIMD4<Float>>.size, index: 0)
         for index in guides {
+            setColor(style.guideBorder, index, isEdge: true)
             Self.drawLines(from: marksStart + index * Self.verticesPerItem + 4, count: 4, into: encoder)
         }
+        guard !views.isEmpty else { return }
         encoder.setRenderPipelineState(linePipeline)
-        encoder.setFragmentBytes(&endBorder, length: MemoryLayout<SIMD4<Float>>.size, index: 0)
         for index in views {
+            var lines = lines
+            if marks[index].emphasis == .emphasized {
+                lines.halfWidth = style.emphasizedMarkLineWidth * pixelsPerPoint / 2
+            }
+            encoder.setVertexBytes(&lines, length: MemoryLayout<LineSettings>.stride, index: 1)
+            setColor(style.endBorder, index, isEdge: true)
             Self.drawLines(from: marksStart + index * Self.verticesPerItem + 4, count: 4, into: encoder)
         }
     }
