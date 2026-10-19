@@ -95,8 +95,9 @@ final class AttributeEditorView: NSView {
     /// Called when `isTall` may have changed.
     var onTallChange: () -> Void = {}
 
-    /// The name of the system colour the value is, for a colour (C-ATTR-22).
-    var systemColorName: String?
+    /// What the value is known by: for a colour, its name in the app's asset catalog or
+    /// UIKit's (C-ATTR-22, C-SRC-04).
+    var names = ValueNames.none
     /// Why the value has no effect now, or nil (C-ATTR-21).
     private(set) var inactiveReason: String?
     /// Whether a change is on its way.
@@ -147,11 +148,11 @@ final class AttributeEditorView: NSView {
         if hasLeftWindow { colorWell?.deactivate() }
     }
 
-    /// Shows a value, keeping what is being typed or dragged. `systemColorName` names a
-    /// colour that is one of UIKit's (C-ATTR-22).
-    func show(_ value: AttributeValue?, systemColorName: String? = nil) {
+    /// Shows a value, keeping what is being typed or dragged. `names` are what a colour is
+    /// known by (C-ATTR-22, C-SRC-04).
+    func show(_ value: AttributeValue?, names: ValueNames = .none) {
         self.value = value
-        self.systemColorName = systemColorName
+        self.names = names
         showValue(value)
         if isReadOnly { setAccessibilityValue(AttributeText.text(of: value)) }
     }

@@ -4,8 +4,8 @@ import CutawayModel
 /// The context menu for a layer, the same on a row of the list and on the preview
 /// (C-HIER-05, C-DET-07, C-ARCH-06, C-PREV-15): focus on the layer, refresh its subtree when
 /// the server can send one, open its class in Xcode when the app's project folder declares it
-/// (C-SRC-03), export its screenshot; and, while focused, show all layers. Empty once the
-/// connection is gone.
+/// (C-SRC-03), copy an LLDB command for it (C-SRC-06), export its screenshot; and, while
+/// focused, show all layers. Empty once the connection is gone.
 @MainActor
 final class LayerContextMenu: NSObject {
     static let openInXcodeIdentifier = NSUserInterfaceItemIdentifier("layerMenu.openInXcode")
@@ -31,6 +31,11 @@ final class LayerContextMenu: NSObject {
             menu.addItem(.separator())
             if let project, let item = openInXcodeItem(for: id, project) {
                 menu.addItem(item)
+                menu.addItem(.separator())
+            }
+            // Only for a layer with an address (C-SRC-06).
+            if let node = store.tree.node(id), LLDBCommands(node).isAvailable {
+                menu.addItem(LLDBMenu.item(for: id))
                 menu.addItem(.separator())
             }
             // The window's commands for this layer, checked by the window (C-ARCH-06).
