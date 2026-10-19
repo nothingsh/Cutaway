@@ -45,8 +45,10 @@ struct LayerSummary: Equatable {
     var backsView: Bool
     /// From the window's root layer down to the layer's parent (C-ATTR-16).
     var ancestors: [Ancestor]
+    /// Where its classes are declared in the app's project folder (C-SRC-03).
+    var openable: OpenableClasses
 
-    init?(_ tree: LayerTree, _ id: UInt64?) {
+    init?(_ tree: LayerTree, _ id: UInt64?, index: ProjectIndex? = nil) {
         guard let id, let node = tree.node(id) else { return nil }
         self.id = id
         title = tree.displayTitle(of: id)
@@ -68,6 +70,7 @@ struct LayerSummary: Equatable {
         ancestors = tree.path(to: id).dropLast().map { ancestor in
             Ancestor(id: ancestor, icon: LayerIcon(tree.node(ancestor)), title: tree.shortTitle(of: ancestor))
         }
+        openable = OpenableClasses(node, in: index)
         size = node.bounds.map {
             "\(AttributeText.number($0.size.width)) × \(AttributeText.number($0.size.height))"
         }
@@ -78,8 +81,14 @@ extension InspectionStore {
     /// What the interface says about the selected layer, as the selection and the tree change;
     /// nil while no layer in the tree is selected.
     var selectedLayerSummary: AnyPublisher<LayerSummary?, Never> {
-        Publishers.CombineLatest($selectedLayerID, $tree)
-            .map { id, tree in LayerSummary(tree, id) }
+        selectedLayerSummary(index: Just(nil).eraseToAnyPublisher())
+    }
+
+    /// The same, with where its classes are declared in the project folder's index as it
+    /// changes (C-SRC-03).
+    func selectedLayerSummary(index: AnyPublisher<ProjectIndex?, Never>) -> AnyPublisher<LayerSummary?, Never> {
+        Publishers.CombineLatest3($selectedLayerID, $tree, index)
+            .map { id, tree, index in LayerSummary(tree, id, index: index) }
             .eraseToAnyPublisher()
     }
 }

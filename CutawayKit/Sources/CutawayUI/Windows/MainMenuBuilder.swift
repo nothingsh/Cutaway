@@ -59,6 +59,14 @@ struct MainMenuBuilder {
         recent.delegate = coordinator
         add(localized("menu.file.openRecent"), nil, to: file).submenu = recent
         file.addItem(.separator())
+        // The window's app's project folder, and its classes there (C-SRC-01, C-SRC-03).
+        add(
+            localized("menu.file.linkProjectFolder"), #selector(InspectorWindowController.linkProjectFolder(_:)),
+            to: file)
+        add(
+            localized("source.openInXcode"), #selector(InspectorWindowController.openInXcode(_:)), key: "o",
+            modifiers: [.command, .option], to: file)
+        file.addItem(.separator())
         add(
             localized("menu.file.saveArchive"), #selector(InspectorWindowController.saveArchive(_:)), key: "s",
             to: file)

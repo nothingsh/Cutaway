@@ -15,6 +15,8 @@ public final class WindowCoordinator: NSObject {
     public let settings: AppSettings
     /// The interface's language as chosen in the settings (C-LOC-01).
     public let language: LanguageSetting
+    /// Each app's project folder and its index (C-SRC-01, C-SRC-02), for every window.
+    public let projects: ProjectSources
     /// Quits and opens Cutaway again, after a language is chosen. Tests record it.
     public var restart: @MainActor () -> Void = { Relaunch.restart() }
     /// The settings window, once it has been asked for. Kept when closed: there is one only.
@@ -42,20 +44,21 @@ public final class WindowCoordinator: NSObject {
     /// `remembersWindowFrames` keeps the windows' sizes and places between launches; tests
     /// leave it off, so that one run does not shape the next. Without `settings`, the
     /// coordinator keeps its own, starting from the defaults each time; so it does without
-    /// `language`. `applyAppearance` gives the whole app the appearance chosen in the settings
+    /// `language` and `projects`. `applyAppearance` gives the whole app the appearance chosen in the settings
     /// (C-PREF-03), nil for the system's; tests record it. Without an application, as in a
     /// package test run before any test made one, there is nothing to give it to.
     public init(
         store: AppListStore, discoversDevices: Bool, remembersWindowFrames: Bool = false,
-        settings: AppSettings? = nil, language: LanguageSetting? = nil,
+        settings: AppSettings? = nil, language: LanguageSetting? = nil, projects: ProjectSources? = nil,
         applyAppearance: @escaping @MainActor (NSAppearance?) -> Void = { NSApp?.appearance = $0 }
     ) {
         self.store = store
         self.remembersWindowFrames = remembersWindowFrames
         self.settings = settings ?? Self.temporarySettings()
         self.language = language ?? Self.temporaryLanguage()
+        self.projects = projects ?? Self.temporaryProjects()
         archives = ArchiveOpener(
-            settings: self.settings, maxTextureDimension: store.maxTextureDimension,
+            settings: self.settings, projects: self.projects, maxTextureDimension: store.maxTextureDimension,
             paneWidths: remembersWindowFrames
                 ? PaneWidths(key: PaneWidths.inspectorKey, defaults: .standard) : nil)
         super.init()
@@ -94,6 +97,16 @@ public final class WindowCoordinator: NSObject {
         return AppSettings(defaults: defaults)
     }
 
+    /// Project folders in a user defaults domain of their own, emptied first.
+    private static func temporaryProjects() -> ProjectSources {
+        let name = "dev.cutaway.WindowCoordinator.temporaryProjects"
+        // The name is not empty and is not the app's own domain.
+        // swiftlint:disable:next force_unwrapping
+        let defaults = UserDefaults(suiteName: name)!
+        defaults.removePersistentDomain(forName: name)
+        return ProjectSources(folders: ProjectFolders(defaults: defaults))
+    }
+
     /// A language setting in a user defaults domain of its own, emptied first.
     private static func temporaryLanguage() -> LanguageSetting {
         let name = "dev.cutaway.WindowCoordinator.temporaryLanguage"
@@ -115,7 +128,8 @@ public final class WindowCoordinator: NSObject {
     /// Cutaway › Settings… (C-PREF-01): the one settings window, to the front.
     @objc func showSettings(_ sender: Any?) {
         let controller = settingsWindow ?? SettingsWindowController(
-            settings: settings, language: language, restart: { [weak self] in self?.restart() })
+            settings: settings, language: language, projects: projects,
+            restart: { [weak self] in self?.restart() })
         if settingsWindow == nil {
             if remembersWindowFrames { controller.windowFrameAutosaveName = "Settings" }
             settingsWindow = controller
@@ -214,7 +228,8 @@ public final class WindowCoordinator: NSObject {
         let controller = InspectorWindowController(
             location: location, entry: entry, store: inspection,
             paneWidths: remembersWindowFrames
-                ? PaneWidths(key: PaneWidths.inspectorKey, defaults: .standard) : nil)
+                ? PaneWidths(key: PaneWidths.inspectorKey, defaults: .standard) : nil,
+            projects: projects)
         // Before the frame is set: a remembered frame must not take the old window's place.
         if remembersWindowFrames { controller.windowFrameAutosaveName = "Inspector" }
         controller.onShowApps = { [weak self] in self?.showAppList(nil) }

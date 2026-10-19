@@ -71,6 +71,11 @@ enum Theme {
         /// The settings' pages (C-PREF-01).
         static let generalSettings = "gearshape"
         static let previewSettings = "square.3.layers.3d"
+        static let projectsSettings = "folder"
+        /// Beside a class declared in the app's project folder (C-SRC-03).
+        static let openInXcode = "hammer"
+        /// A linked project folder that is gone (C-SRC-01).
+        static let missingFolder = "exclamationmark.triangle.fill"
 
         static let all = [
             appPlaceholder, inactive, background, incompatible, twoD, threeD, notActive,
@@ -78,7 +83,7 @@ enum Theme {
             disconnected, expandMenu, leaveFocus, noMatches, showHidden, hideHidden, refresh,
             editFailed, saveArchive, archiveFailed, cancelSave, saved, showApps,
             hierarchyNotActive, hierarchyFailed, emptyTree, hiddenLayer, stickyRowOpen,
-            generalSettings, previewSettings,
+            generalSettings, previewSettings, projectsSettings, openInXcode, missingFolder,
         ]
     }
 
