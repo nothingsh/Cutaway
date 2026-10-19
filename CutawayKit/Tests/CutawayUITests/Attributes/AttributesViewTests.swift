@@ -45,16 +45,16 @@ final class AttributesViewTests: XCTestCase {
     /// sections by what the attributes are for, Object last.
     private static let sectionTitles = ["Label", "Appearance", "Layout", "Behavior", "Object"]
     private static let attributeTitles = [
-        "Text", "Font Size", "Lines", "Text Alignment",
-        "Hidden", "Opacity", "Background", "Tint", "Shadow Opacity", "Shadow Offset",
+        "Text", "Font Size", "Text Style", "Adjusts to Text Size", "Lines", "Text Alignment",
+        "Hidden", "Opacity", "Background", "Tint", "Label", "Shadow Opacity", "Shadow Offset",
         "Border Width", "Border Color",
         "Layout Margins", "Frame", "Bounds", "Position", "Transform",
         "User Interaction",
         "Tag",
     ]
     private static let values = [
-        "Hello", "17", "1", "center",
-        "No", "1", "None", "0 0.4784 1 1", "0", "0 × -3", "0", "0 0 0 1",
+        "Hello", "17", "body", "Yes", "1", "center",
+        "No", "1", "None", "0 0.4784 1 1", "Welcome", "0", "0 × -3", "0", "0 0 0 1",
         "top 8, left 8, bottom 8, right 8", "96.5, 108, 200, 24", "0, 0, 200, 24", "196.5, 120",
         "Identity",
         "No",
@@ -319,7 +319,7 @@ final class AttributesViewTests: XCTestCase {
         let (controller, window) = panel(for: model)
 
         XCTAssertEqual(controller.sectionViews.map(\.title), ["Appearance", "Object"])
-        XCTAssertEqual(controller.sectionViews.map(\.rows.count), [19, 0])
+        XCTAssertEqual(controller.sectionViews.map(\.rows.count), [22, 0])
         // The Object section still says what the object is.
         let object = try XCTUnwrap(controller.objectSection)
         XCTAssertTrue(isShown(object))

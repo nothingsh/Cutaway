@@ -20,7 +20,10 @@ public enum RequestError: Error, Equatable {
     case attributeNotEditable(message: String?)
     /// The server rejected the value (P-SET-03). Protocol 0.3.
     case invalidAttributeValue(message: String?)
+    /// The server cannot apply an override asked for (P-ENV-04). Protocol 1.2.
+    case notSupported(message: String?)
     /// The source of the frames cannot answer this kind of request at all. Nothing was sent.
-    /// A session never throws it; a source that stands in for one may.
+    /// A session throws it only for a request the negotiated version does not have
+    /// (C-WIRE-12); a source that stands in for one may throw it for others.
     case unsupported
 }

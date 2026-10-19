@@ -228,7 +228,8 @@ final class AttributesViewModel {
     nonisolated static func kind(of section: AttributeSection) -> Listing.Kind {
         switch section {
         case .content: .content
-        case .appearance, .general, .unspecified: .appearance
+        // Accessibility until C-ATTR-26 gives it a section of its own.
+        case .appearance, .general, .unspecified, .accessibility: .appearance
         case .layout: .layout
         case .behavior: .behavior
         case .identity: .object

@@ -65,6 +65,6 @@ final class ArchiveReplayWindowTests: XCTestCase {
         XCTAssertEqual(replayed.ids.count, 9)
         XCTAssertNotNil(replayed.three)
         XCTAssertNotNil(replayed.four)
-        XCTAssertEqual(replayed.attributes.flatMap(\.attributes).count, 19)
+        XCTAssertEqual(replayed.attributes.flatMap(\.attributes).count, 22)
     }
 }

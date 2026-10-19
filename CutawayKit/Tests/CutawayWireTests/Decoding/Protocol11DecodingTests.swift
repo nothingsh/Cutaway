@@ -64,13 +64,15 @@ final class Protocol11DecodingTests: XCTestCase {
         for id in ["layer.frame", "layer.bounds", "layer.position", "layer.transform", "view.layoutMargins"] {
             XCTAssertEqual(sections[id], .layout, id)
         }
-        // The rest are in Content, Appearance or Behavior (C-WIRE-11); none is General.
+        // The rest are in Content, Appearance or Behavior (C-WIRE-11), or Accessibility
+        // (C-WIRE-12); none is General.
         XCTAssertEqual(
             Set(sections.filter { $0.value != .identity && $0.value != .layout }.keys),
             ["layer.shadowOpacity", "layer.shadowOffset", "layer.borderWidth",
-             "layer.borderColor", "label.text", "label.fontSize", "label.numberOfLines",
+             "layer.borderColor", "label.text", "label.fontSize", "label.fontTextStyle",
+             "label.adjustsFontForContentSizeCategory", "label.numberOfLines",
              "label.textAlignment", "view.isHidden", "view.alpha", "view.backgroundColor",
-             "view.tintColor", "view.isUserInteractionEnabled"])
+             "view.tintColor", "view.isUserInteractionEnabled", "view.accessibilityLabel"])
 
         let limits = Dictionary(uniqueKeysWithValues: attributes.map { ($0.id ?? "", $0.limits) })
         let atLeastZero = NumberLimit(minimum: 0)
@@ -125,7 +127,7 @@ final class Protocol11DecodingTests: XCTestCase {
             return
         }
         let attributes = chunk.details[0].attributeGroups.flatMap(\.attributes)
-        XCTAssertEqual(attributes.count, 19)
+        XCTAssertEqual(attributes.count, 22)
         XCTAssertTrue(attributes.allSatisfy { $0.section == .unspecified && $0.limits == nil })
     }
 
@@ -256,16 +258,5 @@ final class Protocol11DecodingTests: XCTestCase {
         for (name, kind, editable, limits) in cases {
             XCTAssertNil(try attribute(kind, editable: editable, limits: limits).limits, name)
         }
-    }
-
-    // MARK: - Version
-
-    func test_C_WIRE_10_theClientSpeaksOnePointOne() throws {
-        XCTAssertEqual(ProtocolVersion.current, Version(major: 1, minor: 1))
-        guard case .hello(let hello) = try decode("handshake", "01-c2s-hello.bin").body else {
-            XCTFail("not a Hello")
-            return
-        }
-        XCTAssertEqual(hello.protocolVersion, ProtocolVersion.current)
     }
 }

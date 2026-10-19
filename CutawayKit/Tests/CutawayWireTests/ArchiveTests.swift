@@ -115,7 +115,7 @@ final class ArchiveTests: XCTestCase {
 
     func test_C_WIRE_10_anArchiveKeepsWhatOnePointOneAppended() throws {
         let decoder = try ArchiveDecoder(try archive(try fixturePayloads()))
-        XCTAssertEqual(decoder.manifest.protocolVersion, Version(major: 1, minor: 1))
+        XCTAssertEqual(decoder.manifest.protocolVersion, ProtocolVersion.current)
         let node3 = try XCTUnwrap(decoder.hierarchy.nodes.first { $0.id == 3 })
         XCTAssertEqual(node3.layerAddress, 0x6000_03B4_C080)
         XCTAssertEqual(node3.viewAddress, 0x1_0380_6E00)
@@ -151,7 +151,7 @@ final class ArchiveTests: XCTestCase {
         let decoder = try ArchiveDecoder(try archive(payloads, manifest: old))
         XCTAssertTrue(decoder.hierarchy.nodes.allSatisfy { $0.layerAddress == nil && $0.viewAddress == nil })
         let attributes = try decoder.chunk(at: 0).details[0].attributeGroups.flatMap(\.attributes)
-        XCTAssertEqual(attributes.count, 19)
+        XCTAssertEqual(attributes.count, 22)
         XCTAssertTrue(attributes.allSatisfy { $0.section == .unspecified && $0.limits == nil })
     }
 
@@ -202,6 +202,50 @@ final class ArchiveTests: XCTestCase {
         let attributes = try decoder.chunk(at: 0).details[0].attributeGroups.flatMap(\.attributes)
         XCTAssertTrue(attributes.allSatisfy { $0.cluster == nil && $0.unit == .unspecified })
         XCTAssertEqual(attributes.first { $0.id == "view.tag" }?.section, .identity)
+    }
+
+    func test_C_WIRE_12_anArchiveKeepsWhatOnePointTwoAppended() throws {
+        let decoder = try ArchiveDecoder(try archive(try fixturePayloads()))
+        XCTAssertEqual(decoder.manifest.protocolVersion, Version(major: 1, minor: 2))
+        let layer3 = try decoder.chunk(at: 0).details[0].attributeGroups.flatMap(\.attributes)
+        XCTAssertEqual(layer3.first { $0.id == "view.accessibilityLabel" }?.section, .accessibility)
+        XCTAssertNotNil(layer3.first { $0.id == "view.tintColor" }?.appearanceColors)
+        let layer6 = try XCTUnwrap(try decoder.chunk(at: 1).details.first { $0.layerID == 6 })
+        let delegate = layer6.attributeGroups.flatMap(\.attributes).first { $0.id == "scrollView.delegate" }
+        XCTAssertEqual(delegate?.valueKind, .references)
+        guard case .references(let references) = delegate?.value else {
+            XCTFail("the delegate is not a reference")
+            return
+        }
+        XCTAssertEqual(references.map(\.layerID), [2])
+    }
+
+    func test_C_WIRE_12_anArchiveFromOnePointOneReadsWithoutTheNewFields() throws {
+        let payloads = try [("layer-details", "02-s2c-chunk-0.bin"), ("layer-details", "03-s2c-chunk-1.bin")]
+            .map { scenario, file -> Data in
+                guard case .layerDetailsChunk(var chunk) = try FrameCodec.decode(try fixture(scenario, file)).body
+                else { throw CocoaError(.fileReadCorruptFile) }
+                chunk.details = chunk.details.map {
+                    var detail = $0
+                    detail.attributeGroups = Fixtures.withoutProtocol12(detail.attributeGroups)
+                    return detail
+                }
+                return FrameCodec.encode(Frame(requestID: 3, body: .layerDetailsChunk(chunk)))
+            }
+        let old = ArchiveManifest(
+            protocolVersion: Version(major: 1, minor: 1), cutawayVersion: "1.1.0",
+            savedAt: manifest.savedAt)
+        let decoder = try ArchiveDecoder(try archive(
+            [try fixture("handshake", "02-s2c-hello.bin"), try fixture("app-icon", "02-s2c-app-icon.bin"),
+             try fixture("hierarchy", "02-s2c-hierarchy.bin")] + payloads,
+            manifest: old))
+        XCTAssertEqual(decoder.manifest.protocolVersion, Version(major: 1, minor: 1))
+        let attributes = try (0..<2).flatMap { try decoder.chunk(at: $0).details }
+            .flatMap(\.attributeGroups).flatMap(\.attributes)
+        XCTAssertEqual(attributes.count, 22 + 2)
+        XCTAssertTrue(attributes.allSatisfy {
+            $0.appearanceColors == nil && $0.section != .accessibility && $0.valueKind != .references
+        })
     }
 
     func test_C_ARCH_01_anArchiveWithoutDetailsReadsBack() throws {

@@ -260,13 +260,15 @@ final class AttributesViewModelTests: XCTestCase {
         XCTAssertEqual(listing.sections.map(\.kind), [.content, .appearance, .layout, .behavior, .object])
         XCTAssertEqual(
             Self.ids(listing, .content),
-            ["label.text", "label.fontSize", "label.numberOfLines", "label.textAlignment"])
+            ["label.text", "label.fontSize", "label.fontTextStyle",
+             "label.adjustsFontForContentSizeCategory", "label.numberOfLines", "label.textAlignment"])
         XCTAssertEqual(listing.section(.content)?.parts.map(\.groupTitle), ["Label"])
         XCTAssertEqual(listing.section(.content)?.parts.map(\.groupClassName), ["UILabel"])
         // From the most specific group to the most general, each group as it came.
         XCTAssertEqual(Self.ids(listing, .appearance), [
             "view.isHidden", "view.alpha", "view.backgroundColor", "view.tintColor",
-            "layer.shadowOpacity", "layer.shadowOffset", "layer.borderWidth", "layer.borderColor",
+            "view.accessibilityLabel", "layer.shadowOpacity", "layer.shadowOffset", "layer.borderWidth",
+            "layer.borderColor",
         ])
         XCTAssertEqual(
             Self.ids(listing, .layout),
@@ -312,14 +314,26 @@ final class AttributesViewModelTests: XCTestCase {
         XCTAssertEqual(bare.sections.map(\.kind), [.appearance, .layout, .object])
         XCTAssertEqual(Self.ids(bare, .appearance), [
             "view.isHidden", "view.alpha", "view.backgroundColor", "view.tintColor",
-            "view.isUserInteractionEnabled",
-            "label.text", "label.fontSize", "label.numberOfLines", "label.textAlignment",
+            "view.isUserInteractionEnabled", "view.accessibilityLabel",
+            "label.text", "label.fontSize", "label.fontTextStyle",
+            "label.adjustsFontForContentSizeCategory", "label.numberOfLines", "label.textAlignment",
             "layer.shadowOpacity", "layer.shadowOffset", "layer.borderWidth", "layer.borderColor",
         ])
         // A 1.0 server: no sections at all.
         let old = AttributesViewModel.listing(of: Fixtures.withoutProtocol11(try Self.layerThree()))
         XCTAssertEqual(old.sections.map(\.kind), [.appearance])
-        XCTAssertEqual(old.attributes.count, 19)
+        XCTAssertEqual(old.attributes.count, 22)
+    }
+
+    func test_C_WIRE_12_accessibilityIsListedWithAppearanceForNow() {
+        // Until C-ATTR-26 gives Accessibility a section of its own.
+        let groups = [AttributeGroup(id: "view", title: "View", attributes: [
+            Self.attribute("hidden", .appearance), Self.attribute("label", .accessibility),
+            Self.attribute("enabled", .behavior),
+        ])]
+        let listing = AttributesViewModel.listing(of: groups)
+        XCTAssertEqual(listing.sections.map(\.kind), [.appearance, .behavior])
+        XCTAssertEqual(Self.ids(listing, .appearance), ["hidden", "label"])
     }
 
     func test_C_ATTR_10_theListingDependsOnTheSectionAlone() {

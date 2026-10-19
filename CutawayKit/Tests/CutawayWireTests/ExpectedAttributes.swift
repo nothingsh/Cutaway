@@ -9,7 +9,7 @@ enum ExpectedAttributes {
     static let atLeastZero = NumberLimit(minimum: 0)
     static let zeroToOne = NumberLimit(minimum: 0, maximum: 1)
 
-    /// Layer 3 of `layer-details`, with the flags of protocol 0.3 and the fields of 1.1. The
+    /// Layer 3 of `layer-details`, with the flags of protocol 0.3 and the fields of 1.1 and 1.2. The
     /// `set-attribute` scenario answers with the same groups, the text and the alignment
     /// changed.
     static func layer3(
@@ -79,6 +79,14 @@ enum ExpectedAttributes {
                 limits: [NumberLimit(minimum: 0, minimumIsExclusive: true)],
                 cluster: AttributeCluster(name: "font", slot: "size"), unit: .points),
             Attribute(
+                id: "label.fontTextStyle", title: "Text Style", value: .string("body"),
+                editable: false, valueKind: .string, section: .content,
+                cluster: AttributeCluster(name: "font", slot: "textStyle")),
+            Attribute(
+                id: "label.adjustsFontForContentSizeCategory", title: "Adjusts to Text Size",
+                value: .bool(true), editable: true, valueKind: .bool, section: .content,
+                cluster: AttributeCluster(name: "font", slot: "scalable")),
+            Attribute(
                 id: "label.numberOfLines", title: "Lines", value: .integer(1),
                 editable: true, valueKind: .integer, section: .content, limits: [atLeastZero],
                 cluster: AttributeCluster(name: "lines", slot: "count")),
@@ -111,7 +119,10 @@ enum ExpectedAttributes {
                 id: "view.tintColor", title: "Tint",
                 value: .color(Color(red: 0, green: 0.47843137, blue: 1, alpha: 1)),
                 editable: true, acceptsNil: true, valueKind: .color, section: .appearance,
-                systemColorName: "systemBlue"),
+                systemColorName: "systemBlue",
+                appearanceColors: AppearanceColors(
+                    light: Color(red: 0, green: 0.47843137, blue: 1, alpha: 1),
+                    dark: Color(red: 0.039215688, green: 0.5176471, blue: 1, alpha: 1))),
             Attribute(
                 id: "view.isUserInteractionEnabled", title: "User Interaction",
                 value: .bool(false), editable: true, valueKind: .bool, section: .behavior),
@@ -119,7 +130,34 @@ enum ExpectedAttributes {
                 id: "view.layoutMargins", title: "Layout Margins",
                 value: .insets(Insets(top: 8, left: 8, bottom: 8, right: 8)), editable: true,
                 valueKind: .insets, section: .layout, unit: .points),
+            Attribute(
+                id: "view.accessibilityLabel", title: "Label", value: .string("Welcome"),
+                editable: true, acceptsNil: true, valueKind: .string, section: .accessibility),
         ], className: "UIView")
+    }
+
+    /// Layer 6 of `layer-details`, asked for attributes only: two references (protocol 1.2,
+    /// P-ATTR-18).
+    static func layer6() -> [AttributeGroup] {
+        let recognizers = ["UIScrollViewDelayedTouchesBeganGestureRecognizer", "UIScrollViewPanGestureRecognizer"]
+        return [
+            AttributeGroup(id: "scrollView", title: "Scroll View", attributes: [
+                Attribute(
+                    id: "scrollView.delegate", title: "Delegate",
+                    value: .references([ObjectReference(
+                        layerID: 2, className: "Demo.HomeViewController",
+                        displayClassName: "HomeViewController")]),
+                    valueKind: .references, section: .content),
+            ], className: "UIScrollView"),
+            AttributeGroup(id: "view", title: "View", attributes: [
+                Attribute(
+                    id: "view.gestureRecognizers", title: "Gesture Recognizers",
+                    value: .references(recognizers.map {
+                        ObjectReference(layerID: nil, className: $0, displayClassName: $0)
+                    }),
+                    valueKind: .references, section: .behavior),
+            ], className: "UIView"),
+        ]
     }
 
     /// Layer 4 of `set-attribute`, which appears only there. It backs a view, so it has

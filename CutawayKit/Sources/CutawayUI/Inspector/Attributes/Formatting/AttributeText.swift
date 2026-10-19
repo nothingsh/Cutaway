@@ -39,6 +39,10 @@ enum AttributeText {
             ].map { $0.map(number).joined(separator: "  ") }
         case .enumeration(let enumeration):
             return [caseName(of: enumeration)]
+        case .references(let references):
+            // Names until C-ATTR-28 makes them chips; no objects reads as no value.
+            guard !references.isEmpty else { return [localized("attributes.value.none")] }
+            return [references.map(\.displayClassName).joined(separator: ", ")]
         }
     }
 

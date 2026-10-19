@@ -170,10 +170,48 @@ extension Fixtures {
         }
     }
 
+    /// The groups as a 1.1 server sends them (C-WIRE-12): no light and dark colors, no
+    /// Accessibility section, none of the clusters and slots 1.2 appended to P-ATTR-12's
+    /// table, and references as text naming the objects, the way such a server describes them
+    /// (Protocol/PROTOCOL.md, after P-ATTR-18).
+    public static func withoutProtocol12(_ groups: [AttributeGroup]) -> [AttributeGroup] {
+        groups.map { group in
+            var group = group
+            group.attributes = group.attributes.map { attribute in
+                var attribute = attribute
+                attribute.appearanceColors = nil
+                if attribute.section == .accessibility { attribute.section = .unspecified }
+                if let cluster = attribute.cluster, protocol12Clusters.contains(cluster.name)
+                    || protocol12Slots.contains(cluster)
+                {
+                    attribute.cluster = nil
+                }
+                if attribute.valueKind == .references {
+                    attribute.valueKind = .string
+                    if case .references(let references) = attribute.value {
+                        attribute.value = .string(
+                            references.map { $0.className ?? $0.displayClassName }
+                                .joined(separator: ", "))
+                    }
+                }
+                return attribute
+            }
+            return group
+        }
+    }
+
+    private static let protocol12Clusters: Set = ["image", "indexPath", "listCounts"]
+    private static let protocol12Slots: Set = [
+        AttributeCluster(name: "font", slot: "textStyle"),
+        AttributeCluster(name: "font", slot: "scalable"),
+        AttributeCluster(name: "lines", slot: "drawn"),
+        AttributeCluster(name: "lines", slot: "truncated"),
+    ]
+
     /// The groups as a 1.0 server sends them: nothing of 1.1, so no sections and no limits
     /// either (C-WIRE-10).
     public static func withoutProtocol11(_ groups: [AttributeGroup]) -> [AttributeGroup] {
-        withoutTheOptionalFields(groups).map { group in
+        withoutTheOptionalFields(withoutProtocol12(groups)).map { group in
             var group = group
             group.attributes = group.attributes.map { attribute in
                 var attribute = attribute
@@ -214,7 +252,7 @@ extension Fixtures {
                 attribute.systemColorName = nil
                 switch attribute.section {
                 case .content, .appearance, .behavior: attribute.section = .general
-                case .unspecified, .identity, .general, .layout: break
+                case .unspecified, .identity, .general, .layout, .accessibility: break
                 }
                 return attribute
             }
