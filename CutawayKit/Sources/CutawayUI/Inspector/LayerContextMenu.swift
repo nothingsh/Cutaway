@@ -3,11 +3,16 @@ import CutawayModel
 
 /// The context menu for a layer, the same on a row of the list and on the preview
 /// (C-HIER-05, C-DET-07, C-ARCH-06, C-PREV-15): focus on the layer, refresh its subtree when
-/// the server can send one, export its screenshot; and, while focused, show all layers.
-/// Empty once the connection is gone.
+/// the server can send one, open its class in Xcode when the app's project folder declares it
+/// (C-SRC-03), export its screenshot; and, while focused, show all layers. Empty once the
+/// connection is gone.
 @MainActor
 final class LayerContextMenu: NSObject {
+    static let openInXcodeIdentifier = NSUserInterfaceItemIdentifier("layerMenu.openInXcode")
+
     private let store: InspectionStore
+    /// The way to the app's project folder, or nil for none.
+    weak var project: ProjectLookup?
 
     init(store: InspectionStore) {
         self.store = store
@@ -23,8 +28,12 @@ final class LayerContextMenu: NSObject {
                 menu.addItem(
                     item(localized("hierarchy.menu.refreshSubtree"), #selector(refreshSubtreeMenuItem(_:)), id))
             }
-            // The window's commands for this layer, checked by the window (C-ARCH-06).
             menu.addItem(.separator())
+            if let project, let item = openInXcodeItem(for: id, project) {
+                menu.addItem(item)
+                menu.addItem(.separator())
+            }
+            // The window's commands for this layer, checked by the window (C-ARCH-06).
             for (title, action) in [
                 (localized("menu.file.exportLayerScreenshot"),
                  #selector(InspectorWindowController.exportLayerScreenshot(_:))),
@@ -39,6 +48,30 @@ final class LayerContextMenu: NSObject {
         if store.focusedLayerID != nil {
             menu.addItem(item(localized("hierarchy.showAllLayers"), #selector(leaveFocus(_:)), nil))
         }
+    }
+
+    /// Open in Xcode: the place itself, or a submenu of the places when there are several.
+    /// None for a layer whose classes are all the system's or not found.
+    private func openInXcodeItem(for id: UInt64, _ project: ProjectLookup) -> NSMenuItem? {
+        let locations = project.openable(id, in: store.tree).first
+        let choices = DeclarationChoices.items(
+            for: locations, target: project, action: #selector(ProjectLookup.openChosenPlace(_:)))
+        guard let first = choices.first else { return nil }
+        let item: NSMenuItem
+        if choices.count == 1 {
+            item = first
+            item.title = localized("source.openInXcode")
+            if #available(macOS 14.4, *) { item.subtitle = nil }
+        } else {
+            item = NSMenuItem(title: localized("source.openInXcode"), action: nil, keyEquivalent: "")
+            let submenu = NSMenu(title: item.title)
+            for choice in choices {
+                submenu.addItem(choice)
+            }
+            item.submenu = submenu
+        }
+        item.identifier = Self.openInXcodeIdentifier
+        return item
     }
 
     private func item(_ title: String, _ action: Selector, _ id: UInt64?) -> NSMenuItem {

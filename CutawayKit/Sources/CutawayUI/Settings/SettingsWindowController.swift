@@ -2,18 +2,20 @@ import AppKit
 import CutawayModel
 
 /// The settings window (C-PREF-01): one only, fixed in size, closed but never minimized or
-/// zoomed. Its pages are tabs in the toolbar, General (C-LOC-01, C-PREF-03) and Preview; the
-/// window is titled with the page shown and opens on the page last shown.
+/// zoomed. Its pages are tabs in the toolbar, General (C-LOC-01, C-PREF-03), Preview and
+/// Projects (C-SRC-01); the window is titled with the page shown and opens on the page last
+/// shown.
 @MainActor
 final class SettingsWindowController: NSWindowController {
     let generalPage: GeneralSettingsViewController
     let previewPage: PreviewSettingsViewController
+    let projectsPage: ProjectsSettingsViewController
     let tabs: NSTabViewController
 
     /// `shownLanguage` and `systemPreferences` are for tests: the language the interface is in
     /// and the system's languages, which decide whether a choice offers to restart.
     init(
-        settings: AppSettings, language: LanguageSetting,
+        settings: AppSettings, language: LanguageSetting, projects: ProjectSources,
         shownLanguage: String = Localization.language,
         systemPreferences: @escaping () -> [String] = { LanguageSetting.systemPreferences },
         restart: @escaping () -> Void
@@ -22,11 +24,13 @@ final class SettingsWindowController: NSWindowController {
             settings: settings, language: language, shownLanguage: shownLanguage,
             systemPreferences: systemPreferences, restart: restart)
         previewPage = PreviewSettingsViewController(settings: settings)
+        projectsPage = ProjectsSettingsViewController(projects: projects)
         tabs = SettingsTabViewController(settings: settings)
         tabs.tabStyle = .toolbar
         for (page, symbol) in [
             (generalPage as NSViewController, Theme.Symbol.generalSettings),
             (previewPage, Theme.Symbol.previewSettings),
+            (projectsPage, Theme.Symbol.projectsSettings),
         ] {
             let item = NSTabViewItem(viewController: page)
             item.image = NSImage(systemSymbolName: symbol, accessibilityDescription: page.title)

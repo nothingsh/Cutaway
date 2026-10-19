@@ -139,6 +139,7 @@ final class AttributesViewController: NSViewController {
         onHoverConstraintEnd: @escaping (ConstraintRow.End?) -> Void = { _ in },
         onPointConstraints: @escaping (ConstraintPointer) -> Void = { _ in },
         copy: @escaping @MainActor (String) -> Void = AttributesViewController.copyToPasteboard,
+        openInXcode: @escaping @MainActor ([SourceLocation], NSView) -> Void = { _, _ in },
         loadingDelay: TimeInterval = 0.2
     ) {
         viewModel = AttributesViewModel(
@@ -149,7 +150,7 @@ final class AttributesViewController: NSViewController {
         self.onHoverConstraintEnd = onHoverConstraintEnd
         self.onPointConstraints = onPointConstraints
         self.loadingDelay = loadingDelay
-        identityView = IdentityLinesView(copy: copy)
+        identityView = IdentityLinesView(copy: copy, openInXcode: openInXcode)
         super.init(nibName: nil, bundle: nil)
     }
 

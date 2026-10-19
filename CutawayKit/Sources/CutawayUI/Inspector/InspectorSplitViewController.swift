@@ -30,12 +30,13 @@ final class InspectorSplitViewController: NSSplitViewController {
 
     var previewController: PreviewViewController { containerController.previewController }
 
-    init(store: InspectionStore, appName: String, paneWidths: PaneWidths? = nil) {
+    /// `project` is the way to the app's project folder (C-SRC-03), nil for none.
+    init(store: InspectionStore, appName: String, paneWidths: PaneWidths? = nil, project: ProjectLookup? = nil) {
         self.paneWidths = paneWidths
         self.store = store
         hierarchyController = HierarchyViewController(store: store, appName: appName)
         containerController = PreviewPaneViewController(store: store, appName: appName)
-        let layer = store.selectedLayerSummary
+        let layer = project.map { store.selectedLayerSummary(index: $0.index) } ?? store.selectedLayerSummary
         attributesController = AttributesViewController(
             store: store.attributes, appName: appName, layer: layer,
             tree: store.$tree.eraseToAnyPublisher(),
@@ -59,8 +60,11 @@ final class InspectorSplitViewController: NSSplitViewController {
                 case .left(let indices):
                     store.leaveConstraints(indices)
                 }
-            })
+            },
+            openInXcode: { [weak project] locations, button in project?.open(locations, from: button) })
         super.init(nibName: nil, bundle: nil)
+        hierarchyController.layerMenu.project = project
+        previewController.layerMenu.project = project
     }
 
     @available(*, unavailable)

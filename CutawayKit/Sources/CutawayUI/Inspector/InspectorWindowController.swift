@@ -36,6 +36,19 @@ public final class InspectorWindowController: NSWindowController {
     var appCapsule: AppCapsuleView?
     /// The title and subtitle the window is given; the capsule shows them.
     let windowTitle: InspectorWindowTitle
+    /// The way to the app's project folder (C-SRC-01 to C-SRC-03).
+    let project: ProjectLookup
+    /// Asks for the app's project folder, starting at the one linked now, and calls back with
+    /// the folder chosen; not at all when the user cancels. A folder panel on the window by
+    /// default; tests choose a folder of their own (C-SRC-01).
+    var chooseProjectFolder: @MainActor (NSWindow, String, URL?, @escaping (URL) -> Void) -> Void =
+        ProjectFolderPanel.choose
+    /// Says that the app's folder is gone, offering to choose it again (C-SRC-01). A sheet on
+    /// the window by default; tests record it.
+    var tellOfMissingFolder: @MainActor (NSWindow, String, String, @escaping () -> Void) -> Void =
+        ProjectFolderPanel.tellOfMissingFolder
+    /// Whether the window has been shown, and the project folder looked at.
+    private var hasShown = false
     /// How long the capsule says "Saved" before it goes back (C-WIN-06).
     private let savedNoticeDuration: Duration
     private var savedDismissal: Task<Void, Never>?
@@ -64,28 +77,32 @@ public final class InspectorWindowController: NSWindowController {
     /// The window of an app over a connection.
     convenience init(
         location: AppLocation, entry: AppEntry?, store: InspectionStore,
-        paneWidths: PaneWidths? = nil, savedNoticeDuration: Duration = .seconds(4)
+        paneWidths: PaneWidths? = nil, savedNoticeDuration: Duration = .seconds(4),
+        projects: ProjectSources? = nil
     ) {
         self.init(
             location: location, archiveURL: nil, info: entry?.info, icon: entry?.icon,
             title: InspectorWindowTitle(app: entry?.info), store: store, paneWidths: paneWidths,
-            savedNoticeDuration: savedNoticeDuration)
+            savedNoticeDuration: savedNoticeDuration, projects: projects)
     }
 
     /// The window of an archive (C-ARCH-05): its file's name is the title; the app, its
     /// device and when it was saved are under it.
-    convenience init(archive: OpenedArchive, store: InspectionStore, paneWidths: PaneWidths? = nil) {
+    convenience init(
+        archive: OpenedArchive, store: InspectionStore, paneWidths: PaneWidths? = nil,
+        projects: ProjectSources? = nil
+    ) {
         self.init(
             location: nil, archiveURL: archive.url, info: archive.app, icon: archive.icon,
             title: InspectorWindowTitle(
                 archive: archive.url, app: archive.app, savedAt: archive.manifest.savedAt),
-            store: store, paneWidths: paneWidths, savedNoticeDuration: .seconds(4))
+            store: store, paneWidths: paneWidths, savedNoticeDuration: .seconds(4), projects: projects)
     }
 
     private init(
         location: AppLocation?, archiveURL: URL?, info: AppInfo?, icon: Bitmap?,
         title: InspectorWindowTitle, store: InspectionStore, paneWidths: PaneWidths?,
-        savedNoticeDuration: Duration
+        savedNoticeDuration: Duration, projects: ProjectSources?
     ) {
         self.location = location
         self.archiveURL = archiveURL
@@ -96,8 +113,10 @@ public final class InspectorWindowController: NSWindowController {
         self.savedNoticeDuration = savedNoticeDuration
         let name = AppEntryPresentation.name(of: info)
         appName = name
+        // An archive's folder is found by the bundle ID it was saved from.
+        project = ProjectLookup(bundleID: info?.bundleID, appName: name, sources: projects)
         splitController = InspectorSplitViewController(
-            store: store, appName: name, paneWidths: paneWidths)
+            store: store, appName: name, paneWidths: paneWidths, project: project)
         appIcon = icon?.makeImage()
 
         let window = NSWindow(
@@ -229,6 +248,44 @@ public final class InspectorWindowController: NSWindowController {
     /// (C-DET-05).
     @objc func refresh(_ sender: Any?) {
         store.refresh()
+        // So is the project folder's index, as far as its files changed (C-SRC-02).
+        updateProject()
+    }
+
+    /// The window shows, and the project folder's index is brought up to date (C-SRC-02);
+    /// a folder that is gone is told of the first time since Cutaway opened (C-SRC-01).
+    override public func showWindow(_ sender: Any?) {
+        super.showWindow(sender)
+        guard !hasShown else { return }
+        hasShown = true
+        updateProject()
+    }
+
+    private func updateProject() {
+        guard case .missing(let path) = project.update(), let bundleID = project.bundleID,
+              project.sources?.shouldTellOfMissingFolder(bundleID: bundleID) == true, let window
+        else { return }
+        tellOfMissingFolder(window, appName, path) { [weak self] in self?.linkProjectFolder(nil) }
+    }
+
+    /// File › Link Project Folder… (C-SRC-01): the folder of the window's app, by its bundle
+    /// ID.
+    @objc func linkProjectFolder(_ sender: Any?) {
+        guard project.canLink, let window else { return }
+        chooseProjectFolder(window, appName, project.linkedFolder) { [weak self] folder in
+            self?.project.link(folder)
+        }
+    }
+
+    /// Where the selected layer's classes are declared; none once disconnected (C-SRC-03).
+    var selectionOpenable: OpenableClasses {
+        isDisconnected ? .none : project.openable(store.selectedLayerID, in: store.tree)
+    }
+
+    /// File › Open in Xcode (C-SRC-03): the first class of the selected layer found, its one
+    /// place, or the choice among several at the pointer.
+    @objc func openInXcode(_ sender: Any?) {
+        project.open(selectionOpenable.first)
     }
 
     /// Asks where to save, then captures the app into an archive there (C-ARCH-02).
@@ -427,6 +484,14 @@ extension InspectorWindowController: NSMenuItemValidation {
             return commands.canRefreshSelectedSubtree
         case #selector(saveArchive(_:)):
             return commands.canSaveArchive
+        case #selector(linkProjectFolder(_:)):
+            // The folder linked now, under the item.
+            let folder = project.linkedFolder
+            if #available(macOS 14.4, *) { menuItem.subtitle = folder?.lastPathComponent }
+            menuItem.toolTip = folder?.path
+            return project.canLink
+        case #selector(openInXcode(_:)):
+            return !selectionOpenable.isEmpty
         case #selector(exportLayerScreenshot(_:)):
             return canExport(.solo, menuItem)
         case #selector(exportScreenshotWithSublayers(_:)):
