@@ -93,13 +93,13 @@ final class AttributesViewModel {
         var groupClassNames: [String?]
     }
 
-    /// What a row shows: the value, a change on its way, or why the last one failed; the
-    /// name of the system colour the value is, and why the value has no effect.
+    /// What a row shows: the value, a change on its way, or why the last one failed; what the
+    /// value is known by (a colour's name, a text's key), and why the value has no effect.
     struct RowState: Equatable {
         var value: AttributeValue?
         var isSending: Bool
         var failureText: String?
-        var systemColorName: String?
+        var names = ValueNames.none
         var inactiveReason: String?
     }
 
@@ -116,6 +116,9 @@ final class AttributesViewModel {
     var isConnected = true
     /// The hierarchy, for the names of the layers constraints relate.
     var tree = LayerTree.empty
+    /// The app's project folder as last indexed, for the names of colours and texts
+    /// (C-SRC-04, C-SRC-05); nil without one.
+    var projectIndex: ProjectIndex?
 
     init(
         store: AttributesStore, appName: String, layer: AnyPublisher<LayerSummary?, Never>,
@@ -320,8 +323,8 @@ final class AttributesViewModel {
         case nil:
             RowState(value: attribute.value, isSending: false, failureText: nil)
         }
-        // The name is the app's value's: a colour on its way has none.
-        if state.value == attribute.value { state.systemColorName = attribute.systemColorName }
+        // The names are the app's value's: a value on its way has none.
+        if state.value == attribute.value { state.names = ValueNames(attribute, index: projectIndex) }
         state.inactiveReason = Self.inactiveReason(of: attribute, among: layer)
         return state
     }

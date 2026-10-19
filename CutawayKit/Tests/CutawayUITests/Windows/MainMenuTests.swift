@@ -39,6 +39,9 @@ final class MainMenuTests: XCTestCase {
         case unfocusedSelection
         /// As `inspector`, while focused on a layer.
         case focusing
+        /// An inspector window in front, even a disconnected one, with a selected layer that has
+        /// addresses (C-SRC-06).
+        case addressed
         /// As `selection`, with a class of the layer declared in the app's project folder
         /// (C-SRC-03): never here, where no folder is linked.
         case declared
@@ -87,6 +90,12 @@ final class MainMenuTests: XCTestCase {
         Expected("Plain", #selector(Window.showPlainBorders(_:)), rule: .inspector),
         Expected("By Kind", #selector(Window.showBordersByKind(_:)), rule: .inspector),
         Expected("Only the App\u{2019}s Own Classes", #selector(Window.toggleOnlyAppClasses(_:)), rule: .inspector),
+    ]
+
+    /// Edit › Copy LLDB Command (C-SRC-06).
+    private static let lldb: [Expected] = [
+        Expected("Print Object", #selector(Window.copyLLDBPrintCommand(_:)), rule: .addressed),
+        Expected("Stop When the Frame Changes", #selector(Window.copyLLDBFrameBreakpoints(_:)), rule: .addressed),
     ]
 
     /// Every item of a menu and of its submenus, depth first.
@@ -138,6 +147,7 @@ final class MainMenuTests: XCTestCase {
             Expected("Delete", #selector(NSText.delete(_:)), rule: .appKit),
             Expected("Select All", #selector(NSText.selectAll(_:)), "a", rule: .appKit),
             Expected("Find\u{2026}", #selector(Window.findLayer(_:)), "f", rule: .inspector),
+            Expected("Copy LLDB Command", nil, rule: .appKit),
         ]),
         ("View", [
             Expected("Refresh", #selector(Window.refresh(_:)), "r", rule: .online),
@@ -307,7 +317,7 @@ final class MainMenuTests: XCTestCase {
         switch rule {
         case .always, .window: return true
         case .inspector, .selection, .unfocusedSelection, .focusing: return live
-        case .layout: return situation.inspector
+        case .layout, .addressed: return situation.inspector
         case .declared: return false
         case .online, .subtree: return live && situation.online
         case .appKit: return nil
@@ -321,10 +331,13 @@ final class MainMenuTests: XCTestCase {
         file: StaticString = #filePath, line: UInt = #line
     ) {
         let view = menu.items.first { $0.title == "View" }?.submenu
-        let borders = view?.items.first { $0.title == "Borders" }?.submenu
-        for (title, items) in Self.table + [("Borders", Self.borders)] {
-            guard let submenu = title == "Borders"
-                ? borders : menu.items.first(where: { $0.title == title })?.submenu
+        let submenus = [
+            "Borders": view?.items.first { $0.title == "Borders" }?.submenu,
+            "Copy LLDB Command": menu.items.first { $0.title == "Edit" }?.submenu?
+                .items.first { $0.title == "Copy LLDB Command" }?.submenu,
+        ]
+        for (title, items) in Self.table + [("Borders", Self.borders), ("Copy LLDB Command", Self.lldb)] {
+            guard let submenu = submenus[title] ?? menu.items.first(where: { $0.title == title })?.submenu
             else {
                 XCTFail("no \(title) menu", file: file, line: line)
                 continue

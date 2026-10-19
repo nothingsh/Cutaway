@@ -120,8 +120,12 @@ public struct ProjectIndex: Equatable, Sendable {
     public var root: URL
     /// The declarations, by the type's own name.
     public var declarations: [String: [TypeDeclaration]]
-    public var colorSets: [ColorSet]
-    public var strings: [LocalizedString]
+    public let colorSets: [ColorSet]
+    public let strings: [LocalizedString]
+    /// The colour sets by their colours (C-SRC-04), made with the index, in the background.
+    public let colors: ColorAssetLookup
+    /// The string tables' keys by their values (C-SRC-05), made with the index.
+    public let keys: StringKeyLookup
 
     public init(
         root: URL, declarations: [String: [TypeDeclaration]] = [:], colorSets: [ColorSet] = [],
@@ -131,6 +135,8 @@ public struct ProjectIndex: Equatable, Sendable {
         self.declarations = declarations
         self.colorSets = colorSets
         self.strings = strings
+        colors = ColorAssetLookup(colorSets)
+        keys = StringKeyLookup(strings)
     }
 
     /// Where a class named as the server names it is declared (C-SRC-03), in the order to
