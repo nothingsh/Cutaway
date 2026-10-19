@@ -39,6 +39,9 @@ final class MainMenuTests: XCTestCase {
         case unfocusedSelection
         /// As `inspector`, while focused on a layer.
         case focusing
+        /// As `selection`, with a class of the layer declared in the app's project folder
+        /// (C-SRC-03): never here, where no folder is linked.
+        case declared
         /// Left to AppKit: the responder chain, the undo manager, or the app's own rules (the
         /// hide items depend on the app being active and on the other apps).
         case appKit
@@ -114,6 +117,9 @@ final class MainMenuTests: XCTestCase {
                 "Open\u{2026}", #selector(WindowCoordinator.openArchivePanel(_:)), "o", target: .coordinator,
                 rule: .always),
             Expected("Open Recent", nil, rule: .appKit),
+            Expected(
+                "Link Project Folder\u{2026}", #selector(Window.linkProjectFolder(_:)), rule: .layout),
+            Expected("Open in Xcode", #selector(Window.openInXcode(_:)), "o", [.command, .option], rule: .declared),
             Expected("Save Archive\u{2026}", #selector(Window.saveArchive(_:)), "s", rule: .online),
             Expected(
                 "Export Layer Screenshot\u{2026}", #selector(Window.exportLayerScreenshot(_:)), "e",
@@ -302,6 +308,7 @@ final class MainMenuTests: XCTestCase {
         case .always, .window: return true
         case .inspector, .selection, .unfocusedSelection, .focusing: return live
         case .layout: return situation.inspector
+        case .declared: return false
         case .online, .subtree: return live && situation.online
         case .appKit: return nil
         }
@@ -347,7 +354,7 @@ final class MainMenuTests: XCTestCase {
             XCTAssertNil(seen[shortcut], "\(item.title) and \(seen[shortcut] ?? "") share a shortcut")
             seen[shortcut] = item.title
         }
-        XCTAssertEqual(seen.count, 37)
+        XCTAssertEqual(seen.count, 38)
     }
 
     /// The key and modifiers an item answers to: an upper-case key implies Shift.

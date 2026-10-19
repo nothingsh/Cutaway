@@ -57,7 +57,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let coordinator = WindowCoordinator(
             store: store, discoversDevices: discoversDevices, remembersWindowFrames: true,
             settings: AppSettings(defaults: defaults),
-            language: WindowCoordinator.languageSetting(defaults: defaults, domain: domain))
+            language: WindowCoordinator.languageSetting(defaults: defaults, domain: domain),
+            projects: ProjectSources(folders: ProjectFolders(defaults: defaults)))
         // Neither window is a document's: no tabs, and no tab items in the View menu.
         NSWindow.allowsAutomaticWindowTabbing = false
         // A test run never reaches the network: its checks fail as if offline.

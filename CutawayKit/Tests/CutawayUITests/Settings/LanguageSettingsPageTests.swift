@@ -39,6 +39,7 @@ final class LanguageSettingsPageTests: XCTestCase {
         let controller = SettingsWindowController(
             settings: AppSettings(defaults: settingsSuite),
             language: WindowCoordinator.languageSetting(defaults: defaults, domain: suiteName),
+            projects: ProjectSources(folders: ProjectFolders(defaults: settingsSuite)),
             shownLanguage: "en", systemPreferences: { [weak self] in self?.system ?? [] },
             restart: { [weak self] in self?.restarts += 1 })
         window = controller

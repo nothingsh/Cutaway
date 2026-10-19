@@ -15,14 +15,18 @@ final class ArchiveOpener {
     var didCloseWindow: () -> Void = {}
 
     private let settings: AppSettings
+    /// The apps' project folders: an archive's is found by the bundle ID it was saved from
+    /// (C-SRC-01).
+    private let projects: ProjectSources?
     private let maxTextureDimension: UInt32
     /// Where the side panes' widths are remembered; nil to start at the defaults every time.
     private let paneWidths: PaneWidths?
     /// Where the next archive's window goes: each one a little below and right of the last.
     private var cascadePoint = NSPoint.zero
 
-    init(settings: AppSettings, maxTextureDimension: UInt32, paneWidths: PaneWidths?) {
+    init(settings: AppSettings, projects: ProjectSources? = nil, maxTextureDimension: UInt32, paneWidths: PaneWidths?) {
         self.settings = settings
+        self.projects = projects
         self.maxTextureDimension = maxTextureDimension
         self.paneWidths = paneWidths
     }
@@ -52,7 +56,7 @@ final class ArchiveOpener {
             source: archive.source, maxTextureDimension: maxTextureDimension,
             start: settings.inspectionStart, text: .interface)
         let controller = InspectorWindowController(
-            archive: archive, store: inspection, paneWidths: paneWidths)
+            archive: archive, store: inspection, paneWidths: paneWidths, projects: projects)
         controller.onClose = { [weak self, weak controller] in
             guard let self, let controller else { return }
             self.windowWillClose(controller)

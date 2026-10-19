@@ -24,7 +24,7 @@ final class PreviewViewController: NSViewController {
     private var takesInput = true
     private var cancellables = Set<AnyCancellable>()
     private let motion: PreviewMotion
-    private lazy var layerMenu = LayerContextMenu(store: store)
+    private(set) lazy var layerMenu = LayerContextMenu(store: store)
 
     /// Whether a transition is under way.
     var isInTransition: Bool { projector?.isInTransition ?? false }
