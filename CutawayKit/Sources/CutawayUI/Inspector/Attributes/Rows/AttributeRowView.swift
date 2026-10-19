@@ -103,7 +103,13 @@ final class AttributeRowView: NSView {
         besideStack.addArrangedSubview(valueSlot)
         pin(besideStack, top: false)
         apply(arrangement)
-        editor?.onNote = { [weak self] note in self?.show(note) }
+        editor?.onNote = { [weak self] note in
+            guard let self else { return }
+            error = note
+            guard note != nil else { return showKey() }
+            show(note)
+            noteLabel.toolTip = nil
+        }
         (editor ?? display)?.onTallChange = { [weak self] in self?.alignTitle() }
         alignTitle()
     }
@@ -227,6 +233,18 @@ final class AttributeRowView: NSView {
         ])
     }
 
+    /// Why the last value typed was not sent, while it is said.
+    private var error: String?
+
+    /// The key of the string table the text is a value of, under the row (C-SRC-05). An
+    /// error goes first; the key comes back when it is gone.
+    private func showKey() {
+        guard error == nil else { return }
+        show(names.stringKey)
+        noteLabel.textColor = .secondaryLabelColor
+        noteLabel.toolTip = names.stringKeys
+    }
+
     /// The note under the row, or nil. For tests.
     var noteText: String? { noteLabel.superview == nil ? nil : noteLabel.stringValue }
     /// Whether the note says why a value is not sent. For tests.
@@ -252,16 +270,18 @@ final class AttributeRowView: NSView {
         TitleAlignment.apply(besideStack, title: titleColumn, isTall: (editor ?? display)?.isTall ?? false)
     }
 
-    /// The name of the system colour shown, if any (C-ATTR-22).
-    private var systemColorName: String?
+    /// What the value shown is known by (C-ATTR-22, C-SRC-04, C-SRC-05).
+    private var names = ValueNames.none
 
     /// Shows another value in place (C-ATTR-06): an editor keeps what is being typed.
-    /// `systemColorName` names a colour that is one of UIKit's (C-ATTR-22).
-    func show(_ value: AttributeValue?, systemColorName: String? = nil) {
-        guard value != self.value || systemColorName != self.systemColorName else { return }
+    /// `names` are what it is known by: a colour's name, a text's key (C-SRC-05), which is
+    /// written under the row.
+    func show(_ value: AttributeValue?, names: ValueNames = .none) {
+        guard value != self.value || names != self.names else { return }
         self.value = value
-        self.systemColorName = systemColorName
-        (editor ?? display)?.show(value, systemColorName: systemColorName)
+        self.names = names
+        showKey()
+        (editor ?? display)?.show(value, names: names)
     }
 
     /// Whether a change is on its way, and why the last one failed, if it did. The editor is

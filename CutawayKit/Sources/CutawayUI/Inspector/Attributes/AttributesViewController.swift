@@ -128,6 +128,7 @@ final class AttributesViewController: NSViewController {
     }
 
     private var cancellables = Set<AnyCancellable>()
+    private let projectIndex: AnyPublisher<ProjectIndex?, Never>
 
     init(
         store: AttributesStore, appName: String,
@@ -140,6 +141,7 @@ final class AttributesViewController: NSViewController {
         onPointConstraints: @escaping (ConstraintPointer) -> Void = { _ in },
         copy: @escaping @MainActor (String) -> Void = AttributesViewController.copyToPasteboard,
         openInXcode: @escaping @MainActor ([SourceLocation], NSView) -> Void = { _, _ in },
+        projectIndex: AnyPublisher<ProjectIndex?, Never> = Just(nil).eraseToAnyPublisher(),
         loadingDelay: TimeInterval = 0.2
     ) {
         viewModel = AttributesViewModel(
@@ -150,6 +152,7 @@ final class AttributesViewController: NSViewController {
         self.onHoverConstraintEnd = onHoverConstraintEnd
         self.onPointConstraints = onPointConstraints
         self.loadingDelay = loadingDelay
+        self.projectIndex = projectIndex
         identityView = IdentityLinesView(copy: copy, openInXcode: openInXcode)
         super.init(nibName: nil, bundle: nil)
     }
@@ -391,6 +394,16 @@ final class AttributesViewController: NSViewController {
         list.documentVisibleRectPublisher
             .sink { [weak self] _ in self?.updateSticky() }
             .store(in: &cancellables)
+
+        // The names of colours and texts follow the project folder's index (C-SRC-04,
+        // C-SRC-05): rows change in place once it is built.
+        projectIndex
+            .sink { [weak self] index in
+                guard let self, index != self.viewModel.projectIndex else { return }
+                self.viewModel.projectIndex = index
+                self.showRowStates()
+            }
+            .store(in: &cancellables)
     }
 
     // MARK: - Changing attributes
@@ -409,7 +422,7 @@ final class AttributesViewController: NSViewController {
         let layer = groups.flatMap(\.attributes)
         for (attribute, row) in attributeCells {
             let state = viewModel.rowState(of: attribute, among: layer)
-            row.show(state.value, systemColorName: state.systemColorName)
+            row.show(state.value, names: state.names)
             row.show(sending: state.isSending, failure: state.failureText)
             row.showInactive(state.inactiveReason)
             row.show(layerSize: layerSize)

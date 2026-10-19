@@ -38,6 +38,8 @@ public final class InspectorWindowController: NSWindowController {
     let windowTitle: InspectorWindowTitle
     /// The way to the app's project folder (C-SRC-01 to C-SRC-03).
     let project: ProjectLookup
+    /// Where Copy LLDB Command puts its text (C-SRC-06); tests give one of their own.
+    var pasteboard = NSPasteboard.general
     /// Asks for the app's project folder, starting at the one linked now, and calls back with
     /// the folder chosen; not at all when the user cancels. A folder panel on the window by
     /// default; tests choose a folder of their own (C-SRC-01).
@@ -492,6 +494,8 @@ extension InspectorWindowController: NSMenuItemValidation {
             return project.canLink
         case #selector(openInXcode(_:)):
             return !selectionOpenable.isEmpty
+        case #selector(copyLLDBPrintCommand(_:)), #selector(copyLLDBFrameBreakpoints(_:)):
+            return validateLLDBItem(menuItem)
         case #selector(exportLayerScreenshot(_:)):
             return canExport(.solo, menuItem)
         case #selector(exportScreenshotWithSublayers(_:)):

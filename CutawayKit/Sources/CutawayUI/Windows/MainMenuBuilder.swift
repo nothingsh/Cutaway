@@ -97,6 +97,8 @@ struct MainMenuBuilder {
         add(localized("menu.edit.selectAll"), #selector(NSText.selectAll(_:)), key: "a", to: edit)
         edit.addItem(.separator())
         add(localized("menu.edit.find"), #selector(InspectorWindowController.findLayer(_:)), key: "f", to: edit)
+        edit.addItem(.separator())
+        edit.addItem(LLDBMenu.item(for: nil))
         return edit
     }
 

@@ -7,7 +7,7 @@ import DeclarativeAppKit
 /// or a part of a compound row (C-ATTR-19).
 @MainActor
 protocol AttributeCell: AnyObject {
-    func show(_ value: AttributeValue?, systemColorName: String?)
+    func show(_ value: AttributeValue?, names: ValueNames)
     func show(sending: Bool, failure: String?)
     func showInactive(_ reason: String?)
     func show(layerSize: String?)
@@ -44,8 +44,8 @@ final class EditorPart: AttributeCell {
         self.editor = editor
     }
 
-    func show(_ value: AttributeValue?, systemColorName: String?) {
-        editor.show(value, systemColorName: systemColorName)
+    func show(_ value: AttributeValue?, names: ValueNames) {
+        editor.show(value, names: names)
     }
 
     func show(sending: Bool, failure: String?) {
@@ -148,7 +148,7 @@ final class BoolToggle: NSView, AttributeCell {
     /// What it says now. For tests.
     var shownTitle: String { label.stringValue }
 
-    func show(_ value: AttributeValue?, systemColorName: String?) {
+    func show(_ value: AttributeValue?, names: ValueNames) {
         guard case .bool(let on) = value else { return }
         isOn = on
         apply()
@@ -240,7 +240,7 @@ final class OpacityPart: NSView, AttributeCell {
                 .frame(width: CompoundRowView.compactWidth)
             if slider == nil { Spacer() }
         }
-        show(attribute.value, systemColorName: nil)
+        show(attribute.value, names: .none)
     }
 
     @available(*, unavailable)
@@ -266,8 +266,8 @@ final class OpacityPart: NSView, AttributeCell {
         }
     }
 
-    func show(_ value: AttributeValue?, systemColorName: String?) {
-        editor.show(value, systemColorName: systemColorName)
+    func show(_ value: AttributeValue?, names: ValueNames) {
+        editor.show(value, names: names)
         if !isDragging, case .double(let double) = value, double.isFinite {
             slider?.doubleValue = double
         }

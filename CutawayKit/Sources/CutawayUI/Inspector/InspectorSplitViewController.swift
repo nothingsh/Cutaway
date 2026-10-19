@@ -61,7 +61,8 @@ final class InspectorSplitViewController: NSSplitViewController {
                     store.leaveConstraints(indices)
                 }
             },
-            openInXcode: { [weak project] locations, button in project?.open(locations, from: button) })
+            openInXcode: { [weak project] locations, button in project?.open(locations, from: button) },
+            projectIndex: project?.index ?? Just(nil).eraseToAnyPublisher())
         super.init(nibName: nil, bundle: nil)
         hierarchyController.layerMenu.project = project
         previewController.layerMenu.project = project

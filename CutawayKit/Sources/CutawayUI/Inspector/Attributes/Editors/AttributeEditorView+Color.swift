@@ -6,8 +6,9 @@ import DeclarativeAppKit
 /// The colour field of an attribute editor (C-ATTR-05, C-ATTR-07, C-ATTR-22).
 extension AttributeEditorView {
     /// One field (C-ATTR-22): the swatch, which opens the colour panel, the hexadecimal code,
-    /// which can be typed, and the opacity in percent. A system colour shows its name instead
-    /// of the code and the opacity, and the code in the tooltip; typing shows the code again.
+    /// which can be typed, and the opacity in percent. A colour with a name, from the app's
+    /// asset catalog or UIKit (C-SRC-04), shows it instead of the code and the opacity, and the
+    /// other names and the code in the tooltip; typing shows the code again.
     func colorContent() -> NSView {
         let well = NSColorWell(style: .default)
             .accessibilityIdentifier(Self.wellIdentifier)
@@ -76,12 +77,13 @@ extension AttributeEditorView {
             // A colour beyond sRGB has no hex code; its components are shown instead.
             let rgb = AttributeText.hexRGB(of: color).map { String($0.dropFirst()) }
             code = rgb ?? AttributeText.text(of: value)
-            name = self?.systemColorName.map(AttributeText.systemColorName)
+            let names = self?.names ?? .none
+            name = names.colorName
             alpha.stringValue = AttributeText.percent(Double(color.alpha)) + "%"
             showsAlpha = rgb != nil && name == nil
             applyAlpha()
             applyFont()
-            hex.toolTip = name == nil ? nil : "#" + code
+            hex.toolTip = name == nil ? nil : (names.colorNotes + ["#" + code]).joined(separator: " · ")
             hex.shownText = hex.hasFocus ? code : name ?? code
         }
         editing = { [weak self] in hex.isTyping || self?.colorPause != nil }

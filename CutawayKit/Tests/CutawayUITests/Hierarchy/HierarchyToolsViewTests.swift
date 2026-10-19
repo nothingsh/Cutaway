@@ -288,7 +288,7 @@ final class HierarchyToolsViewTests: XCTestCase {
         let menu = try XCTUnwrap(controller.outlineView.menu)
         controller.contextMenu(menu, forRow: 3)  // CardView
         XCTAssertEqual(
-            menu.items.map(\.title), ["Focus on Layer", "Refresh Subtree"] + Self.exportTitles)
+            menu.items.map(\.title), ["Focus on Layer", "Refresh Subtree"] + Self.lldbTitles + Self.exportTitles)
         let refresh = menu.items[1]
         XCTAssertTrue(
             NSApp.sendAction(try XCTUnwrap(refresh.action), to: refresh.target, from: refresh))
@@ -299,8 +299,11 @@ final class HierarchyToolsViewTests: XCTestCase {
         // A server that cannot send subtrees gets no such item (C-HIER-05's test has the rest).
         model.canRefreshSubtrees = false
         controller.contextMenu(menu, forRow: 3)
-        XCTAssertEqual(menu.items.map(\.title), ["Focus on Layer"] + Self.exportTitles)
+        XCTAssertEqual(menu.items.map(\.title), ["Focus on Layer"] + Self.lldbTitles + Self.exportTitles)
     }
+
+    /// The fixtures' layers have addresses: copying an LLDB command for one (C-SRC-06).
+    private static let lldbTitles = ["", "Copy LLDB Command"]
 
     /// What follows a row's own commands: exporting its screenshot (C-ARCH-06).
     private static let exportTitles = [
