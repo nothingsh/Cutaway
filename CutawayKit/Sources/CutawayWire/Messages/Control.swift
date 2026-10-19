@@ -4,6 +4,8 @@ public enum ErrorCode: Sendable {
     case unknown, malformedFrame, unexpectedMessage, busy, appNotActive, internalError
     // Protocol 0.3
     case layerNotFound, attributeNotEditable, invalidAttributeValue
+    // Protocol 1.2
+    case notSupported
 }
 
 public enum StreamStatus: Sendable { case completed, cancelled, failed }

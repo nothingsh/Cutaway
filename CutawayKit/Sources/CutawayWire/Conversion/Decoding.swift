@@ -75,6 +75,7 @@ extension ErrorCode {
         case .layernotfound: self = .layerNotFound
         case .attributenoteditable: self = .attributeNotEditable
         case .invalidattributevalue: self = .invalidAttributeValue
+        case .notsupported: self = .notSupported
         }
     }
 }
@@ -143,6 +144,7 @@ extension AttributeValueKind {
         case .insetsvalue: self = .insets
         case .transformvalue: self = .transform
         case .enumvalue: self = .enumeration
+        case .layerreferencevalue: self = .references
         }
     }
 }
@@ -331,7 +333,22 @@ extension AttributeValue {
             self = .enumeration(EnumValue(
                 value: table.value, cases: table.cases.map { $0 ?? "" }, caseName: table.caseName,
                 caseValues: Array(table.caseValues)))
+        case .layerreferencevalue:
+            guard let table = wire.value(type: Cutaway_Wire_LayerReferenceValue.self)
+            else { return nil }
+            self = .references(table.references.compactMap { ObjectReference($0) })
         }
+    }
+}
+
+extension ObjectReference {
+    /// Nil for an entry with no name at all (C-WIRE-12).
+    init?(_ wire: Cutaway_Wire_ObjectReference) {
+        let className = nonEmpty(wire.className)
+        guard let displayClassName = nonEmpty(wire.displayClassName) ?? className else { return nil }
+        self.init(
+            layerID: wire.layerId == 0 ? nil : wire.layerId, className: className,
+            displayClassName: displayClassName)
     }
 }
 
@@ -350,8 +367,12 @@ extension Attribute {
             cluster = AttributeCluster(name: name, slot: slot)
         }
         inactiveCause = nonEmpty(wire.inactiveCause)
-        if wire.valueType == .colorvalue {
-            systemColorName = nonEmpty(wire.value(type: Cutaway_Wire_ColorValue.self)?.systemName)
+        if wire.valueType == .colorvalue, let color = wire.value(type: Cutaway_Wire_ColorValue.self) {
+            systemColorName = nonEmpty(color.systemName)
+            // P-ATTR-17 gives both or neither; one alone is read as neither (C-WIRE-12).
+            if let light = color.light, let dark = color.dark {
+                appearanceColors = AppearanceColors(light: Color(light), dark: Color(dark))
+            }
         }
     }
 
@@ -381,6 +402,7 @@ extension AttributeSection {
         case .content: self = .content
         case .appearance: self = .appearance
         case .behavior: self = .behavior
+        case .accessibility: self = .accessibility
         }
     }
 }
@@ -596,7 +618,131 @@ extension Frame {
         case .getsubtree:
             body = wire.body(type: Cutaway_Wire_GetSubtree.self)
                 .map { .getSubtree(GetSubtree(rootID: $0.rootId)) }
+        case .getenvironment:
+            body = .getEnvironment
+        case .setenvironment:
+            body = wire.body(type: Cutaway_Wire_SetEnvironment.self)
+                .map { .setEnvironment(SetEnvironment(overrides: Traits($0.overrides))) }
+        case .environment:
+            body = wire.body(type: Cutaway_Wire_Environment.self).map { environment in
+                let overridable = wire.body(type: RawEnvironment.self)?.overridable ?? []
+                return .environment(Environment(environment, overridable: overridable))
+            }
         }
         self.init(requestID: wire.requestId, body: body)
+    }
+}
+
+// MARK: - Environment
+
+extension Traits {
+    /// Absent reads as all `unspecified` (P-ENV-01). The runtime already reads a value this
+    /// client does not know as `Unspecified`.
+    init(_ wire: Cutaway_Wire_Traits?) {
+        guard let wire else {
+            self = .unspecified
+            return
+        }
+        self.init(
+            userInterfaceStyle: UserInterfaceStyle(wire.userInterfaceStyle),
+            contentSizeCategory: ContentSizeCategory(wire.contentSizeCategory),
+            layoutDirection: LayoutDirection(wire.layoutDirection),
+            horizontalSizeClass: SizeClass(wire.horizontalSizeClass),
+            verticalSizeClass: SizeClass(wire.verticalSizeClass))
+    }
+}
+
+extension UserInterfaceStyle {
+    init(_ wire: Cutaway_Wire_UserInterfaceStyle) {
+        switch wire {
+        case .unspecified: self = .unspecified
+        case .light: self = .light
+        case .dark: self = .dark
+        }
+    }
+}
+
+extension ContentSizeCategory {
+    init(_ wire: Cutaway_Wire_ContentSizeCategory) {
+        switch wire {
+        case .unspecified: self = .unspecified
+        case .extrasmall: self = .extraSmall
+        case .small: self = .small
+        case .medium: self = .medium
+        case .large: self = .large
+        case .extralarge: self = .extraLarge
+        case .extraextralarge: self = .extraExtraLarge
+        case .extraextraextralarge: self = .extraExtraExtraLarge
+        case .accessibilitymedium: self = .accessibilityMedium
+        case .accessibilitylarge: self = .accessibilityLarge
+        case .accessibilityextralarge: self = .accessibilityExtraLarge
+        case .accessibilityextraextralarge: self = .accessibilityExtraExtraLarge
+        case .accessibilityextraextraextralarge: self = .accessibilityExtraExtraExtraLarge
+        }
+    }
+}
+
+extension LayoutDirection {
+    init(_ wire: Cutaway_Wire_LayoutDirection) {
+        switch wire {
+        case .unspecified: self = .unspecified
+        case .lefttoright: self = .leftToRight
+        case .righttoleft: self = .rightToLeft
+        }
+    }
+}
+
+extension SizeClass {
+    init(_ wire: Cutaway_Wire_SizeClass) {
+        switch wire {
+        case .unspecified: self = .unspecified
+        case .compact: self = .compact
+        case .regular: self = .regular
+        }
+    }
+}
+
+extension TraitKind {
+    /// Nil for a kind this client does not know.
+    init?(raw: UInt8) {
+        switch Cutaway_Wire_TraitKind(rawValue: raw) {
+        case .userinterfacestyle: self = .userInterfaceStyle
+        case .contentsizecategory: self = .contentSizeCategory
+        case .layoutdirection: self = .layoutDirection
+        case .horizontalsizeclass: self = .horizontalSizeClass
+        case .verticalsizeclass: self = .verticalSizeClass
+        case nil: return nil
+        }
+    }
+}
+
+extension Environment {
+    init(_ wire: Cutaway_Wire_Environment, overridable: [TraitKind]) {
+        self.init(
+            overrides: Traits(wire.overrides), current: Traits(wire.current),
+            overridable: overridable)
+    }
+}
+
+/// `Environment` as a plain table, for the one field the generated accessor cannot be used
+/// for: it reads a value of an enum vector that this client does not know as the enum's first
+/// member, so an unknown kind of trait would become `UserInterfaceStyle`.
+private struct RawEnvironment: FlatbuffersInitializable {
+    private let table: Table
+
+    init(_ bb: ByteBuffer, o: Int32) {
+        table = Table(bb: bb, position: o)
+    }
+
+    /// `overridable`, the table's third field: its vtable slot is 4 + 2 × 2. The schema only
+    /// appends fields, so the slot never moves. Kinds this client does not know are left out,
+    /// and so are repeats, which P-ENV-01 rules out (C-WIRE-12).
+    var overridable: [TraitKind] {
+        let raw: [UInt8] = table.getVector(at: 8) ?? []
+        var kinds: [TraitKind] = []
+        for kind in raw.compactMap(TraitKind.init(raw:)) where !kinds.contains(kind) {
+            kinds.append(kind)
+        }
+        return kinds
     }
 }

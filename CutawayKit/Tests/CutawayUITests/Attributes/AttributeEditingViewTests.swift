@@ -116,8 +116,8 @@ final class AttributeEditingViewTests: XCTestCase {
         let (model, session, server) = try await inspection([])
         let (controller, window) = panel(for: model)
         let rows = controller.attributeRows.map(\.row)
-        XCTAssertEqual(rows.count, 19)
-        XCTAssertEqual(rows.filter { $0.editor == nil }.map(\.title), ["Frame"])
+        XCTAssertEqual(rows.count, 22)
+        XCTAssertEqual(rows.filter { $0.editor == nil }.map(\.title), ["Text Style", "Frame"])
         // The read-only row has the same controls, read-only (C-ATTR-02).
         let frame = try row("Frame", in: controller)
         let display = try XCTUnwrap(frame.display)
@@ -139,12 +139,12 @@ final class AttributeEditingViewTests: XCTestCase {
         let (model, session, server) = try await inspection([])
         let (controller, window) = panel(for: model)
         func editors() -> Int { controller.attributeRows.map(\.row).filter { $0.editor != nil }.count }
-        XCTAssertEqual(editors(), 18)
+        XCTAssertEqual(editors(), 20)
 
         model.attributes.appStateDidChange(.background)
         XCTAssertEqual(editors(), 0, "the app is not active")
         model.attributes.appStateDidChange(.active)
-        XCTAssertEqual(editors(), 18)
+        XCTAssertEqual(editors(), 20)
         model.attributes.setEditingSupported(false)
         XCTAssertEqual(editors(), 0, "a source that takes no changes")
 

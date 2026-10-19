@@ -306,6 +306,7 @@ final class AttributeRowView: NSView {
         case .insets: .insets
         case .transform: .transform
         case .enumeration: .enumeration
+        case .references: .references
         }
     }
 }

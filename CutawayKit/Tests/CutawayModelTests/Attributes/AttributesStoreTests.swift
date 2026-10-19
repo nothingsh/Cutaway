@@ -62,7 +62,7 @@ final class AttributesStoreTests: XCTestCase {
         let loaded = await Wait.until { await model.state == .loaded(expected) }
         XCTAssertTrue(loaded)
         XCTAssertEqual(expected.map(\.id), ["layer", "label", "view"])
-        XCTAssertEqual(expected.flatMap(\.attributes).count, 19)
+        XCTAssertEqual(expected.flatMap(\.attributes).count, 22)
 
         // One layer, its attributes and no image.
         let requests = await InspectionStoreDetailsTests.detailRequests(server)
@@ -605,8 +605,8 @@ final class AttributesStoreTests: XCTestCase {
         let attributes = groups.flatMap(\.attributes)
         let background = try XCTUnwrap(attributes.first { $0.id == "view.backgroundColor" })
         XCTAssertNil(background.value)
-        // In the view group, after the layer's eight and the label's four (P-ATTR-11).
-        XCTAssertEqual(attributes.map(\.title).firstIndex(of: "Background"), 15)
+        // In the view group, after the layer's eight and the label's six (P-ATTR-11).
+        XCTAssertEqual(attributes.map(\.title).firstIndex(of: "Background"), 17)
 
         let mismatches = await server.mismatches
         XCTAssertEqual(mismatches, [])
@@ -627,7 +627,7 @@ final class AttributesStoreTests: XCTestCase {
         XCTAssertTrue(loaded)
         let originals = Set(try Self.layerThree().flatMap { [$0.title] + $0.attributes.map(\.title) })
         let titles = expected.flatMap { [$0.title] + $0.attributes.map(\.title) }
-        XCTAssertEqual(titles.count, 22)
+        XCTAssertEqual(titles.count, 25)
         XCTAssertTrue(originals.isDisjoint(with: titles))
 
         let mismatches = await server.mismatches

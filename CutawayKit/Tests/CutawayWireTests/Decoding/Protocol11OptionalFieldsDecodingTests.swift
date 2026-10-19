@@ -81,7 +81,7 @@ final class Protocol11OptionalFieldsDecodingTests: XCTestCase {
         XCTAssertEqual(detail.layerID, 3)
         XCTAssertEqual(detail.attributeGroups.map(\.className), ["CALayer", "UILabel", "UIView"])
         let attributes = attributes(detail)
-        XCTAssertEqual(attributes.count, 19)
+        XCTAssertEqual(attributes.count, 22)
 
         let clusters = attributes.compactMapValues(\.cluster)
         XCTAssertEqual(
@@ -95,6 +95,8 @@ final class Protocol11OptionalFieldsDecodingTests: XCTestCase {
              "layer.borderWidth": AttributeCluster(name: "border", slot: "width"),
              "layer.borderColor": AttributeCluster(name: "border", slot: "color"),
              "label.fontSize": AttributeCluster(name: "font", slot: "size"),
+             "label.fontTextStyle": AttributeCluster(name: "font", slot: "textStyle"),
+             "label.adjustsFontForContentSizeCategory": AttributeCluster(name: "font", slot: "scalable"),
              "label.numberOfLines": AttributeCluster(name: "lines", slot: "count"),
              "view.isHidden": AttributeCluster(name: "visibility", slot: "hidden"),
              "view.alpha": AttributeCluster(name: "visibility", slot: "opacity")])

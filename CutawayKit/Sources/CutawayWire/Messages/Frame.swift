@@ -34,4 +34,8 @@ public enum Body: Equatable, Sendable {
     case setAttribute(SetAttribute)
     case setAttributeResult(SetAttributeResult)
     case getSubtree(GetSubtree)
+    // Protocol 1.2
+    case getEnvironment
+    case setEnvironment(SetEnvironment)
+    case environment(Environment)
 }

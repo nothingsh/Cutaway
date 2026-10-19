@@ -25,7 +25,7 @@ public actor Session {
 
     enum Phase { case idle, handshaking, ready, closed }
 
-    enum ResponseKind { case appIcon, hierarchy, setAttributeResult }
+    enum ResponseKind { case appIcon, hierarchy, setAttributeResult, environment }
 
     /// A response and the buffer it arrived in.
     struct Received {
@@ -302,6 +302,33 @@ public actor Session {
             throw RequestError.protocolViolation("the subtree does not start at layer \(rootID)")
         }
         return hierarchy
+    }
+
+    /// Asks for the overrides of the app's trait environment and its current traits
+    /// (P-ENV-01). Protocol 1.2: below it nothing is sent, and it throws `.unsupported`.
+    public func environment() async throws -> Environment {
+        try await environmentRequest(.getEnvironment)
+    }
+
+    /// Replaces every override of the app's trait environment (P-ENV-02); `.unspecified`
+    /// removes them all. Returns the environment after the change. Protocol 1.2, as
+    /// `environment()`.
+    public func setEnvironment(_ overrides: Traits) async throws -> Environment {
+        try await environmentRequest(.setEnvironment(SetEnvironment(overrides: overrides)))
+    }
+
+    private func environmentRequest(_ body: Body) async throws -> Environment {
+        guard phase == .ready else { throw RequestError.disconnected }
+        // C-WIRE-12: a peer below 1.2 does not know the message.
+        guard let negotiatedVersion, negotiatedVersion.minor >= 2 else {
+            throw RequestError.unsupported
+        }
+        guard case .environment(let environment) =
+            try await request(body, expecting: .environment).body
+        else {
+            throw RequestError.protocolViolation("the response is not an Environment")
+        }
+        return environment
     }
 
     /// Asks for screenshots and attributes of layers. The response is a stream (P-REQ-03).

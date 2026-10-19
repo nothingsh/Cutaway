@@ -88,7 +88,7 @@ final class SessionStreamTests: XCTestCase {
         let session = try await Harness.readySession(for: server)
 
         let result = await collect(await session.layerDetails(try request("layer-details")))
-        XCTAssertEqual(result.chunks, [[3], [4, 99]])
+        XCTAssertEqual(result.chunks, [[3], [4, 99, 6]])
         XCTAssertNil(result.error)
         XCTAssertNil(result.other)
 
@@ -188,7 +188,7 @@ final class SessionStreamTests: XCTestCase {
         let session = try await Harness.readySession(for: server, requestTimeout: .milliseconds(1500))
 
         let result = await collect(await session.layerDetails(try request("layer-details")))
-        XCTAssertEqual(result.chunks, [[3], [4, 99]])
+        XCTAssertEqual(result.chunks, [[3], [4, 99, 6]])
         XCTAssertNil(result.error)
 
         await session.close()
