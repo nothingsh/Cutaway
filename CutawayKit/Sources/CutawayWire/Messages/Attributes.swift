@@ -13,6 +13,8 @@ public enum AttributeValue: Equatable, Sendable {
     case insets(Insets)
     case transform(Transform3D)
     case enumeration(EnumValue)
+    /// The objects the attribute holds, in order (P-ATTR-18). Always read-only. Protocol 1.2.
+    case references([ObjectReference])
 }
 
 /// The member of `AttributeValue` an attribute's value uses (P-ATTR-06). Protocol 0.3.
@@ -21,6 +23,8 @@ public enum AttributeValue: Equatable, Sendable {
 public enum AttributeValueKind: Equatable, Sendable {
     case none, bool, integer, double, string, color, point, size, rect, insets, transform,
          enumeration
+    // Protocol 1.2
+    case references
 }
 
 extension AttributeValue {
@@ -38,6 +42,7 @@ extension AttributeValue {
         case .insets: .insets
         case .transform: .transform
         case .enumeration: .enumeration
+        case .references: .references
         }
     }
 }
@@ -65,6 +70,38 @@ public struct EnumValue: Equatable, Sendable {
 /// `general`.
 public enum AttributeSection: Equatable, Sendable {
     case unspecified, identity, general, layout, content, appearance, behavior
+    // Protocol 1.2
+    case accessibility
+}
+
+/// One object a `references` value holds (P-ATTR-18). Protocol 1.2.
+public struct ObjectReference: Equatable, Sendable {
+    /// The layer of the view, or of a view controller's root view; nil when there is none
+    /// (0 on the wire).
+    public var layerID: UInt64?
+    /// The runtime name of the object's class.
+    public var className: String?
+    /// The readable name of that class; `className` when the server gave none. An entry with
+    /// neither is left out when decoding.
+    public var displayClassName: String
+
+    public init(layerID: UInt64?, className: String?, displayClassName: String) {
+        self.layerID = layerID
+        self.className = className
+        self.displayClassName = displayClassName
+    }
+}
+
+/// A colour attribute's value resolved in the light and in the dark appearance (P-ATTR-17),
+/// given only when the two differ. Protocol 1.2.
+public struct AppearanceColors: Equatable, Sendable {
+    public var light: Color
+    public var dark: Color
+
+    public init(light: Color, dark: Color) {
+        self.light = light
+        self.dark = dark
+    }
 }
 
 /// How to read the numbers of an attribute's value (P-ATTR-14). Protocol 1.1. `unspecified`
@@ -116,7 +153,7 @@ extension AttributeValueKind {
         case .point, .size: 2
         case .rect, .insets: 4
         case .transform: 16
-        case .none, .bool, .string, .color, .enumeration: nil
+        case .none, .bool, .string, .color, .enumeration, .references: nil
         }
     }
 
@@ -125,7 +162,7 @@ extension AttributeValueKind {
     public var mayHaveUnit: Bool {
         switch self {
         case .integer, .double, .point, .size, .rect, .insets: true
-        case .none, .bool, .string, .color, .transform, .enumeration: false
+        case .none, .bool, .string, .color, .transform, .enumeration, .references: false
         }
     }
 }
@@ -161,13 +198,18 @@ public struct Attribute: Equatable, Sendable {
     /// (P-ATTR-15), for example "systemBlue". On the wire it is part of the `ColorValue`;
     /// it is kept here so that a color stays a plain value. Protocol 1.1.
     public var systemColorName: String?
+    /// The value in the light and in the dark appearance, when they differ (P-ATTR-17); nil
+    /// when the server gave only one. On the wire it is part of the `ColorValue`, like
+    /// `systemColorName`. Protocol 1.2.
+    public var appearanceColors: AppearanceColors?
 
     public init(
         id: String?, title: String?, value: AttributeValue?, editable: Bool = false,
         acceptsNil: Bool = false, valueKind: AttributeValueKind = .none,
         section: AttributeSection = .unspecified, limits: [NumberLimit]? = nil,
         cluster: AttributeCluster? = nil, inactiveCause: String? = nil,
-        unit: AttributeUnit = .unspecified, systemColorName: String? = nil
+        unit: AttributeUnit = .unspecified, systemColorName: String? = nil,
+        appearanceColors: AppearanceColors? = nil
     ) {
         self.id = id
         self.title = title
@@ -181,6 +223,7 @@ public struct Attribute: Equatable, Sendable {
         self.inactiveCause = inactiveCause
         self.unit = unit
         self.systemColorName = systemColorName
+        self.appearanceColors = appearanceColors
     }
 }
 

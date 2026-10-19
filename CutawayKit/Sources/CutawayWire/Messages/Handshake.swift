@@ -3,7 +3,7 @@
 /// The protocol version this client speaks. A test compares it with Protocol/PROTOCOL_VERSION,
 /// so that moving the submodule to a new protocol without updating the code fails.
 public enum ProtocolVersion {
-    public static let current = Version(major: 1, minor: 1)
+    public static let current = Version(major: 1, minor: 2)
 }
 
 public enum Role: Sendable { case client, server }

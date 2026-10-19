@@ -25,12 +25,12 @@ final class FixtureDecodingTests: XCTestCase {
         XCTAssertEqual(
             try decode("handshake", "01-c2s-hello.bin"),
             Frame(requestID: 0, body: .hello(Hello(
-                protocolVersion: Version(major: 1, minor: 1), role: .client,
+                protocolVersion: Version(major: 1, minor: 2), role: .client,
                 client: Self.cutawayClient, app: nil))))
         XCTAssertEqual(
             try decode("handshake", "02-s2c-hello.bin"),
             Frame(requestID: 0, body: .hello(Hello(
-                protocolVersion: Version(major: 1, minor: 1), role: .server,
+                protocolVersion: Version(major: 1, minor: 2), role: .server,
                 client: nil, app: Self.demoApp))))
         XCTAssertEqual(
             try decode("handshake", "03-s2c-app-state.bin"),
@@ -197,6 +197,7 @@ final class FixtureDecodingTests: XCTestCase {
                     LayerDetailRequest(layerID: 3, wantSolo: false, wantGroup: true, wantAttributes: true),
                     LayerDetailRequest(layerID: 4, wantSolo: true, wantGroup: true, wantAttributes: false),
                     LayerDetailRequest(layerID: 99, wantSolo: false, wantGroup: true, wantAttributes: false),
+                    LayerDetailRequest(layerID: 6, wantSolo: false, wantGroup: false, wantAttributes: true),
                 ],
                 maxTextureDimension: 16384))))
 
@@ -220,14 +221,14 @@ final class FixtureDecodingTests: XCTestCase {
 
         XCTAssertEqual(layer3.attributeGroups, ExpectedAttributes.layer3())
 
-        // Chunk 1: layer 4 with both images, layer 99 not found.
+        // Chunk 1: layer 4 with both images, layer 99 not found, layer 6's attributes alone.
         let second = try decode("layer-details", "03-s2c-chunk-1.bin")
         guard case .layerDetailsChunk(let chunk1) = second.body else {
             XCTFail("not a chunk")
             return
         }
         XCTAssertEqual(chunk1.sequence, 1)
-        XCTAssertEqual(chunk1.details.map(\.layerID), [4, 99])
+        XCTAssertEqual(chunk1.details.map(\.layerID), [4, 99, 6])
         let layer4 = chunk1.details[0]
         XCTAssertEqual(layer4.status, .ok)
         for image in [try XCTUnwrap(layer4.solo), try XCTUnwrap(layer4.group)] {
@@ -238,6 +239,11 @@ final class FixtureDecodingTests: XCTestCase {
         XCTAssertEqual(
             chunk1.details[1],
             LayerDetail(layerID: 99, status: .layerNotFound, solo: nil, group: nil, attributeGroups: []))
+        XCTAssertEqual(
+            chunk1.details[2],
+            LayerDetail(
+                layerID: 6, status: .ok, solo: nil, group: nil,
+                attributeGroups: ExpectedAttributes.layer6()))
 
         XCTAssertEqual(
             try decode("layer-details", "04-s2c-stream-end.bin"),

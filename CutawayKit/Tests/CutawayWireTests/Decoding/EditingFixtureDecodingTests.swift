@@ -151,12 +151,14 @@ final class EditingFixtureDecodingTests: XCTestCase {
             return
         }
         let attributes = chunk.details[0].attributeGroups.flatMap(\.attributes)
-        XCTAssertEqual(attributes.count, 19)
+        XCTAssertEqual(attributes.count, 22)
 
-        XCTAssertEqual(attributes.filter { !$0.editable }.map(\.id), ["layer.frame"])
+        XCTAssertEqual(
+            attributes.filter { !$0.editable }.map(\.id), ["layer.frame", "label.fontTextStyle"])
         XCTAssertEqual(
             attributes.filter(\.acceptsNil).map(\.id),
-            ["layer.borderColor", "label.text", "view.backgroundColor", "view.tintColor"])
+            ["layer.borderColor", "label.text", "view.backgroundColor", "view.tintColor",
+             "view.accessibilityLabel"])
         let background = try XCTUnwrap(attributes.first { $0.id == "view.backgroundColor" })
         XCTAssertNil(background.value)
         XCTAssertEqual(background.valueKind, .color)

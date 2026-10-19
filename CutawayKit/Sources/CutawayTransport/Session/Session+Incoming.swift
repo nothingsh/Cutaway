@@ -68,12 +68,12 @@ extension Session {
         }
         switch body {
         case .hello, .getAppIcon, .getHierarchy, .getLayerDetails, .cancel, .setAttribute,
-             .getSubtree:
+             .getSubtree, .getEnvironment, .setEnvironment:
             // C-CONN-10: a second Hello, or a message only a client sends.
             violation("the server sent \(Self.name(of: body))")
         case .appStateChanged(let state):
             eventContinuation.yield(.appStateChanged(state))
-        case .appIcon, .hierarchy, .setAttributeResult:
+        case .appIcon, .hierarchy, .setAttributeResult, .environment:
             complete(frame.requestID, with: Received(body: body, payload: payload))
         case .error(let error):
             fail(frame.requestID, with: error)
@@ -91,7 +91,7 @@ extension Session {
             let matches: Bool
             switch (request.expects, body) {
             case (.appIcon, .appIcon), (.hierarchy, .hierarchy),
-                 (.setAttributeResult, .setAttributeResult):
+                 (.setAttributeResult, .setAttributeResult), (.environment, .environment):
                 matches = true
             default: matches = false
             }
@@ -177,6 +177,7 @@ extension Session {
         case .layerNotFound: .layerNotFound(message: error.message)
         case .attributeNotEditable: .attributeNotEditable(message: error.message)
         case .invalidAttributeValue: .invalidAttributeValue(message: error.message)
+        case .notSupported: .notSupported(message: error.message)
         default: .server(error)
         }
     }
@@ -198,6 +199,9 @@ extension Session {
         case .setAttribute: return "SetAttribute"
         case .setAttributeResult: return "SetAttributeResult"
         case .getSubtree: return "GetSubtree"
+        case .getEnvironment: return "GetEnvironment"
+        case .setEnvironment: return "SetEnvironment"
+        case .environment: return "Environment"
         }
     }
 }

@@ -277,7 +277,8 @@ final class AttributeEditorView: NSView {
         case .point, .size, .rect: return componentsContent(attribute.valueKind)
         case .transform: return transformContent()
         case .enumeration: return enumContent(attribute.value)
-        case .none: return NSView()
+        // References are never editable (P-ATTR-18).
+        case .none, .references: return NSView()
         }
     }
 

@@ -48,7 +48,7 @@ final class OfflineInspectionTests: XCTestCase {
         model.select(3)
         let attributes = await eventually {
             if case .loaded(let groups, let constraints) = model.attributes.state {
-                return groups.flatMap(\.attributes).count == 19 && constraints.count == 4
+                return groups.flatMap(\.attributes).count == 22 && constraints.count == 4
             }
             return false
         }

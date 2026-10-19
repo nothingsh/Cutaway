@@ -68,6 +68,7 @@ extension ErrorCode {
         case .layerNotFound: return .layernotfound
         case .attributeNotEditable: return .attributenoteditable
         case .invalidAttributeValue: return .invalidattributevalue
+        case .notSupported: return .notsupported
         }
     }
 }
@@ -136,6 +137,7 @@ extension AttributeValueKind {
         case .insets: return .insetsvalue
         case .transform: return .transformvalue
         case .enumeration: return .enumvalue
+        case .references: return .layerreferencevalue
         }
     }
 }
@@ -344,7 +346,21 @@ extension AttributeValue {
             object.caseName = value.caseName
             object.caseValues = value.caseValues
             return Cutaway_Wire_AttributeValueUnion(object, type: .enumvalue)
+        case .references(let references):
+            let object = Cutaway_Wire_LayerReferenceValueT()
+            object.references = references.map { $0.makeObject() }
+            return Cutaway_Wire_AttributeValueUnion(object, type: .layerreferencevalue)
         }
+    }
+}
+
+extension ObjectReference {
+    func makeObject() -> Cutaway_Wire_ObjectReferenceT {
+        let object = Cutaway_Wire_ObjectReferenceT()
+        object.layerId = layerID ?? 0
+        object.className = className
+        object.displayClassName = displayClassName
+        return object
     }
 }
 
@@ -363,8 +379,10 @@ extension Attribute {
         object.slot = cluster?.slot
         object.inactiveCause = inactiveCause
         object.unit = unit.wire
-        if let systemColorName, let color = object.value?.value as? Cutaway_Wire_ColorValueT {
+        if let color = object.value?.value as? Cutaway_Wire_ColorValueT {
             color.systemName = systemColorName
+            color.light = appearanceColors?.light.wire
+            color.dark = appearanceColors?.dark.wire
         }
         return object
     }
@@ -390,6 +408,7 @@ extension AttributeSection {
         case .content: return .content
         case .appearance: return .appearance
         case .behavior: return .behavior
+        case .accessibility: return .accessibility
         }
     }
 }
@@ -522,6 +541,14 @@ extension Body {
             let object = Cutaway_Wire_GetSubtreeT()
             object.rootId = request.rootID
             return Cutaway_Wire_BodyUnion(object, type: .getsubtree)
+        case .getEnvironment:
+            return Cutaway_Wire_BodyUnion(Cutaway_Wire_GetEnvironmentT(), type: .getenvironment)
+        case .setEnvironment(let request):
+            let object = Cutaway_Wire_SetEnvironmentT()
+            object.overrides = request.overrides.makeObject()
+            return Cutaway_Wire_BodyUnion(object, type: .setenvironment)
+        case .environment(let environment):
+            return Cutaway_Wire_BodyUnion(environment.makeObject(), type: .environment)
         }
     }
 }
@@ -620,5 +647,94 @@ extension LayoutGuideKind {
         case .readableContent: return .readablecontent
         case .keyboard: return .keyboard
         }
+    }
+}
+
+// MARK: - Environment (protocol 1.2)
+
+extension Traits {
+    /// Nil when no trait is set: an absent table means the same (P-ENV-01, P-ENV-02), and it
+    /// is what the fixtures write.
+    func makeObject() -> Cutaway_Wire_TraitsT? {
+        guard self != .unspecified else { return nil }
+        let object = Cutaway_Wire_TraitsT()
+        object.userInterfaceStyle = userInterfaceStyle.wire
+        object.contentSizeCategory = contentSizeCategory.wire
+        object.layoutDirection = layoutDirection.wire
+        object.horizontalSizeClass = horizontalSizeClass.wire
+        object.verticalSizeClass = verticalSizeClass.wire
+        return object
+    }
+}
+
+extension UserInterfaceStyle {
+    var wire: Cutaway_Wire_UserInterfaceStyle {
+        switch self {
+        case .unspecified: return .unspecified
+        case .light: return .light
+        case .dark: return .dark
+        }
+    }
+}
+
+extension ContentSizeCategory {
+    var wire: Cutaway_Wire_ContentSizeCategory {
+        switch self {
+        case .unspecified: return .unspecified
+        case .extraSmall: return .extrasmall
+        case .small: return .small
+        case .medium: return .medium
+        case .large: return .large
+        case .extraLarge: return .extralarge
+        case .extraExtraLarge: return .extraextralarge
+        case .extraExtraExtraLarge: return .extraextraextralarge
+        case .accessibilityMedium: return .accessibilitymedium
+        case .accessibilityLarge: return .accessibilitylarge
+        case .accessibilityExtraLarge: return .accessibilityextralarge
+        case .accessibilityExtraExtraLarge: return .accessibilityextraextralarge
+        case .accessibilityExtraExtraExtraLarge: return .accessibilityextraextraextralarge
+        }
+    }
+}
+
+extension LayoutDirection {
+    var wire: Cutaway_Wire_LayoutDirection {
+        switch self {
+        case .unspecified: return .unspecified
+        case .leftToRight: return .lefttoright
+        case .rightToLeft: return .righttoleft
+        }
+    }
+}
+
+extension SizeClass {
+    var wire: Cutaway_Wire_SizeClass {
+        switch self {
+        case .unspecified: return .unspecified
+        case .compact: return .compact
+        case .regular: return .regular
+        }
+    }
+}
+
+extension TraitKind {
+    var wire: Cutaway_Wire_TraitKind {
+        switch self {
+        case .userInterfaceStyle: return .userinterfacestyle
+        case .contentSizeCategory: return .contentsizecategory
+        case .layoutDirection: return .layoutdirection
+        case .horizontalSizeClass: return .horizontalsizeclass
+        case .verticalSizeClass: return .verticalsizeclass
+        }
+    }
+}
+
+extension Environment {
+    func makeObject() -> Cutaway_Wire_EnvironmentT {
+        let object = Cutaway_Wire_EnvironmentT()
+        object.overrides = overrides.makeObject()
+        object.current = current.makeObject()
+        object.overridable = overridable.map(\.wire)
+        return object
     }
 }

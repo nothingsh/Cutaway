@@ -40,7 +40,7 @@ extension AttributeValue {
     /// Whether every number in the value is finite. Only such a value is sent (C-ATTR-09).
     var isFinite: Bool {
         switch self {
-        case .bool, .integer, .string, .enumeration: true
+        case .bool, .integer, .string, .enumeration, .references: true
         case .double(let value): value.isFinite
         case .color(let c): [c.red, c.green, c.blue, c.alpha].allSatisfy(\.isFinite)
         case .point(let p): p.x.isFinite && p.y.isFinite
@@ -62,9 +62,10 @@ extension Attribute {
     /// changed, its kind is one this client knows, a value that is there is of that kind
     /// (P-ATTR-06), and an enum has a raw value for every case (P-ATTR-07); an enum without a
     /// value has no cases to offer. Anything else is shown read-only rather than guessed at.
-    /// Nothing here depends on the attribute's ID (C-ATTR-03).
+    /// Nothing here depends on the attribute's ID (C-ATTR-03). References are read-only
+    /// whatever the server says (P-ATTR-18, C-WIRE-12).
     public var isEditable: Bool {
-        guard editable, valueKind != .none else { return false }
+        guard editable, valueKind != .none, valueKind != .references else { return false }
         if let value, value.kind != valueKind { return false }
         guard valueKind == .enumeration else { return true }
         guard case .enumeration(let enumeration) = value else { return false }

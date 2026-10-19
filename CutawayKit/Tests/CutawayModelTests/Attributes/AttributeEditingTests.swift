@@ -130,11 +130,23 @@ final class AttributeEditingTests: XCTestCase {
 
     // MARK: - C-ATTR-04
 
+    func test_C_WIRE_12_aReferenceIsNeverEditable() {
+        let reference = Attribute(
+            id: "scrollView.delegate", title: "Delegate",
+            value: .references([ObjectReference(layerID: 2, className: "A", displayClassName: "A")]),
+            editable: true, valueKind: .references)
+        XCTAssertFalse(reference.isEditable, "P-ATTR-18: read-only even when marked editable")
+        var empty = reference
+        empty.value = .references([])
+        XCTAssertFalse(empty.isEditable)
+        XCTAssertNil(reference.value?.numericComponents)
+    }
+
     func test_C_ATTR_04_onlyWhatTheServerMarksAndTheClientCanWriteIsEditable() throws {
         let attributes = try AttributesStoreTests.layerThree().flatMap(\.attributes)
         XCTAssertEqual(
-            attributes.filter { !$0.isEditable }.map(\.id), ["layer.frame"],
-            "layer-details: everything of layer 3 but its frame")
+            attributes.filter { !$0.isEditable }.map(\.id), ["layer.frame", "label.fontTextStyle"],
+            "layer-details: everything of layer 3 but its frame and its text style")
 
         let opacity = Attribute(
             id: "a", title: "A", value: .double(1), editable: true, valueKind: .double)

@@ -30,7 +30,7 @@ final class FrameReaderTests: XCTestCase {
 
     func test_C_WIRE_02_wholeStreamsYieldTheFixtureFrames() throws {
         let all = try streams()
-        XCTAssertEqual(all.count, 27)
+        XCTAssertEqual(all.count, 31)
         for entry in all {
             var reader = FrameReader()
             reader.append(entry.stream)

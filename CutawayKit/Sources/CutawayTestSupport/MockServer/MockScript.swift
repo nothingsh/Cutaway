@@ -27,6 +27,7 @@ public enum MessageKind: Equatable, Sendable {
     case none, hello, getAppIcon, appIcon, getHierarchy, hierarchy, getLayerDetails
     case layerDetailsChunk, streamEnd, cancel, error, appStateChanged
     case setAttribute, setAttributeResult, getSubtree
+    case getEnvironment, setEnvironment, environment
 
     public init(_ body: Body?) {
         switch body {
@@ -45,6 +46,9 @@ public enum MessageKind: Equatable, Sendable {
         case .setAttribute: self = .setAttribute
         case .setAttributeResult: self = .setAttributeResult
         case .getSubtree: self = .getSubtree
+        case .getEnvironment: self = .getEnvironment
+        case .setEnvironment: self = .setEnvironment
+        case .environment: self = .environment
         }
     }
 }
@@ -153,6 +157,13 @@ extension MockScript {
 }
 
 extension MockScript {
+    /// The script as a 1.1 server plays it (C-WIRE-12): its `Hello` gives 1.1, and the
+    /// attributes it sends have none of what 1.2 appended.
+    public func asProtocol11() -> MockScript {
+        serverSpeaking(Version(major: 1, minor: 1)).strippingSentFrames(
+            hierarchy: { $0 }, groups: Fixtures.withoutProtocol12, strippingConstraints: false)
+    }
+
     /// The script as a 1.0 server plays it (C-WIRE-10): its `Hello` gives 1.0, and the frames
     /// it sends have none of what 1.1 appended (addresses, sections, limits and the optional
     /// fields).
