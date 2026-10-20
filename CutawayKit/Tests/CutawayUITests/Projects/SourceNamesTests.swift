@@ -81,11 +81,12 @@ final class SourceNamesTests: XCTestCase {
                 .descendants(of: editor) { $0.accessibilityIdentifier() == AttributeEditorView.hexIdentifier }
                 .first as? AttributeEditField)
         XCTAssertEqual(hex.shownText, "Brand/Tint")
-        XCTAssertEqual(hex.toolTip, "Asset: Brand/Tint · System Blue · #007AFF")
+        // The fixture's tint is dynamic: both appearances end the tooltip (C-ATTR-25).
+        XCTAssertEqual(hex.toolTip, "Asset: Brand/Tint · System Blue · #007AFF · Light 007AFF · Dark 0A84FF")
         // UIKit's name alone, as before (C-ATTR-22).
         editor.show(Self.tintAttribute.value, names: ValueNames(Self.tintAttribute, index: nil))
         XCTAssertEqual(hex.shownText, "System Blue")
-        XCTAssertEqual(hex.toolTip, "#007AFF")
+        XCTAssertEqual(hex.toolTip, "#007AFF · Light 007AFF · Dark 0A84FF")
     }
 
     // MARK: - C-SRC-05

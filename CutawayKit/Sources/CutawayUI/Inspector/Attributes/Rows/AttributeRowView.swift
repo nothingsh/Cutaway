@@ -41,6 +41,8 @@ final class AttributeRowView: NSView {
     let editor: AttributeEditorView?
     /// The same controls, read-only, when it cannot (C-ATTR-02).
     let display: AttributeEditorView?
+    /// The chips of a value that refers to objects, in place of the controls (C-ATTR-28).
+    let references: ReferenceChipsView?
     private(set) var arrangement: Arrangement
     /// The title beside the value and the title above it; only the one in use is shown, and
     /// only it carries `titleIdentifier`.
@@ -67,7 +69,8 @@ final class AttributeRowView: NSView {
 
     init(
         title: String, value: AttributeValue?, kind: AttributeValueKind? = nil,
-        editor: AttributeEditorView? = nil, unit: AttributeUnit = .unspecified
+        editor: AttributeEditorView? = nil, unit: AttributeUnit = .unspecified,
+        references: ReferenceChipsView? = nil
     ) {
         self.title = title
         self.editor = editor
@@ -77,7 +80,8 @@ final class AttributeRowView: NSView {
         let given = kind == AttributeValueKind.none ? nil : kind
         let kind = editor?.kind ?? value.map(Self.kind(of:)) ?? given ?? Self.kind(of: value)
         self.kind = kind
-        display = editor == nil
+        self.references = kind == .references ? references : nil
+        display = editor == nil && self.references == nil
             ? AttributeEditorView(
                 attribute: Attribute(id: nil, title: title, value: value, valueKind: kind, unit: unit),
                 isReadOnly: true)
@@ -98,7 +102,7 @@ final class AttributeRowView: NSView {
         besideStack = HStack(alignment: .center, spacing: Theme.Spacing.small) {}
         super.init(frame: .zero)
         setAccessibilityIdentifier(Self.identifier)
-        valueSlot.addContent(editor ?? display ?? NSView())
+        valueSlot.addContent(editor ?? display ?? self.references ?? NSView())
         besideStack.addArrangedSubview(titleColumn)
         besideStack.addArrangedSubview(valueSlot)
         pin(besideStack, top: false)
@@ -111,6 +115,8 @@ final class AttributeRowView: NSView {
             noteLabel.toolTip = nil
         }
         (editor ?? display)?.onTallChange = { [weak self] in self?.alignTitle() }
+        self.references?.onHeightChange = { [weak self] in self?.alignTitle() }
+        self.references?.show(value)
         alignTitle()
     }
 
@@ -267,7 +273,8 @@ final class AttributeRowView: NSView {
 
     /// Centred on a value one field tall, at the top of a taller one (C-ATTR-12).
     private func alignTitle() {
-        TitleAlignment.apply(besideStack, title: titleColumn, isTall: (editor ?? display)?.isTall ?? false)
+        TitleAlignment.apply(
+            besideStack, title: titleColumn, isTall: references?.isTall ?? (editor ?? display)?.isTall ?? false)
     }
 
     /// What the value shown is known by (C-ATTR-22, C-SRC-04, C-SRC-05).
@@ -282,6 +289,7 @@ final class AttributeRowView: NSView {
         self.names = names
         showKey()
         (editor ?? display)?.show(value, names: names)
+        references?.show(value)
     }
 
     /// Whether a change is on its way, and why the last one failed, if it did. The editor is

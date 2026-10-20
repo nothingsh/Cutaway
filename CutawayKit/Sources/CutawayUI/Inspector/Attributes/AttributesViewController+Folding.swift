@@ -74,6 +74,24 @@ extension AttributesViewController {
         updateSticky()
     }
 
+    /// The list moves under the pointer: what passes under it is not pointed at (reported by
+    /// the user, 2026-10-20: rows of constraints were filled and their ends marked as they
+    /// scrolled by). The constraint under the pointer is pointed at once the list is still.
+    func pauseThePointerWhileScrolling() {
+        constraintsView?.pauseForScrolling()
+        for (_, row) in attributeRows { row.references?.point(at: nil) }
+        pointerResume?.cancel()
+        let resume = DispatchWorkItem { [weak self] in
+            self?.pointerResume = nil
+            self?.constraintsView?.pointerMayHaveMoved()
+        }
+        pointerResume = resume
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.scrollPause, execute: resume)
+    }
+
+    /// How long the list stays still before the pointer counts again.
+    static let scrollPause: TimeInterval = 0.15
+
     /// Shows the header of the section whose own header is scrolled above the top of the list
     /// while its rows still show there; none otherwise.
     func updateSticky() {

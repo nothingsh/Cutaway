@@ -30,7 +30,7 @@ final class AttributeTextArea: NSView, NSTextViewDelegate {
     // TextKit 1 from the start: the height is measured with its layout manager, and asking a
     // TextKit 2 view for one swaps its text system and leaves the view alive.
     let textView = NSTextView(usingTextLayoutManager: false)
-    let scrollView = NSScrollView()
+    let scrollView: NSScrollView = NestedScrollView()
     /// "None" while there is no text. For tests, too.
     let placeholder: NSTextField = PassThroughLabel(labelWithString: localized("attributes.value.none"))
     private var height: NSLayoutConstraint?
@@ -219,4 +219,36 @@ final class AttributeTextArea: NSView, NSTextViewDelegate {
 /// A label that clicks go through, to the text below it.
 private final class PassThroughLabel: NSTextField {
     override func hitTest(_ point: NSPoint) -> NSView? { nil }
+}
+
+/// A scroll view inside the attribute panel's list: it scrolls only what is longer than it
+/// shows, and only while it can go further the way the scroll goes; otherwise the list scrolls.
+/// Otherwise the pointer on a text's field kept two fingers from scrolling the panel (reported
+/// by the user, 2026-10-20). A gesture is given to one of them when it begins, so that it never
+/// moves both.
+private final class NestedScrollView: NSScrollView {
+    /// Whether the gesture under way goes to the list.
+    private var passesGesture = false
+
+    override func scrollWheel(with event: NSEvent) {
+        let isGesture = !event.phase.isEmpty || !event.momentumPhase.isEmpty
+        if !isGesture || event.phase.contains(.began) || event.phase.contains(.mayBegin) {
+            passesGesture = !canScroll(towardsStart: event.scrollingDeltaY > 0)
+                || abs(event.scrollingDeltaX) > abs(event.scrollingDeltaY)
+        }
+        if passesGesture {
+            nextResponder?.scrollWheel(with: event)
+        } else {
+            super.scrollWheel(with: event)
+        }
+    }
+
+    /// Whether the text goes further towards its start or its end than it shows.
+    private func canScroll(towardsStart: Bool) -> Bool {
+        guard let document = documentView else { return false }
+        let shown = contentView.bounds
+        let top = document.isFlipped ? shown.minY : document.frame.height - shown.maxY
+        if towardsStart { return top > 0.5 }
+        return top + shown.height < document.frame.height - 0.5
+    }
 }

@@ -257,7 +257,8 @@ final class AttributesViewModelTests: XCTestCase {
     func test_C_ATTR_10_eachAttributeIsListedOnceInTheSectionOfItsPurpose() throws {
         let groups = try Self.layerThree()
         let listing = AttributesViewModel.listing(of: groups)
-        XCTAssertEqual(listing.sections.map(\.kind), [.content, .appearance, .layout, .behavior, .object])
+        XCTAssertEqual(
+            listing.sections.map(\.kind), [.content, .appearance, .layout, .behavior, .accessibility, .object])
         XCTAssertEqual(
             Self.ids(listing, .content),
             ["label.text", "label.fontSize", "label.fontTextStyle",
@@ -267,13 +268,13 @@ final class AttributesViewModelTests: XCTestCase {
         // From the most specific group to the most general, each group as it came.
         XCTAssertEqual(Self.ids(listing, .appearance), [
             "view.isHidden", "view.alpha", "view.backgroundColor", "view.tintColor",
-            "view.accessibilityLabel", "layer.shadowOpacity", "layer.shadowOffset", "layer.borderWidth",
-            "layer.borderColor",
+            "layer.shadowOpacity", "layer.shadowOffset", "layer.borderWidth", "layer.borderColor",
         ])
         XCTAssertEqual(
             Self.ids(listing, .layout),
             ["view.layoutMargins", "layer.frame", "layer.bounds", "layer.position", "layer.transform"])
         XCTAssertEqual(Self.ids(listing, .behavior), ["view.isUserInteractionEnabled"])
+        XCTAssertEqual(Self.ids(listing, .accessibility), ["view.accessibilityLabel"])
         XCTAssertEqual(Self.ids(listing, .object), ["view.tag"])
         // Every attribute exactly once.
         let listed = Self.ids(listing.attributes)
@@ -309,8 +310,9 @@ final class AttributesViewModelTests: XCTestCase {
     }
 
     func test_C_ATTR_10_olderPeersFallBackToAppearance() throws {
-        // A server whose sections are Identity, Layout and General only.
-        let bare = AttributesViewModel.listing(of: Fixtures.withoutTheOptionalFields(try Self.layerThree()))
+        // A 1.1 server whose sections are Identity, Layout and General only.
+        let bare = AttributesViewModel.listing(
+            of: Fixtures.withoutTheOptionalFields(Fixtures.withoutProtocol12(try Self.layerThree())))
         XCTAssertEqual(bare.sections.map(\.kind), [.appearance, .layout, .object])
         XCTAssertEqual(Self.ids(bare, .appearance), [
             "view.isHidden", "view.alpha", "view.backgroundColor", "view.tintColor",
@@ -325,15 +327,21 @@ final class AttributesViewModelTests: XCTestCase {
         XCTAssertEqual(old.attributes.count, 22)
     }
 
-    func test_C_WIRE_12_accessibilityIsListedWithAppearanceForNow() {
-        // Until C-ATTR-26 gives Accessibility a section of its own.
+    func test_C_ATTR_26_accessibilityComesAfterBehaviorAndBeforeObject() {
         let groups = [AttributeGroup(id: "view", title: "View", attributes: [
-            Self.attribute("hidden", .appearance), Self.attribute("label", .accessibility),
-            Self.attribute("enabled", .behavior),
+            Self.attribute("tag", .identity), Self.attribute("label", .accessibility),
+            Self.attribute("hidden", .appearance), Self.attribute("enabled", .behavior),
         ])]
         let listing = AttributesViewModel.listing(of: groups)
-        XCTAssertEqual(listing.sections.map(\.kind), [.appearance, .behavior])
-        XCTAssertEqual(Self.ids(listing, .appearance), ["hidden", "label"])
+        XCTAssertEqual(listing.sections.map(\.kind), [.appearance, .behavior, .accessibility, .object])
+        XCTAssertEqual(Self.ids(listing, .accessibility), ["label"])
+        XCTAssertEqual(AttributesViewController.symbol(of: .accessibility), "accessibility")
+        XCTAssertEqual(AttributesViewController.title(of: .accessibility), "Accessibility")
+    }
+
+    func test_C_ATTR_26_aProtocol11PeerHasNoAccessibilitySection() throws {
+        let listing = AttributesViewModel.listing(of: Fixtures.withoutProtocol12(try Self.layerThree()))
+        XCTAssertEqual(listing.sections.map(\.kind), [.content, .appearance, .layout, .behavior, .object])
     }
 
     func test_C_ATTR_10_theListingDependsOnTheSectionAlone() {

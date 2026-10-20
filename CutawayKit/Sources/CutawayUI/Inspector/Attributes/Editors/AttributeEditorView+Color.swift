@@ -8,7 +8,9 @@ extension AttributeEditorView {
     /// One field (C-ATTR-22): the swatch, which opens the colour panel, the hexadecimal code,
     /// which can be typed, and the opacity in percent. A colour with a name, from the app's
     /// asset catalog or UIKit (C-SRC-04), shows it instead of the code and the opacity, and the
-    /// other names and the code in the tooltip; typing shows the code again.
+    /// other names and the code in the tooltip; typing shows the code again. A colour that
+    /// resolves differently in light and dark shows both in the swatch and in the tooltip
+    /// (C-ATTR-25).
     func colorContent() -> NSView {
         let well = NSColorWell(style: .default)
             .accessibilityIdentifier(Self.wellIdentifier)
@@ -21,7 +23,7 @@ extension AttributeEditorView {
         colorWell = well
         let swatch = ColorSwatch(color: nil, well: well)
         swatch.widthAnchor.constraint(equalToConstant: ColorSwatch.side).isActive = true
-        swatch.heightAnchor.constraint(equalToConstant: ColorSwatch.side).isActive = true
+        swatch.heightAnchor.constraint(equalToConstant: ColorSwatch.height).isActive = true
         let hex = AttributeEditField()
             .accessibilityIdentifier(Self.hexIdentifier)
             .accessibilityLabel(localized("attributes.editor.hexadecimal", title))
@@ -61,6 +63,7 @@ extension AttributeEditorView {
             guard case .color(let color) = value, color != Self.transparent else {
                 well.color = NSColor(srgbRed: 0, green: 0, blue: 0, alpha: 0)
                 swatch.color = nil
+                swatch.show(nil, value: nil)
                 name = nil
                 code = ""
                 showsAlpha = false
@@ -74,20 +77,39 @@ extension AttributeEditorView {
                 components: [color.red, color.green, color.blue, color.alpha].map { CGFloat($0) },
                 count: 4)
             swatch.color = well.color
+            let names = self?.names ?? .none
+            swatch.show(names.appearance, value: color)
             // A colour beyond sRGB has no hex code; its components are shown instead.
             let rgb = AttributeText.hexRGB(of: color).map { String($0.dropFirst()) }
             code = rgb ?? AttributeText.text(of: value)
-            let names = self?.names ?? .none
             name = names.colorName
             alpha.stringValue = AttributeText.percent(Double(color.alpha)) + "%"
             showsAlpha = rgb != nil && name == nil
             applyAlpha()
             applyFont()
-            hex.toolTip = name == nil ? nil : (names.colorNotes + ["#" + code]).joined(separator: " · ")
+            hex.toolTip = Self.colorTip(names: names, code: code)
             hex.shownText = hex.hasFocus ? code : name ?? code
         }
         editing = { [weak self] in hex.isTyping || self?.colorPause != nil }
         return Self.colorBox([swatch, hex, alpha], badge: badge)
+    }
+
+    /// The colour's tooltip: its other names and its code when it has a name, then its two
+    /// appearances when they differ (C-ATTR-25); nil for a colour with neither.
+    static func colorTip(names: ValueNames, code: String) -> String? {
+        var parts = names.colorName == nil ? [] : names.colorNotes + ["#" + code]
+        if let appearance = names.appearance {
+            parts.append(localized(
+                "attributes.color.appearances", Self.code(of: appearance.light), Self.code(of: appearance.dark)))
+        }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
+
+    /// "1E6BFF", with the opacity after it when it is not whole ("000000 50%").
+    private static func code(of color: Color) -> String {
+        let rgb = AttributeText.hexRGB(of: color).map { String($0.dropFirst()) }
+            ?? AttributeText.text(of: .color(color))
+        return color.alpha >= 1 ? rgb : rgb + " " + AttributeText.percent(Double(color.alpha)) + "%"
     }
 
     /// The colour field's box: the swatch, the code, the opacity and "no effect" in a line,

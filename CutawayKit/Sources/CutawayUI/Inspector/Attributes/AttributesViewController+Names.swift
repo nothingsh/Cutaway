@@ -74,6 +74,7 @@ extension AttributesViewController {
         case .appearance: localized("attributes.section.appearance")
         case .layout: localized("attributes.section.layout")
         case .behavior: localized("attributes.section.behavior")
+        case .accessibility: localized("attributes.section.accessibility")
         case .object: localized("attributes.section.object")
         }
     }
@@ -85,6 +86,7 @@ extension AttributesViewController {
         case .appearance: "circle.lefthalf.filled"
         case .layout: "ruler"
         case .behavior: "hand.point.up.left"
+        case .accessibility: "accessibility"
         case .object: "tag"
         }
     }
