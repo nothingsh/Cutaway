@@ -13,12 +13,15 @@ public struct SceneLayer: Equatable, Sendable {
     public var opacity: Double
     public var solo: TextureKey?
     public var group: TextureKey?
+    /// False for a layer the app does not let be captured (P-DET-10): no image is asked for
+    /// it (C-DET-11).
+    public var capturesImage: Bool
 
     public init(
         id: UInt64, parentID: UInt64, bounds: SceneRect, position: ScenePoint,
         anchorPoint: ScenePoint = ScenePoint(x: 0.5, y: 0.5),
         transform: SceneTransform = .identity, isHidden: Bool = false, opacity: Double = 1,
-        solo: TextureKey? = nil, group: TextureKey? = nil
+        solo: TextureKey? = nil, group: TextureKey? = nil, capturesImage: Bool = true
     ) {
         self.id = id
         self.parentID = parentID
@@ -30,6 +33,7 @@ public struct SceneLayer: Equatable, Sendable {
         self.opacity = opacity
         self.solo = solo
         self.group = group
+        self.capturesImage = capturesImage
     }
 }
 

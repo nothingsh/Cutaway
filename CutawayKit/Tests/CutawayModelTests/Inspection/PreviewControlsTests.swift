@@ -179,11 +179,11 @@ final class PreviewControlsTests: XCTestCase {
     @MainActor
     func test_C_PREV_08_hiddenLayersCountInTheProgress() throws {
         let model = try model()
-        XCTAssertEqual(model.detailProgress.total, 7)
+        XCTAssertEqual(model.detailProgress.total, 10)
         model.setShowsHiddenLayers(true)
-        XCTAssertEqual(model.detailProgress.total, 8, "layer 5 too")
+        XCTAssertEqual(model.detailProgress.total, 11, "layer 5 too")
         model.setShowsHiddenLayers(false)
-        XCTAssertEqual(model.detailProgress.total, 7)
+        XCTAssertEqual(model.detailProgress.total, 10)
     }
 
     @MainActor

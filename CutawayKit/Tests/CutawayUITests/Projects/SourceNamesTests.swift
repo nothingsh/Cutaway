@@ -138,7 +138,7 @@ final class SourceNamesTests: XCTestCase {
         _ = try await session.handshake()
         let model = InspectionStore(session: session, newLayers: .expanded)
         model.enter()
-        let tree = await Wait.until { await model.tree.count == 9 }
+        let tree = await Wait.until { await model.tree.count == 14 }
         XCTAssertTrue(tree)
         let layer = Publishers.CombineLatest(model.$selectedLayerID, model.$tree)
             .map { id, tree in LayerSummary(tree, id) }

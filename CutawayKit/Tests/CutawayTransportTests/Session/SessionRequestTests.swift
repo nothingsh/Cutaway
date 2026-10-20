@@ -27,7 +27,7 @@ final class SessionRequestTests: XCTestCase {
         let icon = try await session.appIcon()
         XCTAssertEqual(icon?.pixelWidth, 2)
         let hierarchy = try await session.hierarchy()
-        XCTAssertEqual(hierarchy.nodes.count, 9)
+        XCTAssertEqual(hierarchy.nodes.count, 14)
 
         let ids = await server.receivedFrames.map(\.requestID)
         XCTAssertEqual(ids, [0, 1, 2])
@@ -86,7 +86,7 @@ final class SessionRequestTests: XCTestCase {
         let hierarchy = try await session.hierarchy()
         let icon = try await iconTask.value
 
-        XCTAssertEqual(hierarchy.nodes.count, 9)
+        XCTAssertEqual(hierarchy.nodes.count, 14)
         XCTAssertEqual(icon?.pixelWidth, 2)
         let mismatches = await server.mismatches
         XCTAssertEqual(mismatches, [])

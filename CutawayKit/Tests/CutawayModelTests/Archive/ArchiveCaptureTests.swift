@@ -99,12 +99,15 @@ final class ArchiveCaptureTests: XCTestCase {
 
         let requests = await Self.detailRequests(server)
         XCTAssertEqual(requests.map { $0.requests.map(\.layerID) }, [
-            [1, 2, 3, 4, 5, 6, 7, 8], [9],
+            [1, 2, 3, 4, 10, 11, 12, 5], [6, 7, 8, 9, 13, 14],
         ])
         for request in requests {
             XCTAssertEqual(request.maxTextureDimension, 4096)
+            // Everything of every layer, but no images of those the app excludes (C-DET-11).
             XCTAssertTrue(request.requests.allSatisfy {
-                $0.wantSolo && $0.wantGroup && $0.wantAttributes && $0.wantConstraints
+                let wantsImages = ![13, 14].contains($0.layerID)
+                return $0.wantSolo == wantsImages && $0.wantGroup == wantsImages
+                    && $0.wantAttributes && $0.wantConstraints
             })
         }
 
@@ -127,9 +130,9 @@ final class ArchiveCaptureTests: XCTestCase {
         XCTAssertEqual(ArchiveState(decoding: decoder.state), state)
         XCTAssertEqual(try decoder.chunk(at: 0).details[2].attributeGroups.count, 3)
 
-        XCTAssertEqual(progress.all.last?.0, 9)
-        XCTAssertEqual(progress.all.last?.1, 9)
-        XCTAssertEqual(progress.all.map(\.0), [0, 8, 9])
+        XCTAssertEqual(progress.all.last?.0, 14)
+        XCTAssertEqual(progress.all.last?.1, 14)
+        XCTAssertEqual(progress.all.map(\.0), [0, 8, 14])
 
         // Only the archive is left in the directory.
         let left = try FileManager.default.contentsOfDirectory(atPath: directory.path)
@@ -176,9 +179,9 @@ final class ArchiveCaptureTests: XCTestCase {
         XCTAssertNoThrow(try outcome.get())
         let decoder = try ArchiveDecoder(try Data(contentsOf: destination))
         let details = try (0..<decoder.chunkCount).flatMap { try decoder.chunk(at: $0).details }
-        XCTAssertEqual(details.map(\.layerID), [1, 2, 3, 4, 5, 6, 7, 8, 9])
-        XCTAssertEqual(details[4].status, .captureFailed)
-        XCTAssertEqual(details[8].status, .layerNotFound)
+        XCTAssertEqual(details.map(\.layerID), [1, 2, 3, 4, 10, 11, 12, 5, 6, 7, 8, 9, 13, 14])
+        XCTAssertEqual(details[7].status, .captureFailed)
+        XCTAssertEqual(details[11].status, .layerNotFound)
         await session.close()
         await server.stop()
     }

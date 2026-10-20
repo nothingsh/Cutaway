@@ -162,9 +162,15 @@ enum ExpectedAttributes {
 
     /// Layer 4 of `set-attribute`, which appears only there. It backs a view, so it has
     /// `view.alpha` and `view.backgroundColor`, and no `layer.opacity` or
-    /// `layer.backgroundColor` (P-ATTR-11).
+    /// `layer.backgroundColor` (P-ATTR-11). Its background, once set, equals the color the app
+    /// registered as brandBlue (P-ATTR-20).
     static func layer4(opacity: Double, background: Color?) -> [AttributeGroup] {
-        [
+        var backgroundColor = Attribute(
+            id: "view.backgroundColor", title: "Background",
+            value: background.map { .color($0) }, editable: true, acceptsNil: true,
+            valueKind: .color, section: .appearance)
+        backgroundColor.registeredColorName = background == nil ? nil : "brandBlue"
+        return [
             AttributeGroup(id: "layer", title: "Layer", attributes: [
                 Attribute(
                     id: "layer.cornerRadius", title: "Corner Radius", value: .double(12),
@@ -180,13 +186,45 @@ enum ExpectedAttributes {
                     id: "view.clipsToBounds", title: "Clips to Bounds", value: .bool(true),
                     editable: true, valueKind: .bool, section: .appearance,
                     cluster: AttributeCluster(name: "corners", slot: "clip")),
-                Attribute(
-                    id: "view.backgroundColor", title: "Background",
-                    value: background.map { .color($0) }, editable: true, acceptsNil: true,
-                    valueKind: .color, section: .appearance),
+                backgroundColor,
                 Attribute(
                     id: "view.tintColor", title: "Tint", value: nil, editable: true,
                     acceptsNil: true, valueKind: .color, section: .appearance),
+            ], className: "UIView"),
+        ]
+    }
+
+    /// Virtual node 10's only group, the host app's (P-ATTR-19, 20).
+    static func layer10(title: String = "Total") -> [AttributeGroup] {
+        var color = Attribute(
+            id: "app.row.color", title: "Color",
+            value: .color(Color(red: 0.2, green: 0.4, blue: 0.8, alpha: 1)), editable: true,
+            valueKind: .color, section: .appearance)
+        color.registeredColorName = "brandBlue"
+        return [
+            AttributeGroup(
+                id: "app.row", title: "Row",
+                attributes: [
+                    Attribute(
+                        id: "app.row.title", title: "Title", value: .string(title), editable: true,
+                        valueKind: .string, section: .content),
+                    Attribute(
+                        id: "app.row.amount", title: "Amount", value: .double(128.5), editable: true,
+                        valueKind: .double, section: .content, limits: [atLeastZero]),
+                    color,
+                ],
+                className: "Demo.CardRow", isFromApp: true),
+        ]
+    }
+
+    /// Layer 13, excluded from images: its attributes come as usual (P-DET-10).
+    static func layer13() -> [AttributeGroup] {
+        [
+            AttributeGroup(id: "view", title: "View", attributes: [
+                Attribute(
+                    id: "view.isHidden", title: "Hidden", value: .bool(false), editable: true,
+                    valueKind: .bool, section: .appearance,
+                    cluster: AttributeCluster(name: "visibility", slot: "hidden")),
             ], className: "UIView"),
         ]
     }

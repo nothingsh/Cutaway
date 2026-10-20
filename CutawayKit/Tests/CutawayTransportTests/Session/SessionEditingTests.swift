@@ -47,7 +47,7 @@ final class SessionEditingTests: XCTestCase {
 
         let requests = try frames("set-attribute", .clientToServer)
         let answers = try frames("set-attribute", .serverToClient)
-        XCTAssertEqual(requests.count, 5)
+        XCTAssertEqual(requests.count, 6)
         for (request, answer) in zip(requests, answers) {
             guard case .setAttribute(let body) = request.body,
                   case .setAttributeResult(let expected) = answer.body
@@ -93,6 +93,8 @@ final class SessionEditingTests: XCTestCase {
             // The background is a pair too (P-ATTR-11).
             .attributeNotEditable(
                 message: "layer 3 backs a view; set view.backgroundColor instead of layer.backgroundColor"),
+            // A virtual node has only the host app's groups (P-DET-09).
+            .attributeNotEditable(message: "virtual node 10 has no attribute view.alpha"),
         ]
         XCTAssertEqual(requests.count, expected.count)
         for (request, error) in zip(requests, expected) {
@@ -100,7 +102,7 @@ final class SessionEditingTests: XCTestCase {
         }
 
         let hierarchy = try await session.hierarchy()
-        XCTAssertEqual(hierarchy.nodes.count, 9)
+        XCTAssertEqual(hierarchy.nodes.count, 14)
 
         await session.close()
         await server.stop()
@@ -113,7 +115,7 @@ final class SessionEditingTests: XCTestCase {
         XCTAssertEqual(negotiated, Version(major: 1, minor: 2))
 
         let subtree = try await session.subtree(of: 4)
-        XCTAssertEqual(subtree.nodes.map(\.id), [4, 5])
+        XCTAssertEqual(subtree.nodes.map(\.id), [4, 10, 11, 12, 5])
         XCTAssertEqual(subtree.nodes[0].parentID, 2)
         XCTAssertEqual(subtree.keyWindowID, 1)
 
@@ -121,10 +123,16 @@ final class SessionEditingTests: XCTestCase {
             _ = try await session.subtree(of: 99)
         }
 
+        // A virtual node's subtree starts at it, under its parent node (P-HIER-10, 22).
+        let virtual = try await session.subtree(of: 10)
+        XCTAssertEqual(virtual.nodes.map(\.id), [10, 11])
+        XCTAssertEqual(virtual.nodes[0].parentID, 4)
+
         let received = await server.receivedFrames.map(\.body)
         XCTAssertEqual(
             received.dropFirst(),
-            [.getSubtree(GetSubtree(rootID: 4)), .getSubtree(GetSubtree(rootID: 99))])
+            [.getSubtree(GetSubtree(rootID: 4)), .getSubtree(GetSubtree(rootID: 99)),
+             .getSubtree(GetSubtree(rootID: 10))])
 
         await session.close()
         await server.stop()
@@ -191,7 +199,7 @@ final class SessionEditingTests: XCTestCase {
         }
         // The connection is kept: the frame itself was well formed and answered the request.
         let hierarchy = try await session.hierarchy()
-        XCTAssertEqual(hierarchy.nodes.count, 9)
+        XCTAssertEqual(hierarchy.nodes.count, 14)
 
         await session.close()
         await server.stop()
@@ -219,7 +227,7 @@ final class SessionEditingTests: XCTestCase {
         await assertViolation { _ = try await session.subtree(of: 4) }
         await assertViolation { _ = try await session.subtree(of: 4) }
         let subtree = try await session.subtree(of: 4)
-        XCTAssertEqual(subtree.nodes.map(\.id), [4, 5])
+        XCTAssertEqual(subtree.nodes.map(\.id), [4, 10, 11, 12, 5])
 
         await session.close()
         await server.stop()

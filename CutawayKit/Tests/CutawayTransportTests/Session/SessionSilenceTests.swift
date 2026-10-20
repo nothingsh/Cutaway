@@ -293,7 +293,7 @@ final class SessionSilenceTests: XCTestCase {
         _ = try await session.handshake()
         let start = ContinuousClock.now
         let hierarchy = try await session.hierarchy()
-        XCTAssertEqual(hierarchy.nodes.count, 9)
+        XCTAssertEqual(hierarchy.nodes.count, 14)
         XCTAssertGreaterThan(ContinuousClock.now - start, .milliseconds(2_500))
         await session.close()
         await server.stop()

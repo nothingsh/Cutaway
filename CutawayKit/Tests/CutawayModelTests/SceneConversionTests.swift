@@ -8,28 +8,31 @@ import XCTest
 final class SceneConversionTests: XCTestCase {
     func test_C_SCENE_01_theFixtureBecomesSceneLayersInTheOrderOfTheWire() throws {
         let layers = try LayerTree(try Fixtures.hierarchy()).sceneLayers()
+        let byID = Dictionary(uniqueKeysWithValues: layers.map { ($0.id, $0) })
 
-        XCTAssertEqual(layers.map(\.id), [1, 2, 3, 4, 5, 6, 7, 8, 9])
-        XCTAssertEqual(layers.map(\.parentID), [0, 1, 2, 2, 4, 2, 6, 2, 2])
+        XCTAssertEqual(layers.map(\.id), [1, 2, 3, 4, 10, 11, 12, 5, 6, 7, 8, 9, 13, 14])
+        XCTAssertEqual(layers.map(\.parentID), [0, 1, 2, 2, 4, 10, 4, 4, 2, 6, 2, 2, 2, 13])
 
-        let scroll = layers[5]
+        let scroll = try XCTUnwrap(byID[6])
         XCTAssertEqual(scroll.bounds, SceneRect(x: 0, y: 100, width: 300, height: 200))
         XCTAssertEqual(scroll.position, ScenePoint(x: 196.5, y: 600))
 
-        XCTAssertEqual(layers[7].anchorPoint, ScenePoint(x: 0, y: 0))
-        XCTAssertEqual(layers[2].anchorPoint, ScenePoint(x: 0.5, y: 0.5))
+        XCTAssertEqual(byID[8]?.anchorPoint, ScenePoint(x: 0, y: 0))
+        XCTAssertEqual(byID[3]?.anchorPoint, ScenePoint(x: 0.5, y: 0.5))
 
-        let card = layers[3].transform
+        let card = try XCTUnwrap(byID[4]).transform
         XCTAssertEqual(card.m11, 0.8660254037844387)
         XCTAssertEqual(card.m12, 0.5)
         XCTAssertEqual(card.m21, -0.5)
         XCTAssertEqual(card.m22, 0.8660254037844387)
-        XCTAssertEqual(layers[2].transform, .identity)
+        XCTAssertEqual(byID[3]?.transform, .identity)
 
-        XCTAssertTrue(layers[4].isHidden)
-        XCTAssertEqual(layers[4].opacity, 0.5)
-        XCTAssertEqual(layers[2].opacity, 1)
+        XCTAssertEqual(byID[5]?.isHidden, true)
+        XCTAssertEqual(byID[5]?.opacity, 0.5)
+        XCTAssertEqual(byID[3]?.opacity, 1)
         XCTAssertTrue(layers.allSatisfy { $0.solo == nil && $0.group == nil })
+        // The app excludes 13 and 14 from images (C-DET-11).
+        XCTAssertEqual(layers.filter { !$0.capturesImage }.map(\.id), [13, 14])
     }
 
     func test_C_SCENE_01_absentGeometryTakesTheDefaults() throws {

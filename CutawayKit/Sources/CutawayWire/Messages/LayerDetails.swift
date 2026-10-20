@@ -1,6 +1,10 @@
 // MARK: - Layer details
 
-public enum DetailStatus: Sendable { case ok, layerNotFound, captureFailed }
+public enum DetailStatus: Sendable {
+    case ok, layerNotFound, captureFailed
+    /// The host app excludes the node from images (P-DET-10). Protocol 1.2.
+    case excluded
+}
 
 public struct LayerDetailRequest: Equatable, Sendable {
     public var layerID: UInt64

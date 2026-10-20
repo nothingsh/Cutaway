@@ -69,8 +69,9 @@ final class ConstraintsExitTests: XCTestCase {
         }
         let outline = try await open(server)
 
-        // Layer 9, the last row; its four constraints are UIKit's, folded into one row.
-        outline.selectRowIndexes([outline.numberOfRows - 1], byExtendingSelection: false)
+        // Layer 9, the row before layer 13's; its four constraints are UIKit's, folded into one
+        // row.
+        outline.selectRowIndexes([outline.numberOfRows - 2], byExtendingSelection: false)
         let listed = try await waitUntil { self.equations().count == 4 }
         XCTAssertTrue(listed, "layer 9's constraints: \(equations())")
         // Nothing holds it: the header's second line is its size alone (C-HIER-07, C-ATTR-18).

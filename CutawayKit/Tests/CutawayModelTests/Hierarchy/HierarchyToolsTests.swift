@@ -33,8 +33,8 @@ final class HierarchyToolsTests: XCTestCase {
         let model = try model()
         model.setSearchText("label")
         XCTAssertEqual(model.searchText, "label")
-        XCTAssertEqual(model.filter?.matches, [3, 7])
-        XCTAssertEqual(model.filter?.shown, [1, 2, 3, 6, 7])
+        XCTAssertEqual(model.filter?.matches, [3, 7, 14])
+        XCTAssertEqual(model.filter?.shown, [1, 2, 3, 6, 7, 13, 14])
     }
 
     @MainActor
@@ -43,7 +43,7 @@ final class HierarchyToolsTests: XCTestCase {
         model.setSearchText("  Label ")
         XCTAssertEqual(model.searchText, "  Label ", "the field shows what was typed")
         XCTAssertEqual(model.filter?.text, "Label")
-        XCTAssertEqual(model.filter?.matches, [3, 7])
+        XCTAssertEqual(model.filter?.matches, [3, 7, 14])
         model.setSearchText("   ")
         XCTAssertNil(model.filter)
     }
@@ -70,8 +70,8 @@ final class HierarchyToolsTests: XCTestCase {
         var hierarchy = try Fixtures.hierarchy()
         hierarchy.nodes.removeAll { $0.id == 7 }
         model.apply(hierarchy)
-        XCTAssertEqual(model.filter?.matches, [3])
-        XCTAssertEqual(model.filter?.shown, [1, 2, 3])
+        XCTAssertEqual(model.filter?.matches, [3, 14])
+        XCTAssertEqual(model.filter?.shown, [1, 2, 3, 13, 14])
     }
 
     @MainActor
@@ -97,7 +97,7 @@ final class HierarchyToolsTests: XCTestCase {
         }
         defer { subscription.cancel() }
         model.setSearchText("label")
-        XCTAssertEqual(seen, [[1, 2, 3, 6, 7]])
+        XCTAssertEqual(seen, [[1, 2, 3, 6, 7, 13, 14]])
     }
 
     // MARK: - C-HIER-05: focusing
@@ -115,7 +115,8 @@ final class HierarchyToolsTests: XCTestCase {
     func test_C_HIER_05_aHiddenLayerInTheSubtreeStaysHidden() throws {
         let model = try model()
         model.focus(on: 4)
-        XCTAssertEqual(model.tree.ids.filter(model.layout.isDisplayed), [4])
+        // 5 is hidden; the virtual nodes 10 to 12 are not.
+        XCTAssertEqual(model.tree.ids.filter(model.layout.isDisplayed), [4, 10, 11, 12])
     }
 
     @MainActor
@@ -169,7 +170,7 @@ final class HierarchyToolsTests: XCTestCase {
         XCTAssertEqual(model.filter?.matches, [7])
         XCTAssertEqual(model.filter?.shown, [6, 7], "up to the root of the focus")
         model.focus(on: nil)
-        XCTAssertEqual(model.filter?.shown, [1, 2, 3, 6, 7])
+        XCTAssertEqual(model.filter?.shown, [1, 2, 3, 6, 7, 13, 14])
     }
 
     @MainActor

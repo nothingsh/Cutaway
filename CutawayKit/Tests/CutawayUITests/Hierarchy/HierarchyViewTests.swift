@@ -56,11 +56,11 @@ final class HierarchyViewTests: XCTestCase {
         return try XCTUnwrap(controller.outlineView.item(atRow: row))
     }
 
-    /// The fixture without layer 8 and with a new layer 10 under layer 2.
+    /// The fixture without layer 8 and with a new layer 20 under layer 2.
     private func changedHierarchy() throws -> Hierarchy {
         var hierarchy = try Fixtures.hierarchy()
         var extra = try XCTUnwrap(hierarchy.nodes.first { $0.id == 9 })
-        extra.id = 10
+        extra.id = 20
         hierarchy.nodes.removeAll { $0.id == 8 }
         hierarchy.nodes.append(extra)
         return hierarchy
@@ -232,7 +232,7 @@ final class HierarchyViewTests: XCTestCase {
 
         model.enter()
         let settled = await Wait.until {
-            await model.detailProgress == DetailProgress(completed: 7, total: 7)
+            await model.detailProgress == DetailProgress(completed: 10, total: 10)
         }
         XCTAssertTrue(settled)
         model.select(3)
@@ -266,7 +266,8 @@ final class HierarchyViewTests: XCTestCase {
         let controller = controller(for: model)
         model.apply(try Fixtures.hierarchy())
         let outline = controller.outlineView
-        outline.selectRowIndexes([4], byExtendingSelection: false)
+        outline.selectRowIndexes(
+            [try XCTUnwrap(layers(of: controller).firstIndex(of: 5))], byExtendingSelection: false)
         XCTAssertEqual(model.selectedLayerID, 5)
 
         outline.collapseItem(try item(4, in: controller))
@@ -281,7 +282,8 @@ final class HierarchyViewTests: XCTestCase {
         let controller = controller(for: model)
         model.apply(try Fixtures.hierarchy())
         let outline = controller.outlineView
-        outline.selectRowIndexes([6], byExtendingSelection: false)
+        outline.selectRowIndexes(
+            [try XCTUnwrap(layers(of: controller).firstIndex(of: 7))], byExtendingSelection: false)
         XCTAssertEqual(model.selectedLayerID, 7)
 
         outline.collapseItem(try item(2, in: controller), collapseChildren: true)
@@ -308,8 +310,8 @@ final class HierarchyViewTests: XCTestCase {
 
         model.apply(try changedHierarchy())
 
-        // Layer 4 is still collapsed, so layer 5 has no row; 8 is gone; 10 is new.
-        XCTAssertEqual(layers(of: controller), [1, 2, 3, 4, 6, 7, 9, 10])
+        // Layer 4 is still collapsed, so layer 5 has no row; 8 is gone; 20 is new.
+        XCTAssertEqual(layers(of: controller), [1, 2, 3, 4, 6, 7, 9, 13, 14, 20])
         XCTAssertFalse(outline.isItemExpanded(try item(4, in: controller)))
         XCTAssertTrue(outline.isItemExpanded(try item(6, in: controller)))
         XCTAssertEqual(controller.layerID(atRow: outline.selectedRow), 7)
@@ -317,7 +319,7 @@ final class HierarchyViewTests: XCTestCase {
         // Showing the model's state wrote nothing back to it.
         XCTAssertFalse(model.isExpanded(4))
         XCTAssertTrue(model.isExpanded(6))
-        XCTAssertTrue(model.isExpanded(10))
+        XCTAssertTrue(model.isExpanded(20))
         XCTAssertEqual(model.selectedLayerID, 7)
     }
 
@@ -327,7 +329,8 @@ final class HierarchyViewTests: XCTestCase {
         let controller = controller(for: model)
         model.apply(try Fixtures.hierarchy())
         let outline = controller.outlineView
-        outline.selectRowIndexes([7], byExtendingSelection: false)
+        outline.selectRowIndexes(
+            [try XCTUnwrap(layers(of: controller).firstIndex(of: 8))], byExtendingSelection: false)
         XCTAssertEqual(model.selectedLayerID, 8)
 
         model.apply(try changedHierarchy())
@@ -347,7 +350,7 @@ final class HierarchyViewTests: XCTestCase {
 
         let controller = controller(for: model)
         let outline = controller.outlineView
-        XCTAssertEqual(layers(of: controller), [1, 2, 3, 4, 5, 6, 8, 9])
+        XCTAssertEqual(layers(of: controller), [1, 2, 3, 4, 10, 11, 12, 5, 6, 8, 9, 13, 14])
         XCTAssertEqual(controller.layerID(atRow: outline.selectedRow), 3)
 
         // A collapsed node inside a collapsed node: when the outer one is opened in the
@@ -361,7 +364,7 @@ final class HierarchyViewTests: XCTestCase {
 
         second.outlineView.expandItem(try item(2, in: second))
 
-        XCTAssertEqual(layers(of: second), [1, 2, 3, 4, 5, 6, 8, 9])
+        XCTAssertEqual(layers(of: second), [1, 2, 3, 4, 10, 11, 12, 5, 6, 8, 9, 13, 14])
         XCTAssertTrue(nested.isExpanded(2))
         XCTAssertFalse(nested.isExpanded(6))
         XCTAssertTrue(nested.isExpanded(4))
@@ -548,8 +551,11 @@ final class HierarchyViewTests: XCTestCase {
         let scrolled = outline.visibleRect.origin
         XCTAssertGreaterThan(scrolled.y, 0)
 
-        // A search, and its end, reload the list.
-        model.setSearchText("Layer")
+        // A search, and its end, reload the list. "a" keeps every row, so that the search's
+        // list is as long and the scrolling need not change ("Layer" leaves out the virtual
+        // nodes 10 to 12, whose type names do not hold it).
+        model.setSearchText("a")
+        XCTAssertEqual(controller.outlineView.numberOfRows, 14)
         model.setSearchText("")
         XCTAssertTrue(window.firstResponder === outline)
         XCTAssertEqual(outline.visibleRect.origin, scrolled)
@@ -564,15 +570,15 @@ final class HierarchyViewTests: XCTestCase {
 
         let atTop = model.visibleLayerIDs
         XCTAssertEqual(atTop.first, 1)
-        XCTAssertFalse(atTop.contains(9), "the last row is out of view")
+        XCTAssertFalse(atTop.contains(14), "the last row is out of view")
         let rows = atTop.map { id in
             (0..<controller.outlineView.numberOfRows).first { controller.layerID(atRow: $0) == id }
         }
         XCTAssertEqual(rows, rows.sorted { ($0 ?? -1) < ($1 ?? -1) }, "top to bottom")
 
-        controller.outlineView.scrollRowToVisible(8)
+        controller.outlineView.scrollRowToVisible(controller.outlineView.numberOfRows - 1)
         let atBottom = model.visibleLayerIDs
-        XCTAssertEqual(atBottom.last, 9)
+        XCTAssertEqual(atBottom.last, 14)
         XCTAssertFalse(atBottom.contains(1), "the first row scrolled out of view")
         withExtendedLifetime(window) {}
     }
@@ -600,7 +606,7 @@ final class HierarchyViewTests: XCTestCase {
         model.setVisibleLayers([3])  // what an earlier list reported
         let controller = controller(for: model)
         model.apply(try Fixtures.hierarchy())
-        XCTAssertEqual(controller.outlineView.numberOfRows, 9)
+        XCTAssertEqual(controller.outlineView.numberOfRows, 14)
         XCTAssertEqual(model.visibleLayerIDs, [], "this list sees no rows and says so")
     }
 

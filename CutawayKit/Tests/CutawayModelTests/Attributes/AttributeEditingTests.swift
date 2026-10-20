@@ -272,13 +272,42 @@ final class AttributeEditingTests: XCTestCase {
         await server.stop()
     }
 
+    /// An attribute of a group the host app adds is edited as any other (C-ATTR-23): its ID is
+    /// sent as it is, and the answer replaces the layer's attributes.
+    @MainActor
+    func test_C_ATTR_23_anAppsAttributeIsEditedAsAnyOther() async throws {
+        let before = try Fixtures.attributes(of: 10, scenario: "layer-details")
+        let after = try XCTUnwrap(Fixtures.setAttributeResults().last { $0.layerID == 10 })
+        var steps = MockScript.layerDetailsSteps(
+            [LayerDetail(layerID: 10, status: .ok, solo: nil, group: nil, attributeGroups: before)],
+            as: 60)
+        steps += Self.resultSteps(10, after.attributeGroups, as: 61)
+        let (model, session, server) = try await editing(try Self.script(steps))
+
+        model.select(10)
+        let loaded = await Wait.until { await model.state == .loaded(before) }
+        XCTAssertTrue(loaded)
+        model.set(Self.key(10, "app.row.title"), to: .string("Grand Total"), continuous: false)
+        let answered = await Wait.until { await model.state == .loaded(after.attributeGroups) }
+        XCTAssertTrue(answered)
+
+        let sent = await Self.sets(server)
+        XCTAssertEqual(
+            sent, [SetAttribute(layerID: 10, attributeID: "app.row.title", value: .string("Grand Total"))])
+        let mismatches = await server.mismatches
+        XCTAssertEqual(mismatches, [])
+
+        await session.close()
+        await server.stop()
+    }
+
     @MainActor
     func test_C_ATTR_06_rejectionsShowInTheRowAndTheValueStays() async throws {
         let (model, session, server) = try await editing(
             // Without the two values outside the limits (1.1), which the client never sends
-            // (P-SET-07), and the layer's attributes of two pairs, which
-            // layer 3 does not have (P-ATTR-11).
-            try Self.script(Array(try MockScript.fixtures("set-attribute-rejected").steps.dropFirst(2).dropLast(8))
+            // (P-SET-07), the layer's attributes of two pairs, which layer 3 does not have
+            // (P-ATTR-11), and a view attribute on a virtual node (1.2, P-DET-09).
+            try Self.script(Array(try MockScript.fixtures("set-attribute-rejected").steps.dropFirst(2).dropLast(10))
                 + Self.errorSteps(.appNotActive, as: 30)
                 + [.expect(.setAttribute, as: 31)]),
             requestTimeout: .milliseconds(300))

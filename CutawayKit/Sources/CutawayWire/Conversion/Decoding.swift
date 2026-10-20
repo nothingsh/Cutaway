@@ -119,12 +119,23 @@ extension ImageEncoding {
     }
 }
 
+extension NodeKind {
+    /// The runtime already reads a value this client does not know as `Layer`.
+    init(_ wire: Cutaway_Wire_NodeKind) {
+        switch wire {
+        case .layer: self = .layer
+        case .virtual: self = .virtual
+        }
+    }
+}
+
 extension DetailStatus {
     init(_ wire: Cutaway_Wire_DetailStatus) {
         switch wire {
         case .ok: self = .ok
         case .layernotfound: self = .layerNotFound
         case .capturefailed: self = .captureFailed
+        case .excluded: self = .excluded
         }
     }
 }
@@ -215,7 +226,9 @@ extension LayerNode {
             viewControllerClassOrigin: ClassOrigin(wire.viewControllerClassOrigin),
             layerBaseClassName: nonEmpty(wire.layerBaseClassName),
             viewBaseClassName: nonEmpty(wire.viewBaseClassName),
-            viewControllerVisibility: ViewControllerVisibility(wire.viewControllerVisibility))
+            viewControllerVisibility: ViewControllerVisibility(wire.viewControllerVisibility),
+            kind: NodeKind(wire.nodeKind), name: nonEmpty(wire.name),
+            isCollapsedByDefault: wire.collapsedByDefault, isCaptureExcluded: wire.captureExcluded)
     }
 
     /// 0 means absent (P-HIER-14).
@@ -369,6 +382,7 @@ extension Attribute {
         inactiveCause = nonEmpty(wire.inactiveCause)
         if wire.valueType == .colorvalue, let color = wire.value(type: Cutaway_Wire_ColorValue.self) {
             systemColorName = nonEmpty(color.systemName)
+            registeredColorName = nonEmpty(color.name)
             // P-ATTR-17 gives both or neither; one alone is read as neither (C-WIRE-12).
             if let light = color.light, let dark = color.dark {
                 appearanceColors = AppearanceColors(light: Color(light), dark: Color(dark))
@@ -449,7 +463,7 @@ extension AttributeGroup {
     init(_ wire: Cutaway_Wire_AttributeGroup) {
         self.init(
             id: wire.id, title: wire.title, attributes: wire.attributes.map { Attribute($0) },
-            className: nonEmpty(wire.className))
+            className: nonEmpty(wire.className), isFromApp: wire.fromApp)
     }
 }
 

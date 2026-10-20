@@ -58,7 +58,8 @@ public struct SceneLayout: Sendable {
     /// there is none.
     public let contentBox: SceneRect?
     /// The layers that are drawn, each with the kind of image it is drawn with, in the order
-    /// of the wire: what the inspection asks the app for (C-DET-01).
+    /// of the wire: what the inspection asks the app for (C-DET-01). Layers the app does not
+    /// let be captured are left out (C-DET-11).
     public let neededTextures: [TextureNeed]
     /// The nodes the layout was built with as expanded.
     let expanded: Set<UInt64>
@@ -165,7 +166,7 @@ public struct SceneLayout: Sendable {
         self.contentBox = contentBox
         self.neededTextures = displayed.compactMap { index in
             let entry = entries[index]
-            guard entry.hasArea else { return nil }
+            guard entry.hasArea, entry.layer.capturesImage else { return nil }
             return TextureNeed(layerID: entry.layer.id, kind: Self.neededKind(for: entry))
         }
     }

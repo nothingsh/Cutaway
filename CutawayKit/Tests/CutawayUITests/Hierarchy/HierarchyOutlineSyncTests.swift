@@ -8,8 +8,8 @@ import XCTest
 /// What the hierarchy list works out about its rows, without the list: C-HIER-02.
 final class HierarchyOutlineSyncTests: XCTestCase {
     /// The `hierarchy` fixture: 1 UIWindow, 2 UIView inside it, and inside that 3 UILabel,
-    /// 4 CardView with 5 CAShapeLayer (hidden), 6 UIScrollView with 7 UILabel, 8 CALayer and
-    /// 9 UIView.
+    /// 4 CardView with the virtual nodes 10 (holding 11) and 12 and 5 CAShapeLayer (hidden),
+    /// 6 UIScrollView with 7 UILabel, 8 CALayer, 9 UIView and 13 PaymentCardView with 14 UILabel.
     private func tree() throws -> LayerTree {
         try LayerTree(try Fixtures.hierarchy())
     }
@@ -41,14 +41,15 @@ final class HierarchyOutlineSyncTests: XCTestCase {
     func test_C_HIER_02_aPartOfTheTreeExpandedAsAWholeIsFound() throws {
         let tree = try tree()
         XCTAssertEqual(
-            HierarchyOutlineSync.wholeExpansions(below: [1], in: tree) { _ in true }, [1, 2, 4, 6])
+            HierarchyOutlineSync.wholeExpansions(below: [1], in: tree) { _ in true },
+            [1, 2, 4, 6, 10, 13])
         // A collapsed row with sublayers leaves out every row it is inside of.
         XCTAssertEqual(
-            HierarchyOutlineSync.wholeExpansions(below: [1], in: tree) { $0 != 6 }, [4])
+            HierarchyOutlineSync.wholeExpansions(below: [1], in: tree) { $0 != 6 }, [4, 10, 13])
         XCTAssertEqual(
             HierarchyOutlineSync.wholeExpansions(below: [1], in: tree) { _ in false }, [])
         // Only the rows asked about and those inside them.
         XCTAssertEqual(
-            HierarchyOutlineSync.wholeExpansions(below: [4, 6], in: tree) { _ in true }, [4, 6])
+            HierarchyOutlineSync.wholeExpansions(below: [4, 6], in: tree) { _ in true }, [4, 6, 10])
     }
 }

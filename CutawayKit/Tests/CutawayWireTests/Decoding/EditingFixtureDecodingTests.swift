@@ -28,6 +28,9 @@ final class EditingFixtureDecodingTests: XCTestCase {
             // No value sets nil.
             ("09-c2s-clear-background.bin", Frame(requestID: 5, body: .setAttribute(SetAttribute(
                 layerID: 4, attributeID: "view.backgroundColor", value: nil)))),
+            // 1.2: the host app's attribute of a virtual node (P-ATTR-19).
+            ("11-c2s-set-app-title.bin", Frame(requestID: 6, body: .setAttribute(SetAttribute(
+                layerID: 10, attributeID: "app.row.title", value: .string("Grand Total"))))),
         ]
         for (file, expected) in requests {
             XCTAssertEqual(try decode("set-attribute", file), expected, file)
@@ -42,6 +45,7 @@ final class EditingFixtureDecodingTests: XCTestCase {
             ("08-s2c-result.bin", 4, 4, ExpectedAttributes.layer4(opacity: 0.5, background: Self.blue)),
             // Back to nil; the kind is still given.
             ("10-s2c-result.bin", 5, 4, ExpectedAttributes.layer4(opacity: 0.5, background: nil)),
+            ("12-s2c-result.bin", 6, 10, ExpectedAttributes.layer10(title: "Grand Total")),
         ]
         for (file, requestID, layerID, groups) in results {
             XCTAssertEqual(
@@ -108,6 +112,15 @@ final class EditingFixtureDecodingTests: XCTestCase {
             Frame(requestID: 8, body: .error(ServerError(
                 code: .attributeNotEditable,
                 message: "layer 3 backs a view; set view.backgroundColor instead of layer.backgroundColor"))))
+        // A virtual node has only the host app's groups (P-DET-09).
+        XCTAssertEqual(
+            try decode("set-attribute-rejected", "17-c2s-set-virtual-node-alpha.bin"),
+            Frame(requestID: 9, body: .setAttribute(SetAttribute(
+                layerID: 10, attributeID: "view.alpha", value: .double(0.5)))))
+        XCTAssertEqual(
+            try decode("set-attribute-rejected", "18-s2c-error.bin"),
+            Frame(requestID: 9, body: .error(ServerError(
+                code: .attributeNotEditable, message: "virtual node 10 has no attribute view.alpha"))))
     }
 
     func test_C_WIRE_05_subtree() throws {
@@ -118,7 +131,8 @@ final class EditingFixtureDecodingTests: XCTestCase {
             try decode("subtree", "03-c2s-get-subtree.bin"),
             Frame(requestID: 2, body: .getSubtree(GetSubtree(rootID: 99))))
 
-        // Nodes 4 and 5, exactly as in the `hierarchy` scenario.
+        // Nodes 4, 10, 11, 12 and 5, exactly as in the `hierarchy` scenario: its virtual nodes
+        // are part of the subtree (P-HIER-22).
         guard case .hierarchy(let whole) = try decode("hierarchy", "02-s2c-hierarchy.bin").body
         else {
             XCTFail("not a Hierarchy")
@@ -129,18 +143,27 @@ final class EditingFixtureDecodingTests: XCTestCase {
         XCTAssertEqual(
             answer.body,
             .hierarchy(Hierarchy(
-                nodes: whole.nodes.filter { [4, 5].contains($0.id) }, keyWindowID: 1)))
+                nodes: whole.nodes.filter { [4, 10, 11, 12, 5].contains($0.id) }, keyWindowID: 1)))
         guard case .hierarchy(let subtree) = answer.body else {
             XCTFail("not a Hierarchy")
             return
         }
-        XCTAssertEqual(subtree.nodes.map(\.id), [4, 5])
+        XCTAssertEqual(subtree.nodes.map(\.id), [4, 10, 11, 12, 5])
         XCTAssertEqual(subtree.nodes[0].parentID, 2)
 
         XCTAssertEqual(
             try decode("subtree", "04-s2c-error.bin"),
             Frame(requestID: 2, body: .error(ServerError(
                 code: .layerNotFound, message: "no layer with id 99"))))
+
+        // The subtree of a virtual node: its parent is its parent node (P-HIER-10).
+        XCTAssertEqual(
+            try decode("subtree", "05-c2s-get-subtree.bin"),
+            Frame(requestID: 3, body: .getSubtree(GetSubtree(rootID: 10))))
+        XCTAssertEqual(
+            try decode("subtree", "06-s2c-hierarchy.bin"),
+            Frame(requestID: 3, body: .hierarchy(Hierarchy(
+                nodes: whole.nodes.filter { [10, 11].contains($0.id) }, keyWindowID: 1))))
     }
 
     func test_C_WIRE_05_layerDetailsCarryTheFlags() throws {

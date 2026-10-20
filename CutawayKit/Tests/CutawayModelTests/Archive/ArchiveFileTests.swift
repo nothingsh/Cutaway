@@ -47,7 +47,7 @@ final class ArchiveFileTests: XCTestCase {
         XCTAssertEqual(archive.state, state)
         XCTAssertEqual(archive.manifest.cutawayVersion, "0.1.0")
         let hierarchy = try await archive.source.hierarchy()
-        XCTAssertEqual(hierarchy.nodes.count, 9)
+        XCTAssertEqual(hierarchy.nodes.count, 14)
     }
 
     func test_C_PREF_02_anArchiveWithoutASpacingOpensWithTheSettingsSpacing() async throws {

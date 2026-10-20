@@ -83,7 +83,7 @@ final class InspectionArchiveTests: XCTestCase {
         XCTAssertTrue(saved, "ended as \(model.archiveSave)")
         XCTAssertFalse(model.isSavingArchive)
         let decoder = try ArchiveDecoder(try Data(contentsOf: destination))
-        XCTAssertEqual(decoder.hierarchy.nodes.count, 9)
+        XCTAssertEqual(decoder.hierarchy.nodes.count, 14)
 
         model.dismissArchiveSave()
         XCTAssertEqual(model.archiveSave, .idle)
@@ -103,7 +103,7 @@ final class InspectionArchiveTests: XCTestCase {
             return
         }
         XCTAssertEqual(completed, 0)
-        XCTAssertEqual(total, 9)
+        XCTAssertEqual(total, 14)
         XCTAssertFalse(model.attributes.canEdit)
 
         // Refreshing does nothing; browsing still works.

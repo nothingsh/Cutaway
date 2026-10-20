@@ -467,7 +467,7 @@ final class PreviewViewTests: XCTestCase {
         let model = InspectionStore(session: session, newLayers: .expanded)
         model.enter()
         let settled = await Wait.until {
-            await model.detailProgress == DetailProgress(completed: 7, total: 7)
+            await model.detailProgress == DetailProgress(completed: 10, total: 10)
         }
         XCTAssertTrue(settled)
         let (controller, preview, window) = try previewInWindow(model, settlesTextures: false)
