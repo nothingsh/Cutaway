@@ -40,7 +40,7 @@ enum AttributeText {
         case .enumeration(let enumeration):
             return [caseName(of: enumeration)]
         case .references(let references):
-            // Names until C-ATTR-28 makes them chips; no objects reads as no value.
+            // As text, the chips' names (C-ATTR-28); no objects reads as no value.
             guard !references.isEmpty else { return [localized("attributes.value.none")] }
             return [references.map(\.displayClassName).joined(separator: ", ")]
         }

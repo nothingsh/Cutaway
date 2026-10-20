@@ -133,6 +133,82 @@ final class ConstraintsSectionView: NSView {
         header.attributedStringValue.string.replacingOccurrences(of: "\u{FFFC}", with: "")
     }
 
+    // MARK: - The pointer
+
+    /// One tracking area for the whole section, which works out the row under the pointer
+    /// from where the pointer is. Each row tracking its own missed the pointer leaving when
+    /// the list scrolled under it: rows stayed filled and their ends marked (reported by the
+    /// user, 2026-10-20).
+    private var trackingArea: NSTrackingArea?
+    /// While the list scrolls, nothing is pointed at (`pauseForScrolling()`).
+    private var isScrolling = false
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let trackingArea { removeTrackingArea(trackingArea) }
+        let area = NSTrackingArea(
+            rect: .zero, options: [.mouseMoved, .mouseEnteredAndExited, .activeInActiveApp, .inVisibleRect],
+            owner: self)
+        addTrackingArea(area)
+        trackingArea = area
+    }
+
+    override func mouseEntered(with event: NSEvent) {
+        super.mouseEntered(with: event)
+        pointerMoved(to: event.locationInWindow)
+    }
+
+    override func mouseMoved(with event: NSEvent) {
+        super.mouseMoved(with: event)
+        pointerMoved(to: event.locationInWindow)
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        super.mouseExited(with: event)
+        point(at: nil)
+    }
+
+    /// The pointer is at a point in the window: the row under it is pointed at, and only it.
+    func pointerMoved(to point: NSPoint) {
+        guard !isScrolling else { return }
+        let local = convert(point, from: nil)
+        var target: NSView?
+        if visibleRect.contains(local) {
+            target = rows.first { row in
+                !row.isHiddenOrHasHiddenAncestor && row.convert(row.bounds, to: self).contains(local)
+            }
+            if target == nil, let box = generatedBox, box.convert(box.bounds, to: self).contains(local) {
+                target = box
+            }
+        }
+        self.point(at: target)
+    }
+
+    /// Points at a row or the folded UIKit box, or at nothing; whatever was pointed at is
+    /// left first, so that the marks of one row go before the next row's come.
+    private func point(at target: NSView?) {
+        for row in rows where row !== target && row.isHovered { row.point(false) }
+        if let box = generatedBox, box !== target, box.isHovered { box.point(false) }
+        (target as? ConstraintRowView)?.point(true)
+        (target as? PointingBox)?.point(true)
+    }
+
+    /// The list began to scroll: nothing is pointed at, neither a row nor a chip, until it
+    /// stops (`pointerMayHaveMoved()`). Rows passing under the pointer mark nothing.
+    func pauseForScrolling() {
+        isScrolling = true
+        point(at: nil)
+        for row in rows { row.equationView.point(at: nil) }
+    }
+
+    /// The list stopped scrolling, or its rows moved: the row under the pointer, if any, is
+    /// pointed at.
+    func pointerMayHaveMoved() {
+        isScrolling = false
+        guard let window else { return }
+        pointerMoved(to: window.mouseLocationOutsideOfEventStream)
+    }
+
     @objc func toggleGenerated(_ sender: Any?) {
         showsGenerated.toggle()
         onToggleGenerated(showsGenerated)
@@ -178,7 +254,8 @@ final class ConstraintsSectionView: NSView {
     }
 }
 
-/// A box that says when the pointer enters and leaves it.
+/// A box that says when the pointer comes onto it and leaves it; the section says where the
+/// pointer is.
 final class PointingBox: NSBox {
     var onHover: (Bool) -> Void = { _ in }
     private(set) var isHovered = false {
@@ -187,30 +264,8 @@ final class PointingBox: NSBox {
         }
     }
 
-    private var trackingArea: NSTrackingArea?
-
-    /// Puts the pointer on the box, or off it, as the mouse does. For tests.
+    /// Puts the pointer on the box, or off it.
     func point(_ inside: Bool) {
         isHovered = inside
-    }
-
-    override func updateTrackingAreas() {
-        super.updateTrackingAreas()
-        if let trackingArea { removeTrackingArea(trackingArea) }
-        let area = NSTrackingArea(
-            rect: .zero, options: [.mouseEnteredAndExited, .activeInActiveApp, .inVisibleRect],
-            owner: self)
-        addTrackingArea(area)
-        trackingArea = area
-    }
-
-    override func mouseEntered(with event: NSEvent) {
-        super.mouseEntered(with: event)
-        isHovered = true
-    }
-
-    override func mouseExited(with event: NSEvent) {
-        super.mouseExited(with: event)
-        isHovered = false
     }
 }

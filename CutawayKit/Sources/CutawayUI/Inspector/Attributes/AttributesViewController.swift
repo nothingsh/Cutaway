@@ -38,11 +38,12 @@ final class AttributesViewController: NSViewController {
 
     let viewModel: AttributesViewModel
     private let onRetry: () -> Void
-    /// Selects the layer at the other end of a constraint (C-LAYOUT-03), or an ancestor
-    /// (C-ATTR-16).
-    private let onShowLayer: (UInt64) -> Void
-    /// Hovers the layer an ancestor names, or none (C-ATTR-16, C-HIER-15).
-    private let onHoverLayer: (UInt64?) -> Void
+    /// Selects the layer at the other end of a constraint (C-LAYOUT-03), an ancestor
+    /// (C-ATTR-16), or one a value refers to (C-ATTR-28).
+    let onShowLayer: (UInt64) -> Void
+    /// Hovers the layer an ancestor or a reference names, or none (C-ATTR-16, C-ATTR-28,
+    /// C-HIER-15).
+    let onHoverLayer: (UInt64?) -> Void
     /// Hovers the other end of a constraint, or none (C-LAYOUT-06).
     private let onHoverConstraintEnd: (ConstraintRow.End?) -> Void
     private let onPointConstraints: (ConstraintPointer) -> Void
@@ -96,6 +97,9 @@ final class AttributesViewController: NSViewController {
     private var listedLayerID: UInt64?
     private var selectedLayerID: UInt64?
     private var pendingLoading: DispatchWorkItem?
+    /// Points again at what is under the pointer, once the list is still. Internal only so
+    /// that AttributesViewController+Folding.swift can reach it.
+    var pointerResume: DispatchWorkItem?
     // `list`, `separators`, `stickyBar`, `filter`, `filterCounts` and `stickySection` are
     // internal only so that AttributesViewController+Folding.swift can reach them.
     let list = VScroll(alignment: .fill, spacing: 0) {}
@@ -399,6 +403,7 @@ final class AttributesViewController: NSViewController {
             .sink { [weak self] _ in
                 self?.arrangePagesSoon()
                 self?.updateSticky()
+                self?.pauseThePointerWhileScrolling()
             }
             .store(in: &cancellables)
 
@@ -565,7 +570,7 @@ final class AttributesViewController: NSViewController {
             switch kind {
             case .layout: guard hasLayoutSection(listing) else { return nil }
             case .object: break
-            case .content, .appearance, .behavior: guard section != nil else { return nil }
+            case .content, .appearance, .behavior, .accessibility: guard section != nil else { return nil }
             }
             let parts = (section?.parts ?? []).enumerated().map { index, part in
                 // The Content section is titled by its first group; the others' groups go

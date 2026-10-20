@@ -14,19 +14,6 @@ final class AttributeTextTests: XCTestCase {
         XCTAssertEqual(AttributeText.number(-.infinity), "-inf")
     }
 
-    func test_C_WIRE_12_referencesReadAsTheirNamesUntilTheyHaveChips() {
-        // Until C-ATTR-28 draws them as chips.
-        let references: AttributeValue = .references([
-            ObjectReference(layerID: 2, className: "Demo.HomeViewController", displayClassName: "HomeViewController"),
-            ObjectReference(layerID: nil, className: "UIPanGestureRecognizer",
-                            displayClassName: "UIPanGestureRecognizer"),
-        ])
-        XCTAssertEqual(AttributeText.lines(of: references), ["HomeViewController, UIPanGestureRecognizer"])
-        XCTAssertEqual(
-            AttributeText.lines(of: .references([])), AttributeText.lines(of: nil),
-            "no objects reads as no value")
-    }
-
     func test_C_ATTR_02_aVeryLargeNumberIsWrittenOut() {
         let text = AttributeText.text(of: .double(1e300))
         XCTAssertFalse(text.contains("e"), text)

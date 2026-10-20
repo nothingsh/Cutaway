@@ -28,10 +28,13 @@ final class EnvironmentStoreTests: XCTestCase {
         return MockScript(steps: try MockScript.fixtures("handshake").steps + [.respond(responder)])
     }
 
+    /// An inspection, entered and loaded. The refresh after a change comes at once unless
+    /// `settleDelay` says otherwise.
     @MainActor
-    private static func model(_ session: Session) async -> InspectionStore {
+    private static func model(_ session: Session, settleDelay: Duration = .zero) async -> InspectionStore {
         let model = InspectionStore(session: session, newLayers: .expanded)
         model.rowsWait = .zero
+        model.environmentSettleDelay = settleDelay
         model.enter()
         let ready = await Wait.until { await MainActor.run { model.loadState == .loaded } }
         XCTAssertTrue(ready)
@@ -148,6 +151,120 @@ final class EnvironmentStoreTests: XCTestCase {
         XCTAssertTrue(isSettled)
         XCTAssertEqual(model.environment.controls?.environment.current.userInterfaceStyle, .dark)
         XCTAssertTrue(model.environment.controls?.isOverriding == true)
+        await session.close()
+        await server.stop()
+    }
+
+    /// Reported by the user (2026-10-20): after the appearance was overridden, the preview did
+    /// not change until ⌘R. Every screenshot is to be taken again once the answer is in.
+    @MainActor
+    func test_C_ENV_02_everyScreenshotIsTakenAgainAfterTheAnswer() async throws {
+        let server = try await MockServer.start(script: try Self.responding())
+        let session = try await Self.session(to: server)
+        let model = await Self.model(session)
+        let total = model.detailProgress.total
+        let first = await Wait.until { await MainActor.run { model.detailProgress.completed == total } }
+        XCTAssertTrue(first, "\(model.detailProgress)")
+        let before = model.images.mapValues { [$0.solo?.revision, $0.group?.revision] }
+        XCTAssertFalse(before.isEmpty)
+        let sentBefore = await Self.kinds(server).count
+
+        model.setEnvironment(.userInterfaceStyle, to: .userInterfaceStyle(.dark))
+        let isSettled = await Self.settled(model)
+        XCTAssertTrue(isSettled)
+        let again = await Wait.until {
+            await MainActor.run {
+                model.images.allSatisfy { id, images in
+                    let old = before[id] ?? []
+                    return [images.solo?.revision, images.group?.revision].enumerated().allSatisfy { index, revision in
+                        revision == nil || old[index] == nil || revision! > old[index]!
+                    }
+                }
+            }
+        }
+        let after = await Self.kinds(server).dropFirst(sentBefore)
+        XCTAssertTrue(again, "every screenshot taken again: \(after)")
+        await session.close()
+        await server.stop()
+    }
+
+    /// An app may change its look a moment after
+    /// the change (Wikipedia, 0.3 s later), so the tree is taken again only after a pause, and
+    /// no screenshot is asked for meanwhile.
+    @MainActor
+    func test_C_ENV_02_theRefreshWaitsForTheAppToRedraw() async throws {
+        let server = try await MockServer.start(script: try Self.responding())
+        let session = try await Self.session(to: server)
+        let model = await Self.model(session, settleDelay: .milliseconds(400))
+        let total = model.detailProgress.total
+        let first = await Wait.until { await MainActor.run { model.detailProgress.completed == total } }
+        XCTAssertTrue(first)
+        let before = await Self.kinds(server).count
+
+        model.setEnvironment(.userInterfaceStyle, to: .userInterfaceStyle(.dark))
+        let answered = await Wait.until {
+            await MainActor.run { model.environment.controls?.isSending == false }
+        }
+        XCTAssertTrue(answered)
+        try await Task.sleep(for: .milliseconds(150))
+        var after = await Self.kinds(server).dropFirst(before)
+        XCTAssertEqual(Array(after), [.setEnvironment], "nothing asked for while the app redraws")
+        XCTAssertEqual(model.changesOnTheirWay, 1, "screenshots wait")
+
+        let refreshed = await Wait.until { await Self.kinds(server).dropFirst(before).contains(.getLayerDetails) }
+        XCTAssertTrue(refreshed)
+        after = await Self.kinds(server).dropFirst(before)
+        XCTAssertEqual(Array(after.prefix(2)), [.setEnvironment, .getHierarchy])
+        XCTAssertEqual(model.changesOnTheirWay, 0)
+        await session.close()
+        await server.stop()
+    }
+
+    @MainActor
+    func test_C_ENV_02_anotherChangeWhileWaitingRefreshesOnceAfterIt() async throws {
+        let server = try await MockServer.start(script: try Self.responding())
+        let session = try await Self.session(to: server)
+        let model = await Self.model(session, settleDelay: .milliseconds(300))
+        let before = await Self.kinds(server).count
+
+        model.setEnvironment(.userInterfaceStyle, to: .userInterfaceStyle(.dark))
+        let answered = await Wait.until {
+            await MainActor.run { model.environment.controls?.isSending == false }
+        }
+        XCTAssertTrue(answered)
+        // While the first change's refresh waits.
+        model.setEnvironment(.layoutDirection, to: .layoutDirection(.rightToLeft))
+        let refreshed = await Wait.until { await Self.kinds(server).dropFirst(before).contains(.getHierarchy) }
+        XCTAssertTrue(refreshed)
+        try await Task.sleep(for: .milliseconds(500))
+        let after = await Self.kinds(server).dropFirst(before)
+        XCTAssertEqual(after.filter { $0 == .setEnvironment }.count, 2)
+        XCTAssertEqual(after.filter { $0 == .getHierarchy }.count, 1, "the first change's refresh was not made")
+        let set = try XCTUnwrap(after.lastIndex(of: .setEnvironment))
+        let tree = try XCTUnwrap(after.firstIndex(of: .getHierarchy))
+        XCTAssertLessThan(set, tree)
+        XCTAssertEqual(model.changesOnTheirWay, 0)
+        await session.close()
+        await server.stop()
+    }
+
+    @MainActor
+    func test_C_ENV_03_closingWhileWaitingRefreshesNothing() async throws {
+        let server = try await MockServer.start(script: try Self.responding())
+        let session = try await Self.session(to: server)
+        let model = await Self.model(session, settleDelay: .milliseconds(300))
+        let before = await Self.kinds(server).count
+
+        model.setEnvironment(.userInterfaceStyle, to: .userInterfaceStyle(.dark))
+        let answered = await Wait.until {
+            await MainActor.run { model.environment.controls?.isSending == false }
+        }
+        XCTAssertTrue(answered)
+        model.leave()
+        XCTAssertEqual(model.changesOnTheirWay, 0)
+        try await Task.sleep(for: .milliseconds(500))
+        let after = await Self.kinds(server).dropFirst(before)
+        XCTAssertFalse(after.contains(.getHierarchy))
         await session.close()
         await server.stop()
     }

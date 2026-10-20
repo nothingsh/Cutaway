@@ -2,13 +2,16 @@ import CutawayModel
 import CutawayWire
 
 /// What a value is known by, besides itself (C-ATTR-22, C-SRC-04, C-SRC-05): a colour's name
-/// from the app's asset catalog or UIKit, and the key of the string table a text comes from.
+/// from the app's asset catalog or UIKit, its two appearances (C-ATTR-25), and the key of the
+/// string table a text comes from.
 struct ValueNames: Equatable {
     /// The colour's name, shown in place of its code; nil for a colour known by its code.
     var colorName: String?
     /// The colour's other names, for its tooltip before the code: "Asset: BrandBlue (Dark)",
     /// "System Blue".
     var colorNotes: [String] = []
+    /// The colour in light and in dark when they differ (C-ATTR-25, P-ATTR-17).
+    var appearance: AppearanceColors?
     /// "Key home.title · Localizable", the note under a text; nil for a text from no table.
     var stringKey: String?
     /// Every key the text is a value of, a line each, for the note's tooltip.
@@ -41,9 +44,11 @@ struct ValueNames: Equatable {
             let assets = index?.colors.matches(color, appearanceColors: attribute.appearanceColors) ?? []
             guard let first = assets.first else {
                 self.init(systemColorName: attribute.systemColorName)
+                appearance = attribute.appearanceColors
                 return
             }
             self.init(colorName: first.name, colorNotes: assets.map(Self.note) + [system].compactMap { $0 })
+            appearance = attribute.appearanceColors
         case .string(let text):
             let keys = index?.keys.matches(text) ?? []
             guard let first = keys.first else {

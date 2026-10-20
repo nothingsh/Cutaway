@@ -368,6 +368,74 @@ final class ConstraintsSectionTests: XCTestCase {
         await server.stop()
     }
 
+    /// The middle of a row, in the window.
+    @MainActor
+    private static func middle(of row: NSView) -> NSPoint {
+        row.convert(NSPoint(x: row.bounds.midX, y: row.bounds.midY), to: nil)
+    }
+
+    /// Reported by the user (2026-10-20): scrolling the attribute panel over the constraints
+    /// left rows filled and their ends marked, several at once. The section now says which
+    /// row the pointer is on, from where it is, and points at nothing while the list scrolls.
+    @MainActor
+    func test_C_LAYOUT_07_onlyTheRowUnderThePointerIsPointedAtAndScrollingPointsAtNothing() async throws {
+        let (model, session, server) = try await Self.inspection(answering: [3])
+        let controller = AttributesViewController(
+            store: model.attributes, appName: "Demo", layer: model.selectedLayerSummary,
+            tree: model.$tree.eraseToAnyPublisher(),
+            onPointConstraints: { [weak model] pointer in
+                switch pointer {
+                case .entered(let indices, let stresses):
+                    model?.pointConstraints(indices, stresses: stresses)
+                case .left(let indices):
+                    model?.leaveConstraints(indices)
+                }
+            },
+            loadingDelay: 0)
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 300, height: 600), styleMask: [.titled],
+            backing: .buffered, defer: false)
+        window.contentViewController = controller
+        await select(3, in: model)
+        window.layoutIfNeeded()
+        let section = try XCTUnwrap(controller.constraintsView)
+        XCTAssertGreaterThanOrEqual(section.rows.count, 2)
+        // The first two rows in view, with room to scroll a little.
+        let firstTwo = section.rows[0].frame.union(section.rows[1].frame)
+        section.rows[0].superview?.scrollToVisible(firstTwo.insetBy(dx: 0, dy: -40))
+        window.layoutIfNeeded()
+        controller.constraintsView?.pointerMayHaveMoved()
+
+        // From one row to the next without the pointer leaving the first, as when rows move
+        // under it: only the second is pointed at, and only its ends are marked.
+        section.pointerMoved(to: Self.middle(of: section.rows[0]))
+        XCTAssertEqual(section.rows.map(\.isHovered).prefix(2), [true, false])
+        section.pointerMoved(to: Self.middle(of: section.rows[1]))
+        XCTAssertEqual(section.rows.map(\.isHovered).prefix(2), [false, true])
+        let marked = model.constraintEnds
+        section.rows[1].point(false)
+        section.rows[1].point(true)
+        XCTAssertEqual(model.constraintEnds, marked, "the second row's ends alone")
+
+        // The list scrolls: nothing is pointed at, and rows passing under the pointer stay
+        // plain until it is still.
+        let origin = controller.list.contentView.bounds.origin
+        controller.list.contentView.scroll(to: NSPoint(x: 0, y: origin.y + 4))
+        controller.list.reflectScrolledClipView(controller.list.contentView)
+        XCTAssertFalse(section.rows.contains(where: \.isHovered))
+        XCTAssertEqual(model.constraintEnds, [])
+        section.pointerMoved(to: Self.middle(of: section.rows[0]))
+        XCTAssertFalse(section.rows[0].isHovered, "not while it scrolls")
+        // Once still, the row under the pointer is pointed at again.
+        section.pointerMayHaveMoved()
+        section.pointerMoved(to: Self.middle(of: section.rows[0]))
+        XCTAssertTrue(section.rows[0].isHovered)
+
+        withExtendedLifetime(window) {}
+        await session.close()
+        await server.stop()
+    }
+
     @MainActor
     func test_C_LAYOUT_06_aChipThatGoesNowhereIsNotHovered() throws {
         let end = ConstraintRow.End(

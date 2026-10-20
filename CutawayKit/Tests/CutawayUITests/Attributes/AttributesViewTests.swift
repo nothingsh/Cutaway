@@ -43,21 +43,23 @@ final class AttributesViewTests: XCTestCase {
 
     /// Layer 3 of `layer-details`, attribute by attribute, as listed (C-ATTR-10): the five
     /// sections by what the attributes are for, Object last.
-    private static let sectionTitles = ["Label", "Appearance", "Layout", "Behavior", "Object"]
+    private static let sectionTitles = ["Label", "Appearance", "Layout", "Behavior", "Accessibility", "Object"]
     private static let attributeTitles = [
         "Text", "Font Size", "Text Style", "Adjusts to Text Size", "Lines", "Text Alignment",
-        "Hidden", "Opacity", "Background", "Tint", "Label", "Shadow Opacity", "Shadow Offset",
+        "Hidden", "Opacity", "Background", "Tint", "Shadow Opacity", "Shadow Offset",
         "Border Width", "Border Color",
         "Layout Margins", "Frame", "Bounds", "Position", "Transform",
         "User Interaction",
+        "Label",
         "Tag",
     ]
     private static let values = [
         "Hello", "17", "body", "Yes", "1", "center",
-        "No", "1", "None", "0 0.4784 1 1", "Welcome", "0", "0 × -3", "0", "0 0 0 1",
+        "No", "1", "None", "0 0.4784 1 1", "0", "0 × -3", "0", "0 0 0 1",
         "top 8, left 8, bottom 8, right 8", "96.5, 108, 200, 24", "0, 0, 200, 24", "196.5, 120",
         "Identity",
         "No",
+        "Welcome",
         "0",
     ]
 
@@ -299,7 +301,7 @@ final class AttributesViewTests: XCTestCase {
         // The Content section takes its group's title; the others are the panel's own.
         XCTAssertEqual(
             controller.sectionViews.map(\.title),
-            [Fixtures.renamed("Label"), "Appearance", "Layout", "Behavior", "Object"])
+            [Fixtures.renamed("Label"), "Appearance", "Layout", "Behavior", "Accessibility", "Object"])
         XCTAssertEqual(rows(controller).map(\.title), Self.attributeTitles.map(Fixtures.renamed))
         XCTAssertEqual(rows(controller).map(\.plainText), Self.values, "values stay")
         let shown = Set([controller.sectionViews[0].title] + rows(controller).map(\.title))
@@ -324,6 +326,27 @@ final class AttributesViewTests: XCTestCase {
         let object = try XCTUnwrap(controller.objectSection)
         XCTAssertTrue(isShown(object))
         XCTAssertEqual(object.header.shownText, "Object", "no Tag and no addresses to sum up")
+
+        withExtendedLifetime(window) {}
+        await session.close()
+        await server.stop()
+    }
+
+    // MARK: - C-ATTR-26: Accessibility
+
+    @MainActor
+    func test_C_ATTR_26_filteringLabelKeepsTheAccessibilityLabel() async throws {
+        let (model, session, server) = try await inspection(
+            try MockScript.fixtures("layer-details", "layer-details").steps)
+        let (controller, window) = panel(for: model)
+        let section = try XCTUnwrap(controller.section(.accessibility))
+        XCTAssertEqual(section.title, "Accessibility")
+
+        filter("label", in: controller)
+        let row = try XCTUnwrap(rows(controller).first { $0.attributeID == "view.accessibilityLabel" })
+        XCTAssertTrue(isShown(row), "kept by its ID")
+        XCTAssertTrue(row.isDescendant(of: section))
+        XCTAssertTrue(isShown(section))
 
         withExtendedLifetime(window) {}
         await session.close()

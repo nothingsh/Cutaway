@@ -213,6 +213,12 @@ public final class InspectionStore: ObservableObject {
     /// Changes sent and not yet answered. No batch of screenshots starts meanwhile: it would
     /// go ahead of the next one on the server (P-REQ-06).
     var changesOnTheirWay = 0
+    /// How long the app is given to redraw after its environment changed, before the tree and
+    /// the screenshots are taken again (C-ENV-02): an app may update its look a moment
+    /// after the change, which no server can wait for. Tests set it to zero.
+    package var environmentSettleDelay: Duration = .milliseconds(500)
+    /// The refresh that waits for it; its change counts as on its way until then.
+    var environmentSettle: Task<Void, Never>?
     /// Decompresses one image. Only ever called away from the main thread (C-DET-09). Tests
     /// replace it.
     var decodeImage: @Sendable (EncodedImage) throws -> Bitmap = { try $0.decoded() }
@@ -311,6 +317,7 @@ public final class InspectionStore: ObservableObject {
     /// (C-DET-02), and the screenshots held are let go unless the app went away (C-DET-10).
     public func leave() {
         isOpen = false
+        cancelEnvironmentSettle()
         // A reload queued for the visit that ends is not wanted: entering again reloads.
         loader.dropQueued()
         fetcher.cancelWaitForRows()
@@ -342,6 +349,7 @@ public final class InspectionStore: ObservableObject {
     /// never lost.
     package func connectionLost(waiting: Bool = false) {
         connectionWasLost = true
+        cancelEnvironmentSettle()
         if connection == .live { connection = .lost(waiting: waiting) }
         environmentController.connectionLost()
     }
