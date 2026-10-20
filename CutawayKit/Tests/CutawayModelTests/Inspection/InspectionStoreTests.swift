@@ -32,7 +32,7 @@ final class InspectionStoreTests: XCTestCase {
         return session
     }
 
-    /// The fixture without layer 8 and with a new layer 10 under layer 2.
+    /// The fixture without layer 8 and with a new layer 20 under layer 2.
     private func changedHierarchy() throws -> Hierarchy {
         try Self.changed()
     }
@@ -40,7 +40,7 @@ final class InspectionStoreTests: XCTestCase {
     static func changed() throws -> Hierarchy {
         var hierarchy = try Fixtures.hierarchy()
         hierarchy.nodes.removeAll { $0.id == 8 }
-        hierarchy.nodes.append(LayerTreeTests.node(10, parent: 2))
+        hierarchy.nodes.append(LayerTreeTests.node(20, parent: 2))
         return hierarchy
     }
 
@@ -61,7 +61,7 @@ final class InspectionStoreTests: XCTestCase {
 
         let tree = await model.tree
         XCTAssertEqual(tree, try LayerTree(try Fixtures.hierarchy()))
-        XCTAssertEqual(tree.ids, [1, 2, 3, 4, 5, 6, 7, 8, 9])
+        XCTAssertEqual(tree.ids, [1, 2, 3, 4, 10, 11, 12, 5, 6, 7, 8, 9, 13, 14])
         let mismatches = await server.mismatches
         XCTAssertEqual(mismatches, [])
 
@@ -81,7 +81,7 @@ final class InspectionStoreTests: XCTestCase {
 
         XCTAssertEqual(
             model.loadState, .failed(.invalidHierarchy("the ID 3 appears more than once")))
-        XCTAssertEqual(model.tree.count, 9)
+        XCTAssertEqual(model.tree.count, 14)
         XCTAssertFalse(model.isExpanded(4))
 
         // The next good hierarchy is taken as usual.
@@ -144,7 +144,7 @@ final class InspectionStoreTests: XCTestCase {
         let loaded = await Wait.until { await model.loadState == .loaded }
         XCTAssertTrue(loaded)
         let count = await model.tree.count
-        XCTAssertEqual(count, 9)
+        XCTAssertEqual(count, 14)
 
         await session.close()
         await server.stop()
@@ -178,7 +178,7 @@ final class InspectionStoreTests: XCTestCase {
         model.apply(try Fixtures.hierarchy())
 
         XCTAssertEqual(model.loadState, .loaded)
-        XCTAssertEqual(model.tree.ids.filter { !model.isExpanded($0) }, [4, 6])
+        XCTAssertEqual(model.tree.ids.filter { !model.isExpanded($0) }, [4, 10, 6, 13])
         XCTAssertNil(model.selectedLayerID)
     }
 
@@ -292,12 +292,12 @@ final class InspectionStoreTests: XCTestCase {
 
         model.apply(try changedHierarchy())
 
-        XCTAssertEqual(model.tree.ids, [1, 2, 3, 4, 5, 6, 7, 9, 10])
+        XCTAssertEqual(model.tree.ids, [1, 2, 3, 4, 10, 11, 12, 5, 6, 7, 9, 13, 14, 20])
         XCTAssertFalse(model.isExpanded(4), "layer 4 was collapsed and is still there")
         XCTAssertTrue(model.isExpanded(6))
         XCTAssertEqual(model.selectedLayerID, 7)
         // A new layer takes the default.
-        XCTAssertTrue(model.isExpanded(10))
+        XCTAssertTrue(model.isExpanded(20))
         // A layer that is gone has no state…
         XCTAssertFalse(model.isExpanded(8))
 
@@ -324,7 +324,7 @@ final class InspectionStoreTests: XCTestCase {
         moved.nodes.insert(three, at: afterFour)
         model.apply(moved)
 
-        XCTAssertEqual(model.tree.children(of: 4), [3, 5])
+        XCTAssertEqual(model.tree.children(of: 4), [3, 10, 12, 5])
         XCTAssertEqual(model.selectedLayerID, 4)
     }
 
@@ -336,25 +336,25 @@ final class InspectionStoreTests: XCTestCase {
         model.select(8)
 
         // What a subscriber sees at the moment the new tree is published.
-        var seen: [(ids: [UInt64], four: Bool, ten: Bool, selected: UInt64?)] = []
+        var seen: [(ids: [UInt64], four: Bool, twenty: Bool, selected: UInt64?)] = []
         let subscription = model.$tree.dropFirst().sink { tree in
-            seen.append((tree.ids, model.isExpanded(4), model.isExpanded(10), model.selectedLayerID))
+            seen.append((tree.ids, model.isExpanded(4), model.isExpanded(20), model.selectedLayerID))
         }
         model.apply(try changedHierarchy())
         subscription.cancel()
 
         XCTAssertEqual(seen.count, 1)
-        XCTAssertEqual(seen.first?.ids, [1, 2, 3, 4, 5, 6, 7, 9, 10])
+        XCTAssertEqual(seen.first?.ids, [1, 2, 3, 4, 10, 11, 12, 5, 6, 7, 9, 13, 14, 20])
         XCTAssertEqual(seen.first?.four, false)
-        XCTAssertEqual(seen.first?.ten, true)
+        XCTAssertEqual(seen.first?.twenty, true)
         XCTAssertNil(seen.first?.selected, "layer 8 is gone, and the selection with it")
     }
 
     func test_C_DET_02_aReloadAskedForDuringOneIsMadeAfterIt() async throws {
         // The second request is answered 200 ms late with a changed tree; a third one is
-        // expected after it, answered with a tree that has a layer 11.
+        // expected after it, answered with a tree that has a layer 21.
         var third = try Fixtures.hierarchy()
-        third.nodes.append(LayerTreeTests.node(11, parent: 2))
+        third.nodes.append(LayerTreeTests.node(21, parent: 2))
         var steps = try MockScript.fixtures("handshake", "hierarchy").steps
         steps += [
             .expect(.getHierarchy, as: 50),
@@ -379,9 +379,9 @@ final class InspectionStoreTests: XCTestCase {
             return (model.loadState, model.tree.count)
         }
         XCTAssertEqual(stateAfterAsking.0, .loaded)
-        XCTAssertEqual(stateAfterAsking.1, 9)
+        XCTAssertEqual(stateAfterAsking.1, 14)
 
-        let reloaded = await Wait.until { await model.tree.contains(11) }
+        let reloaded = await Wait.until { await model.tree.contains(21) }
         XCTAssertTrue(reloaded)
         try await Task.sleep(for: .milliseconds(200))
         // Hello and three GetHierarchy: the first, the one asked for, the one queued.
@@ -509,9 +509,9 @@ final class InspectionStoreTests: XCTestCase {
         model.setExpanded(4, true)
         model.setExpanded(42, false)  // not in the tree
         XCTAssertEqual(revisions.count, 2)
-        XCTAssertEqual(model.expandedLayerIDs, Set(1...9))
+        XCTAssertEqual(model.expandedLayerIDs, Set(1...14))
         model.setExpanded(6, false)
-        XCTAssertEqual(model.expandedLayerIDs, Set(1...9).subtracting([6]))
+        XCTAssertEqual(model.expandedLayerIDs, Set(1...14).subtracting([6]))
         subscription.cancel()
     }
 
@@ -674,12 +674,13 @@ final class InspectionStoreTests: XCTestCase {
 
     @MainActor
     func test_C_SCENE_03_aLayerThatLostItsSublayersShowsItsNewGroup() async throws {
-        // Layer 4 had a solo and a group; reloaded without its sublayer 5, it is a leaf that
-        // asks for its group only. The new group is drawn, not the old solo.
+        // Layer 4 had a solo and a group; reloaded without its sublayer 5 and its virtual
+        // nodes 10 to 12, it is a leaf that asks for its group only. The new group is drawn,
+        // not the old solo.
         let model = try loadedModel()
         await model.applyDetails(try Fixtures.layerDetails(scenario: "layer-details"))
         var withoutFive = try Fixtures.hierarchy()
-        withoutFive.nodes.removeAll { $0.id == 5 }
+        withoutFive.nodes.removeAll { [5, 10, 11, 12].contains($0.id) }
         model.apply(withoutFive)
 
         var groupOnly = try XCTUnwrap(

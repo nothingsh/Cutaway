@@ -202,6 +202,10 @@ public struct Attribute: Equatable, Sendable {
     /// when the server gave only one. On the wire it is part of the `ColorValue`, like
     /// `systemColorName`. Protocol 1.2.
     public var appearanceColors: AppearanceColors?
+    /// The name of a colour the host app registered that equals the value (P-ATTR-20), for
+    /// example "brandBlue". On the wire it is part of the `ColorValue`, like `systemColorName`.
+    /// Protocol 1.2.
+    public var registeredColorName: String?
 
     public init(
         id: String?, title: String?, value: AttributeValue?, editable: Bool = false,
@@ -209,7 +213,7 @@ public struct Attribute: Equatable, Sendable {
         section: AttributeSection = .unspecified, limits: [NumberLimit]? = nil,
         cluster: AttributeCluster? = nil, inactiveCause: String? = nil,
         unit: AttributeUnit = .unspecified, systemColorName: String? = nil,
-        appearanceColors: AppearanceColors? = nil
+        appearanceColors: AppearanceColors? = nil, registeredColorName: String? = nil
     ) {
         self.id = id
         self.title = title
@@ -224,6 +228,7 @@ public struct Attribute: Equatable, Sendable {
         self.unit = unit
         self.systemColorName = systemColorName
         self.appearanceColors = appearanceColors
+        self.registeredColorName = registeredColorName
     }
 }
 
@@ -235,11 +240,17 @@ public struct AttributeGroup: Equatable, Sendable {
     /// The runtime name of the class that declares the group's properties (P-ATTR-16), for
     /// example "UILabel". Protocol 1.1.
     public var className: String?
+    /// The group comes from the host app, not the server's own list (P-ATTR-19). Protocol 1.2.
+    public var isFromApp: Bool
 
-    public init(id: String?, title: String?, attributes: [Attribute], className: String? = nil) {
+    public init(
+        id: String?, title: String?, attributes: [Attribute], className: String? = nil,
+        isFromApp: Bool = false
+    ) {
         self.id = id
         self.title = title
         self.attributes = attributes
         self.className = className
+        self.isFromApp = isFromApp
     }
 }

@@ -41,9 +41,10 @@ enum RenderFixtures {
         return keys
     }
 
-    /// The `hierarchy` fixture's layers.
+    /// The `hierarchy` fixture's layers as they were before 1.2: the baselines are drawn
+    /// without its virtual and excluded nodes (10 to 14) until a later change draws them.
     static func hierarchyLayers(textures: [UInt64: LayerTextures]) throws -> [SceneLayer] {
-        try LayerTree(try Fixtures.hierarchy()).sceneLayers(textures: textures)
+        try LayerTree(try Fixtures.hierarchyBeforeProtocol12()).sceneLayers(textures: textures)
     }
 
     /// The layers with every node expanded.

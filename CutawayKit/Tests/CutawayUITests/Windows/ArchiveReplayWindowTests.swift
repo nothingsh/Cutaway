@@ -61,8 +61,8 @@ final class ArchiveReplayWindowTests: XCTestCase {
         let replayed = try await shown(over: try MockScript.replaying(archive: Fixtures.archive()))
 
         XCTAssertEqual(replayed, direct)
-        XCTAssertEqual(replayed.rows, 9)
-        XCTAssertEqual(replayed.ids.count, 9)
+        XCTAssertEqual(replayed.rows, 14)
+        XCTAssertEqual(replayed.ids.count, 14)
         XCTAssertNotNil(replayed.three)
         XCTAssertNotNil(replayed.four)
         XCTAssertEqual(replayed.attributes.flatMap(\.attributes).count, 22)

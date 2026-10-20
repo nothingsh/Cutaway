@@ -78,8 +78,8 @@ public enum Fixtures {
 }
 
 extension Fixtures {
-    /// The `Hierarchy` of the `hierarchy` scenario: one window, nine nodes
-    /// (Protocol/fixtures/README.md).
+    /// The `Hierarchy` of the `hierarchy` scenario: one window, fourteen nodes, three of them
+    /// virtual and two excluded from images (Protocol/fixtures/README.md).
     public static func hierarchy() throws -> Hierarchy {
         let frame = try FrameCodec.decode(
             try data(scenario: "hierarchy", file: "02-s2c-hierarchy.bin"))
@@ -89,8 +89,17 @@ extension Fixtures {
         return hierarchy
     }
 
-    /// The answer to `GetSubtree(4)` in the `subtree` scenario: nodes 4 and 5, as in
-    /// `hierarchy()` (Protocol/fixtures/README.md). Protocol 0.3.
+    /// The `hierarchy` scenario without the nodes 1.2 added to it (10 to 14): the nine nodes the
+    /// baselines are drawn from until virtual and excluded nodes have their own look in
+    /// a later change.
+    public static func hierarchyBeforeProtocol12() throws -> Hierarchy {
+        var hierarchy = try hierarchy()
+        hierarchy.nodes.removeAll { $0.id >= 10 }
+        return hierarchy
+    }
+
+    /// The answer to `GetSubtree(4)` in the `subtree` scenario: nodes 4, 10, 11, 12 and 5, as
+    /// in `hierarchy()` (Protocol/fixtures/README.md). Protocol 0.3.
     public static func subtreeOfNode4() throws -> Hierarchy {
         let frame = try FrameCodec.decode(
             try data(scenario: "subtree", file: "02-s2c-hierarchy.bin"))
@@ -177,9 +186,11 @@ extension Fixtures {
     public static func withoutProtocol12(_ groups: [AttributeGroup]) -> [AttributeGroup] {
         groups.map { group in
             var group = group
+            group.isFromApp = false
             group.attributes = group.attributes.map { attribute in
                 var attribute = attribute
                 attribute.appearanceColors = nil
+                attribute.registeredColorName = nil
                 if attribute.section == .accessibility { attribute.section = .unspecified }
                 if let cluster = attribute.cluster, protocol12Clusters.contains(cluster.name)
                     || protocol12Slots.contains(cluster)
@@ -198,6 +209,21 @@ extension Fixtures {
             }
             return group
         }
+    }
+
+    /// The hierarchy with none of the fields 1.2 added to nodes (C-WIRE-12): every node a layer,
+    /// with no name, neither collapsed by default nor excluded. The nodes themselves stay.
+    public static func withoutProtocol12(_ hierarchy: Hierarchy) -> Hierarchy {
+        var hierarchy = hierarchy
+        hierarchy.nodes = hierarchy.nodes.map { node in
+            var node = node
+            node.kind = .layer
+            node.name = nil
+            node.isCollapsedByDefault = false
+            node.isCaptureExcluded = false
+            return node
+        }
+        return hierarchy
     }
 
     private static let protocol12Clusters: Set = ["image", "indexPath", "listCounts"]
@@ -226,7 +252,7 @@ extension Fixtures {
     /// The hierarchy as a 1.0 server sends it: nothing of 1.1, so no addresses either
     /// (C-WIRE-10).
     public static func withoutProtocol11(_ hierarchy: Hierarchy) -> Hierarchy {
-        var hierarchy = withoutTheOptionalFields(hierarchy)
+        var hierarchy = withoutTheOptionalFields(withoutProtocol12(hierarchy))
         hierarchy.nodes = hierarchy.nodes.map { node in
             var node = node
             node.layerAddress = nil
@@ -314,7 +340,10 @@ extension Fixtures {
             var group = group
             group.attributes = group.attributes.map { attribute in
                 var attribute = attribute
-                if attribute.id == "view.backgroundColor" { attribute.value = nil }
+                if attribute.id == "view.backgroundColor" {
+                    attribute.value = nil
+                    attribute.registeredColorName = nil
+                }
                 return attribute
             }
             return group

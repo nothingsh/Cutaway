@@ -36,19 +36,22 @@ final class LayerTreeTests: XCTestCase {
 
     // MARK: - C-HIER-01: the tree
 
-    func test_C_HIER_01_theFixtureBecomesATreeOfNineNodes() throws {
+    func test_C_HIER_01_theFixtureBecomesATreeOfFourteenNodes() throws {
         let tree = try LayerTree(try Fixtures.hierarchy())
 
-        XCTAssertEqual(tree.count, 9)
-        XCTAssertEqual(tree.ids, [1, 2, 3, 4, 5, 6, 7, 8, 9])
+        XCTAssertEqual(tree.count, 14)
+        XCTAssertEqual(tree.ids, [1, 2, 3, 4, 10, 11, 12, 5, 6, 7, 8, 9, 13, 14])
         XCTAssertEqual(tree.roots, [1])
         XCTAssertEqual(tree.keyWindowID, 1)
 
         XCTAssertEqual(tree.children(of: 1), [2])
-        XCTAssertEqual(tree.children(of: 2), [3, 4, 6, 8, 9])
-        XCTAssertEqual(tree.children(of: 4), [5])
+        XCTAssertEqual(tree.children(of: 2), [3, 4, 6, 8, 9, 13])
+        // The virtual nodes come before the layer's sublayers (P-HIER-21).
+        XCTAssertEqual(tree.children(of: 4), [10, 12, 5])
+        XCTAssertEqual(tree.children(of: 10), [11])
         XCTAssertEqual(tree.children(of: 6), [7])
-        for leaf: UInt64 in [3, 5, 7, 8, 9] {
+        XCTAssertEqual(tree.children(of: 13), [14])
+        for leaf: UInt64 in [3, 5, 7, 8, 9, 11, 12, 14] {
             XCTAssertEqual(tree.children(of: leaf), [], "layer \(leaf)")
         }
 
@@ -58,8 +61,8 @@ final class LayerTreeTests: XCTestCase {
         XCTAssertEqual(tree.parent(of: 7), 6)
         XCTAssertEqual(tree.parent(of: 9), 2)
 
-        XCTAssertTrue(tree.contains(9))
-        XCTAssertFalse(tree.contains(10))
+        XCTAssertTrue(tree.contains(14))
+        XCTAssertFalse(tree.contains(15))
         XCTAssertEqual(tree.node(4)?.viewClassName, "Demo.CardView")
     }
 
@@ -222,22 +225,27 @@ final class LayerTreeTests: XCTestCase {
 
     func test_C_HIER_04_theFixturesLabels() throws {
         let tree = try LayerTree(try Fixtures.hierarchy())
-        XCTAssertEqual(tree.ids.filter { tree.matches($0, "label") }, [3, 7])
-        // 5 too: since protocol 0.2, CardView.badgeLayer holds it (C-HIER-07).
-        XCTAssertEqual(tree.ids.filter { tree.matches($0, "cardview") }, [4, 5])
+        XCTAssertEqual(tree.ids.filter { tree.matches($0, "label") }, [3, 7, 14])
+        // 5 too: since protocol 0.2, CardView.badgeLayer holds it (C-HIER-07); and 13, a
+        // PaymentCardView.
+        XCTAssertEqual(tree.ids.filter { tree.matches($0, "cardview") }, [4, 5, 13])
     }
 
     func test_C_HIER_06_theWholeTreeWithDepths() throws {
         let tree = try LayerTree(try Fixtures.hierarchy())
-        XCTAssertEqual(tree.layers(within: nil).map(\.id), [1, 2, 3, 4, 5, 6, 7, 8, 9])
-        XCTAssertEqual(tree.layers(within: nil).map(\.depth), [0, 1, 2, 2, 3, 2, 3, 2, 2])
+        XCTAssertEqual(
+            tree.layers(within: nil).map(\.id), [1, 2, 3, 4, 10, 11, 12, 5, 6, 7, 8, 9, 13, 14])
+        XCTAssertEqual(
+            tree.layers(within: nil).map(\.depth), [0, 1, 2, 2, 3, 4, 3, 3, 2, 3, 2, 2, 2, 3])
     }
 
     func test_C_HIER_05_aSubtreeWithDepthsFromItsRoot() throws {
         let tree = try LayerTree(try Fixtures.hierarchy())
         XCTAssertEqual(
-            tree.layers(within: 4), [LayerDepth(id: 4, depth: 0), LayerDepth(id: 5, depth: 1)])
-        XCTAssertEqual(tree.layers(within: 2).map(\.id), [2, 3, 4, 5, 6, 7, 8, 9])
+            tree.layers(within: 4),
+            [LayerDepth(id: 4, depth: 0), LayerDepth(id: 10, depth: 1), LayerDepth(id: 11, depth: 2),
+             LayerDepth(id: 12, depth: 1), LayerDepth(id: 5, depth: 1)])
+        XCTAssertEqual(tree.layers(within: 2).map(\.id), [2, 3, 4, 10, 11, 12, 5, 6, 7, 8, 9, 13, 14])
         XCTAssertEqual(tree.layers(within: 9), [LayerDepth(id: 9, depth: 0)])
         XCTAssertEqual(tree.layers(within: 42), [])
     }
@@ -275,7 +283,7 @@ final class LayerTreeTests: XCTestCase {
         XCTAssertEqual(
             tree.memberTitles(of: 5), ["CardView.badgeLayer", "HomeViewController.cardBadge"])
         XCTAssertEqual(tree.memberTitles(of: 8), ["DMBaseViewController._dividerLayer"])
-        XCTAssertEqual(tree.ids.filter { !tree.memberTitles(of: $0).isEmpty }, [3, 4, 5, 6, 8])
+        XCTAssertEqual(tree.ids.filter { !tree.memberTitles(of: $0).isEmpty }, [3, 4, 5, 6, 8, 13])
     }
 
     func test_C_HIER_07_namesFallBackAndEmptyOnesAreSkipped() throws {
@@ -299,13 +307,14 @@ final class LayerTreeTests: XCTestCase {
         let tree = try LayerTree(try Fixtures.hierarchy())
         func matching(_ text: String) -> [UInt64] { tree.ids.filter { tree.matches($0, text) } }
         XCTAssertEqual(matching("titleLabel"), [3])
-        XCTAssertEqual(matching("HomeViewController"), [2, 3, 4, 5, 6])
+        XCTAssertEqual(matching("HomeViewController"), [2, 3, 4, 5, 6, 13])
         // A member is matched as the list and the header show it, "Owner.name": not by the
         // runtime name of its owner. The layer's own names, raw ones too, still count.
         XCTAssertEqual(matching("Demo.CardView"), [4], "4's own view class, not 5's member")
         XCTAssertEqual(matching("Demo.HomeViewController"), [2], "2's own view controller")
         XCTAssertEqual(matching("DMBase"), [8])
-        XCTAssertEqual(matching("cardBadge"), [5], "the second reference counts too")
+        // 11 by its class, CardBadge.
+        XCTAssertEqual(matching("cardBadge"), [11, 5], "the second reference counts too")
         XCTAssertEqual(matching("HomeViewController.cardView"), [4])
     }
 

@@ -48,7 +48,7 @@ final class ArchiveReplayTests: XCTestCase {
         let hierarchy = try await session.hierarchy()
         XCTAssertEqual(hierarchy, decoder.hierarchy)
         let subtree = try await session.subtree(of: 4)
-        XCTAssertEqual(subtree.nodes.map(\.id), [4, 5])
+        XCTAssertEqual(subtree.nodes.map(\.id), [4, 10, 11, 12, 5])
 
         let stored = (0..<decoder.chunkCount).flatMap { (try? decoder.chunk(at: $0).details) ?? [] }
         let answered = try await Self.chunks(Self.everything(hierarchy.nodes.map(\.id)), session)

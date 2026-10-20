@@ -21,7 +21,7 @@ final class NonFiniteLayerStoreTests: XCTestCase {
         let model = InspectionStore(session: session, maxTextureDimension: 4096)
         model.enter()
 
-        let listed = await Wait.until { await model.tree.count == 9 }
+        let listed = await Wait.until { await model.tree.count == 14 }
         XCTAssertTrue(listed, "the tree has \(model.tree.count) layers")
         XCTAssertTrue(model.tree.contains(4))
         XCTAssertTrue(model.tree.contains(5))

@@ -3,9 +3,11 @@ import CutawayTestSupport
 import Foundation
 
 enum SceneFixtures {
-    /// The nine layers of the `hierarchy` fixture as the scene's input.
+    /// The nine layers the `hierarchy` fixture had before 1.2 as the scene's input: its
+    /// virtual and excluded nodes (10 to 14) are left out until the scene places them in
+    /// a later change (C-SCENE-13).
     static func hierarchyLayers(textures: [UInt64: LayerTextures] = [:]) throws -> [SceneLayer] {
-        try SceneInput.hierarchyFixture(textures: textures)
+        SceneInput.layers(of: try Fixtures.hierarchyBeforeProtocol12(), textures: textures)
     }
 
     static let allIDs: Set<UInt64> = Set(1...9)

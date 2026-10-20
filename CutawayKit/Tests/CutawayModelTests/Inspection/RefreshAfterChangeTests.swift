@@ -39,7 +39,7 @@ final class RefreshAfterChangeTests: XCTestCase {
         XCTAssertTrue(ready)
         if screenshots {
             let settled = await Wait.until {
-                await model.detailProgress == DetailProgress(completed: 7, total: 7)
+                await model.detailProgress == DetailProgress(completed: 10, total: 10)
             }
             XCTAssertTrue(settled)
         }
@@ -115,13 +115,13 @@ final class RefreshAfterChangeTests: XCTestCase {
     @MainActor
     func test_C_DET_06_layersThatMovedOrAppearedAreAskedForTooAndGoneOnesLeave() async throws {
         var hierarchy = try Fixtures.hierarchy()
-        // Layer 6 moved; layer 8 is gone; layer 10 is new, where 8 was.
+        // Layer 6 moved; layer 8 is gone; layer 20 is new, where 8 was.
         let six = try XCTUnwrap(hierarchy.nodes.firstIndex { $0.id == 6 })
         hierarchy.nodes[six].position?.y += 20
         let eight = try XCTUnwrap(hierarchy.nodes.firstIndex { $0.id == 8 })
-        var ten = hierarchy.nodes[eight]
-        ten.id = 10
-        hierarchy.nodes[eight] = ten
+        var twenty = hierarchy.nodes[eight]
+        twenty.id = 20
+        hierarchy.nodes[eight] = twenty
         var steps = try MockScript.fixtures("handshake", "hierarchy", "layer-details").steps
         steps += try Self.result(30)
         steps += Self.subtree(hierarchy, as: 31)
@@ -136,7 +136,7 @@ final class RefreshAfterChangeTests: XCTestCase {
         let requests = await Self.requests(server)
         XCTAssertEqual(
             requests.last?.requests,
-            [Self.request(3, .group), Self.request(6, .solo), Self.request(10, .group)])
+            [Self.request(3, .group), Self.request(6, .solo), Self.request(20, .group)])
         XCTAssertFalse(model.tree.contains(8))
         XCTAssertNil(model.images[8])
 
@@ -448,7 +448,7 @@ final class RefreshAfterChangeTests: XCTestCase {
     func test_C_DET_06_anAnswerThatIsNotTheWindowsSubtreeLoadsTheWholeTree() async throws {
         let tree = try Fixtures.hierarchy()
         var stray = tree.nodes[2]
-        stray.id = 11
+        stray.id = 21
         stray.parentID = 99
         var steps = try MockScript.fixtures("handshake", "hierarchy").steps
         steps += try Self.result(30)
@@ -465,7 +465,7 @@ final class RefreshAfterChangeTests: XCTestCase {
         XCTAssertTrue(reloaded)
         let done = await Wait.until { await !model.isLoading }
         XCTAssertTrue(done)
-        XCTAssertEqual(model.tree.count, 9)
+        XCTAssertEqual(model.tree.count, 14)
 
         await session.close()
         await server.stop()

@@ -123,8 +123,28 @@ public struct LayerTree: Equatable, Sendable {
     /// in any window when the key window is not in the tree, and the server does not say it
     /// is not shown. Without any, every layer of
     /// those windows that is not dimmed opens. Everything else, other windows too, starts
-    /// collapsed.
+    /// collapsed. A node the app asks to start collapsed does, with everything below it
+    /// (C-HIER-17, P-HIER-23).
     public func defaultExpansion() -> Set<UInt64> {
+        let opened = openedByRule()
+        let marked = collapsedByTheApp()
+        return marked.isEmpty ? opened : opened.subtracting(marked)
+    }
+
+    /// The nodes the app asks to start collapsed, and every node below one.
+    private func collapsedByTheApp() -> Set<UInt64> {
+        var marked = Set<UInt64>()
+        // Parents come before their children, as on the wire.
+        for id in ids {
+            guard let entry = entries[id] else { continue }
+            if entry.node.isCollapsedByDefault || parent(of: id).map(marked.contains) == true {
+                marked.insert(id)
+            }
+        }
+        return marked
+    }
+
+    private func openedByRule() -> Set<UInt64> {
         let windows: Set<UInt64> = entries[keyWindowID] != nil ? [keyWindowID] : Set(roots)
         // Each layer's window, parents first as on the wire.
         var windowOf: [UInt64: UInt64] = [:]
@@ -240,5 +260,21 @@ extension LayerTree {
             current = ancestor == focus ? nil : tree.parent(of: ancestor)
         }
         return result
+    }
+}
+
+extension LayerTree {
+    /// The tree with these nodes and everything below them excluded from images, as the app
+    /// said when asked for their images (P-DET-10, C-DET-11): until the next hierarchy that
+    /// covers them, which says again. Nodes not in the tree are ignored.
+    public func markingCaptureExcluded(_ ids: some Sequence<UInt64>) -> LayerTree {
+        var marked = self
+        var pending = Array(ids)
+        while let id = pending.popLast() {
+            guard let entry = marked.entries[id] else { continue }
+            marked.entries[id]?.node.isCaptureExcluded = true
+            pending.append(contentsOf: entry.children)
+        }
+        return marked
     }
 }

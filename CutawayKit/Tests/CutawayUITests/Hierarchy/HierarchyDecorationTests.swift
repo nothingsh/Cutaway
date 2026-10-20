@@ -119,9 +119,9 @@ final class HierarchyDecorationTests: XCTestCase {
     @MainActor
     func test_C_HIER_13_fewerAncestorsStickNearTheTopOfTheTree() throws {
         let model = model()
-        // Room for four or five rows: the nine rows scroll.
+        // Room for four or five rows: the nine rows of the fixture's layers of 1.1 scroll.
         let (controller, window) = controllerInWindow(for: model, height: 170)
-        model.apply(try Fixtures.hierarchy())
+        model.apply(try Fixtures.hierarchyBeforeProtocol12())
         window.layoutIfNeeded()
 
         // Rows 1 to 9, levels 0 1 2 2 3 2 3 2 2. Row 2 (layer 3) at the top: below three

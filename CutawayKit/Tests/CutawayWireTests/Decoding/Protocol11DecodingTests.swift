@@ -29,8 +29,13 @@ final class Protocol11DecodingTests: XCTestCase {
 
     func test_C_WIRE_10_hierarchyNodesCarryTheirAddresses() throws {
         let nodes = try nodes("hierarchy")
-        XCTAssertEqual(nodes.count, 9)
-        for node in nodes {
+        XCTAssertEqual(nodes.count, 14)
+        // A virtual node has no addresses (P-HIER-14, 1.2).
+        for node in nodes where node.kind == .virtual {
+            XCTAssertNil(node.layerAddress, "node \(node.id)")
+            XCTAssertNil(node.viewAddress, "node \(node.id)")
+        }
+        for node in nodes where node.kind == .layer {
             XCTAssertEqual(node.layerAddress, 0x6000_03B4_C000 + 0x40 * (node.id - 1), "node \(node.id)")
             if node.viewClassName == nil {
                 XCTAssertNil(node.viewAddress, "node \(node.id) backs no view")
@@ -40,13 +45,14 @@ final class Protocol11DecodingTests: XCTestCase {
             XCTAssertEqual(
                 node.viewControllerAddress, node.id == 2 ? 0x1_0300_7A00 : nil, "node \(node.id)")
         }
-        XCTAssertEqual(nodes.filter { $0.viewAddress == nil }.map(\.id), [5, 8])
+        XCTAssertEqual(
+            nodes.filter { $0.kind == .layer && $0.viewAddress == nil }.map(\.id), [5, 8])
     }
 
     func test_C_WIRE_10_aSubtreeCarriesTheSameAddresses() throws {
         let subtree = try nodes("subtree")
         let whole = try nodes("hierarchy")
-        XCTAssertEqual(subtree.map(\.id), [4, 5])
+        XCTAssertEqual(subtree.map(\.id), [4, 10, 11, 12, 5])
         for node in subtree {
             let same = try XCTUnwrap(whole.first { $0.id == node.id })
             XCTAssertEqual(node.layerAddress, same.layerAddress)

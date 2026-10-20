@@ -92,15 +92,17 @@ enum ArchiveCapture {
                 try await writer.write(try encoder.frame(environment.payload))
             }
 
-            let ids = hierarchy.value.nodes.map(\.id)
-            progress(0, ids.count)
+            let nodes = hierarchy.value.nodes
+            progress(0, nodes.count)
             var done = 0
-            for start in stride(from: 0, to: ids.count, by: batchSize) {
-                let batch = ids[start..<min(start + batchSize, ids.count)]
+            for start in stride(from: 0, to: nodes.count, by: batchSize) {
+                let batch = nodes[start..<min(start + batchSize, nodes.count)]
                 let request = GetLayerDetails(
+                    // No images of what the app excludes from them (C-DET-11).
                     requests: batch.map {
                         LayerDetailRequest(
-                            layerID: $0, wantSolo: true, wantGroup: true, wantAttributes: true,
+                            layerID: $0.id, wantSolo: !$0.isCaptureExcluded,
+                            wantGroup: !$0.isCaptureExcluded, wantAttributes: true,
                             wantConstraints: true)
                     },
                     maxTextureDimension: maxTextureDimension)
@@ -108,7 +110,7 @@ enum ArchiveCapture {
                 for try await chunk in stream.chunks {
                     try await writer.write(try encoder.frame(chunk.payload))
                     done += chunk.value.count
-                    progress(done, ids.count)
+                    progress(done, nodes.count)
                 }
                 // A reader whose task is cancelled sees the stream end early, not fail.
                 try Task.checkCancellation()

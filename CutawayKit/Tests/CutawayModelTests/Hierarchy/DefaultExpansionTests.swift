@@ -41,8 +41,9 @@ final class DefaultExpansionTests: XCTestCase {
             nodes[two].viewControllerClassName = nil
             nodes[two].viewControllerDisplayClassName = nil
         }
-        // Layer 4 opens although the one layer inside it is hidden: 4 itself can be seen.
-        XCTAssertEqual(try LayerTree(hierarchy).defaultExpansion(), [1, 2, 4, 6])
+        // Layer 4 opens although the one layer inside it is hidden: 4 itself can be seen. Its
+        // virtual node 10 does not: the app asks for it to start collapsed (C-HIER-17).
+        XCTAssertEqual(try LayerTree(hierarchy).defaultExpansion(), [1, 2, 4, 6, 13])
     }
 
     func test_C_HIER_09_aHiddenViewControllerIsNotOnShow() throws {
@@ -58,7 +59,7 @@ final class DefaultExpansionTests: XCTestCase {
             nodes[Self.index(2, in: nodes)].viewControllerVisibility = .notShown
         }
         // The same as without a view controller (P-HIER-18).
-        XCTAssertEqual(try LayerTree(hierarchy).defaultExpansion(), [1, 2, 4, 6])
+        XCTAssertEqual(try LayerTree(hierarchy).defaultExpansion(), [1, 2, 4, 6, 13])
     }
 
     func test_C_HIER_09_withoutVisibilityTheRootViewsPlaceStands() throws {
@@ -141,7 +142,7 @@ final class DefaultExpansionTests: XCTestCase {
     func test_C_HIER_09_anInspectionStartsWithTheDefault() throws {
         let model = model()
         model.apply(try Fixtures.hierarchy())
-        XCTAssertEqual(model.tree.ids.filter(model.isExpanded), [1, 2, 3, 5, 7, 8, 9])
+        XCTAssertEqual(model.tree.ids.filter(model.isExpanded), [1, 2, 3, 11, 12, 5, 7, 8, 9, 14])
         // Layers without sublayers count as expanded, as before: the preview draws them
         // with their own image.
         XCTAssertFalse(model.isExpanded(4))
@@ -161,18 +162,18 @@ final class DefaultExpansionTests: XCTestCase {
         // A view controller pushed on top of the window, with a view and a sublayer inside.
         var hierarchy = try Fixtures.hierarchy()
         hierarchy.nodes += [
-            Self.node(10, parent: 1, controller: "DetailViewController"),
-            Self.node(11, parent: 10),
-            Self.node(12, parent: 11),
+            Self.node(20, parent: 1, controller: "DetailViewController"),
+            Self.node(21, parent: 20),
+            Self.node(22, parent: 21),
         ]
         model.apply(hierarchy)
 
         XCTAssertTrue(model.isExpanded(4), "kept as the user left it")
         XCTAssertFalse(model.isExpanded(1), "kept as the user left it")
         XCTAssertFalse(model.isExpanded(6), "kept as it started")
-        XCTAssertTrue(model.isExpanded(10), "a new view controller on show")
-        XCTAssertFalse(model.isExpanded(11), "a new view inside it")
-        XCTAssertTrue(model.isExpanded(12), "a new leaf")
+        XCTAssertTrue(model.isExpanded(20), "a new view controller on show")
+        XCTAssertFalse(model.isExpanded(21), "a new view inside it")
+        XCTAssertTrue(model.isExpanded(22), "a new leaf")
     }
 
     @MainActor
@@ -198,7 +199,7 @@ final class DefaultExpansionTests: XCTestCase {
         steps += [
             .expect(.getSubtree, as: 1),
             .send(Frame(requestID: 1, body: .hierarchy(Hierarchy(
-                nodes: [four, five, Self.node(10, parent: 4), Self.node(11, parent: 10)],
+                nodes: [four, five, Self.node(20, parent: 4), Self.node(21, parent: 20)],
                 keyWindowID: 1)))),
         ]
         let server = try await MockServer.start(script: MockScript(steps: steps))
@@ -218,11 +219,11 @@ final class DefaultExpansionTests: XCTestCase {
         model.setExpanded(4, true)
 
         model.refreshSubtree(of: 4)
-        let replaced = await Wait.until { await model.tree.contains(10) }
+        let replaced = await Wait.until { await model.tree.contains(20) }
         XCTAssertTrue(replaced)
         XCTAssertTrue(model.isExpanded(4), "kept")
-        XCTAssertFalse(model.isExpanded(10), "a new view inside a view controller")
-        XCTAssertTrue(model.isExpanded(11), "a new leaf")
+        XCTAssertFalse(model.isExpanded(20), "a new view inside a view controller")
+        XCTAssertTrue(model.isExpanded(21), "a new leaf")
 
         await session.close()
         await server.stop()

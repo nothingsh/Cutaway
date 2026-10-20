@@ -78,7 +78,7 @@ final class CompoundRowView: NSView, AttributeListRow {
             } else {
                 view.toolTip = Self.tip(of: attribute)
             }
-            cell.show(attribute.value, names: ValueNames(systemColorName: attribute.systemColorName))
+            cell.show(attribute.value, names: ValueNames(attribute, index: nil))
             cells.append((attribute, ForwardingCell(cell) { [weak self] value in
                 self?.values[slot] = value
                 self?.refresh()

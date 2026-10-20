@@ -281,7 +281,9 @@ final class Protocol12DecodingTests: XCTestCase {
     }
 
     func test_C_WIRE_12_framesWithoutTheNewFieldsReadAsAbsent() throws {
-        let details = try Fixtures.layerDetails(scenario: "layer-details").map { detail in
+        // A 1.1 app has no virtual node 10 and excludes no layer 13 (1.2's `dev.2`).
+        let oneOne = try Fixtures.layerDetails(scenario: "layer-details").filter { $0.layerID < 10 }
+        let details = oneOne.map { detail in
             var detail = detail
             detail.attributeGroups = Fixtures.withoutProtocol12(detail.attributeGroups)
             return detail

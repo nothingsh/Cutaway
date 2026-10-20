@@ -40,12 +40,15 @@ final class Protocol11OptionalFieldsDecodingTests: XCTestCase {
 
     func test_C_WIRE_11_hierarchyNodesCarryOriginsBaseClassesAndVisibility() throws {
         let nodes = try hierarchy("hierarchy").nodes
-        XCTAssertEqual(nodes.count, 9)
+        XCTAssertEqual(nodes.count, 14)
         for node in nodes {
-            XCTAssertEqual(node.layerClassOrigin, .system, "node \(node.id)")
+            // A virtual node's type is the host app's (P-HIER-20, 1.2).
+            XCTAssertEqual(
+                node.layerClassOrigin, node.kind == .virtual ? .app : .system, "node \(node.id)")
             switch (node.viewClassName, node.id) {
             case (nil, _): XCTAssertEqual(node.viewClassOrigin, .unknown, "node \(node.id)")
             case (_, 4): XCTAssertEqual(node.viewClassOrigin, .app, "node 4 is Demo.CardView")
+            case (_, 13): XCTAssertEqual(node.viewClassOrigin, .app, "node 13 is Demo.PaymentCardView")
             default: XCTAssertEqual(node.viewClassOrigin, .system, "node \(node.id)")
             }
             if node.id == 2 {
@@ -60,7 +63,7 @@ final class Protocol11OptionalFieldsDecodingTests: XCTestCase {
         XCTAssertEqual(
             viewBases,
             [1: "UIWindow", 2: nil, 3: "UILabel", 4: nil, 5: nil, 6: "UIScrollView", 7: "UILabel",
-             8: nil, 9: nil])
+             8: nil, 9: nil, 10: nil, 11: nil, 12: nil, 13: nil, 14: "UILabel"])
         XCTAssertEqual(nodes.compactMap(\.layerBaseClassName), ["CAShapeLayer"])
         XCTAssertEqual(nodes.first { $0.layerBaseClassName != nil }?.id, 5)
     }
@@ -68,7 +71,7 @@ final class Protocol11OptionalFieldsDecodingTests: XCTestCase {
     func test_C_WIRE_11_aSubtreeCarriesTheSameFields() throws {
         let subtree = try hierarchy("subtree").nodes
         let whole = try hierarchy("hierarchy").nodes
-        XCTAssertEqual(subtree.map(\.id), [4, 5])
+        XCTAssertEqual(subtree.map(\.id), [4, 10, 11, 12, 5])
         for node in subtree {
             XCTAssertEqual(node, try XCTUnwrap(whole.first { $0.id == node.id }), "node \(node.id)")
         }
@@ -187,7 +190,8 @@ final class Protocol11OptionalFieldsDecodingTests: XCTestCase {
             XCTAssertNil(node.layerBaseClassName)
             XCTAssertNil(node.viewBaseClassName)
             XCTAssertEqual(node.viewControllerVisibility, .unknown)
-            XCTAssertNotNil(node.layerAddress, "what is required stays")
+            // A virtual node has none (P-HIER-14).
+            XCTAssertTrue(node.layerAddress != nil || node.kind == .virtual, "what is required stays")
         }
 
         var details = try details("layer-details")

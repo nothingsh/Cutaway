@@ -5,7 +5,7 @@ extension LayerTree {
     /// The tree as the scene's input, in the order of the wire. `textures` says which images
     /// each layer has; a layer that is not in it has none. Geometry that the wire left out
     /// takes Core Animation's defaults: zero bounds and position, the anchor point in the
-    /// middle, no transform.
+    /// middle, no transform. A node the app excludes from images asks for none (C-DET-11).
     public func sceneLayers(textures: [UInt64: LayerTextures] = [:]) -> [SceneLayer] {
         ids.compactMap { id -> SceneLayer? in
             guard let node = node(id) else { return nil }
@@ -20,7 +20,8 @@ extension LayerTree {
                 isHidden: node.isHidden,
                 opacity: Double(node.opacity),
                 solo: images?.solo,
-                group: images?.group)
+                group: images?.group,
+                capturesImage: !node.isCaptureExcluded)
         }
     }
 

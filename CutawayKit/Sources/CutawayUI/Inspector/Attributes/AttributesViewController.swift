@@ -570,12 +570,14 @@ final class AttributesViewController: NSViewController {
             switch kind {
             case .layout: guard hasLayoutSection(listing) else { return nil }
             case .object: break
-            case .content, .appearance, .behavior, .accessibility: guard section != nil else { return nil }
+            case .content, .app, .appearance, .behavior, .accessibility:
+                guard section != nil else { return nil }
             }
             let parts = (section?.parts ?? []).enumerated().map { index, part in
-                // The Content section is titled by its first group; the others' groups go
-                // without headings, as the section is about what they are for.
-                let heading = kind == .content && index > 0
+                // The Content section is titled by its first group; in App every group has
+                // its title over it (C-ATTR-23). The others' groups go without headings, as
+                // the section is about what they are for.
+                let heading = kind == .app || (kind == .content && index > 0)
                     ? AttributeText.title(part.groupTitle, id: part.groupID) : nil
                 // Very many: page by page as the list comes near them (C-SCALE-03).
                 return byPage

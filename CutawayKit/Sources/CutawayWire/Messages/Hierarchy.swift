@@ -28,6 +28,15 @@ public enum ViewControllerVisibility: Equatable, Sendable {
     case unknown, shown, notShown
 }
 
+/// What a hierarchy node stands for (P-HIER-19). Protocol 1.2. `layer` when absent, as from an
+/// older server, and for values this client does not know.
+public enum NodeKind: Equatable, Sendable {
+    /// A layer of the app.
+    case layer
+    /// A part of the interface the host app draws inside a layer and describes (P-HIER-20).
+    case virtual
+}
+
 public struct LayerNode: Equatable, Sendable {
     public var id: UInt64
     /// 0 for a window's root layer.
@@ -69,6 +78,14 @@ public struct LayerNode: Equatable, Sendable {
     public var viewBaseClassName: String?
     /// Whether the view controller is on show (P-HIER-18). Protocol 1.1.
     public var viewControllerVisibility: ViewControllerVisibility
+    /// Protocol 1.2 (P-HIER-19).
+    public var kind: NodeKind
+    /// The short label the host app gives a virtual node (P-HIER-20); nil otherwise. Protocol 1.2.
+    public var name: String?
+    /// The host app asks that the node start collapsed (P-HIER-23). Protocol 1.2.
+    public var isCollapsedByDefault: Bool
+    /// The host app excludes the node, with its subtree, from images (P-DET-10). Protocol 1.2.
+    public var isCaptureExcluded: Bool
 
     public init(
         id: UInt64, parentID: UInt64, className: String?, displayClassName: String?,
@@ -80,7 +97,8 @@ public struct LayerNode: Equatable, Sendable {
         viewControllerAddress: UInt64? = nil, layerClassOrigin: ClassOrigin = .unknown,
         viewClassOrigin: ClassOrigin = .unknown, viewControllerClassOrigin: ClassOrigin = .unknown,
         layerBaseClassName: String? = nil, viewBaseClassName: String? = nil,
-        viewControllerVisibility: ViewControllerVisibility = .unknown
+        viewControllerVisibility: ViewControllerVisibility = .unknown, kind: NodeKind = .layer,
+        name: String? = nil, isCollapsedByDefault: Bool = false, isCaptureExcluded: Bool = false
     ) {
         self.id = id
         self.parentID = parentID
@@ -108,6 +126,10 @@ public struct LayerNode: Equatable, Sendable {
         self.layerBaseClassName = layerBaseClassName
         self.viewBaseClassName = viewBaseClassName
         self.viewControllerVisibility = viewControllerVisibility
+        self.kind = kind
+        self.name = name
+        self.isCollapsedByDefault = isCollapsedByDefault
+        self.isCaptureExcluded = isCaptureExcluded
     }
 }
 

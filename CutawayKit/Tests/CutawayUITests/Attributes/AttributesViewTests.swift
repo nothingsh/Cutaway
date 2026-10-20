@@ -85,7 +85,7 @@ final class AttributesViewTests: XCTestCase {
         _ = try await session.handshake()
         let model = InspectionStore(source: ReadOnlySource(session), newLayers: .expanded)
         model.enter()
-        let tree = await Wait.until { await model.tree.count == 9 }
+        let tree = await Wait.until { await model.tree.count == 14 }
         XCTAssertTrue(tree)
         model.select(3)
         let loaded = await Wait.until {
@@ -115,7 +115,7 @@ final class AttributesViewTests: XCTestCase {
         let model = InspectionStore(source: ReadOnlySource(session), newLayers: .expanded)
         model.enter()
         let settled = await Wait.until {
-            await model.detailProgress == DetailProgress(completed: 7, total: 7)
+            await model.detailProgress == DetailProgress(completed: 10, total: 10)
         }
         XCTAssertTrue(settled)
         return (model, session, server)
@@ -231,7 +231,7 @@ final class AttributesViewTests: XCTestCase {
         _ = try await session.handshake()
         let model = InspectionStore(source: ReadOnlySource(session), newLayers: .expanded)
         model.enter()
-        let tree = await Wait.until { await model.tree.count == 9 }
+        let tree = await Wait.until { await model.tree.count == 14 }
         XCTAssertTrue(tree)
         let (controller, window) = panel(for: model, loadingDelay: 5)
         let message = try label(AttributesViewController.messageIdentifier, in: controller)

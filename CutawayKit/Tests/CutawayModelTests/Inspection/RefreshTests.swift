@@ -177,7 +177,7 @@ final class RefreshTests: XCTestCase {
         let failed = await Wait.until { await model.notice == .layersFailed }
         XCTAssertTrue(failed)
         XCTAssertEqual(model.loadState, .loaded, "what is shown stays")
-        XCTAssertEqual(model.tree.count, 9)
+        XCTAssertEqual(model.tree.count, 14)
         XCTAssertNotNil(model.images[4])
 
         await session.close()

@@ -34,7 +34,7 @@ final class AttributeEditingViewTests: XCTestCase {
         _ = try await session.handshake()
         let model = InspectionStore(session: session, newLayers: .expanded)
         model.enter()
-        let tree = await Wait.until { await model.tree.count == 9 }
+        let tree = await Wait.until { await model.tree.count == 14 }
         XCTAssertTrue(tree)
         model.select(3)
         let ready = await Wait.until {
@@ -46,7 +46,7 @@ final class AttributeEditingViewTests: XCTestCase {
         XCTAssertTrue(ready, "the attributes did not arrive, or cannot be changed")
         // The screenshots too, so that what the test sends next is what the script expects.
         let settled = await Wait.until {
-            await model.detailProgress == DetailProgress(completed: 7, total: 7)
+            await model.detailProgress == DetailProgress(completed: 10, total: 10)
         }
         XCTAssertTrue(settled)
         return (model, session, server)

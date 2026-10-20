@@ -205,7 +205,8 @@ final class AttributeEditingExitTests: XCTestCase {
         XCTAssertTrue(window.makeFirstResponder(hex))
         Self.typeKeys("#3366CC", into: hex)
         window.makeFirstResponder(nil)
-        answered = try await waitUntil { hex.stringValue == "3366CC" }
+        // The answer names the colour the app registered for it (C-ATTR-24).
+        answered = try await waitUntil { hex.stringValue == "brandBlue" }
         XCTAssertTrue(answered)
         try await waitForRefresh(3, details: 9, of: server)
         try type("50", into: "Opacity")
@@ -267,9 +268,10 @@ final class AttributeEditingExitTests: XCTestCase {
             as: 60)
         steps += change(2) + change(3)  // layer 4: a colour, the alpha
         // Not editable, rejected, rejected; without the two values outside the limits (1.1),
-        // which the client never sends (P-SET-07), and the layer's attribute of a pair, which
-        // the panel never shows on a layer that backs a view (P-ATTR-11).
-        steps += rejections.dropFirst(2).dropLast(8)
+        // which the client never sends (P-SET-07), the layer's attribute of a pair, which the
+        // panel never shows on a layer that backs a view (P-ATTR-11), and a view's attribute
+        // on a virtual node, which the panel never shows either (1.2, P-DET-09).
+        steps += rejections.dropFirst(2).dropLast(10)
         steps += rejections.prefix(2)  // the layer is gone
         return MockScript(steps: steps)
     }

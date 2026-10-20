@@ -338,9 +338,9 @@ final class AppListStoreTests: XCTestCase {
     }
 
     func test_C_HIER_02_theStateSurvivesLeavingAndComingBackOverOneConnection() async throws {
-        // The second answer differs from the first: layer 10 is new.
+        // The second answer differs from the first: layer 20 is new.
         var changed = try Fixtures.hierarchy()
-        changed.nodes.append(LayerTreeTests.node(10, parent: 2))
+        changed.nodes.append(LayerTreeTests.node(20, parent: 2))
         var steps = try MockScript.fixtures(
             "handshake", "app-icon", "hierarchy", "layer-details").steps
         steps += [
@@ -391,11 +391,11 @@ final class AppListStoreTests: XCTestCase {
 
         await model.leaveInspection()
         await model.inspect(Self.simulator)
-        let reloaded = await Wait.until { await inspection.tree.contains(10) }
+        let reloaded = await Wait.until { await inspection.tree.contains(20) }
         XCTAssertTrue(reloaded)
 
         let state = await MainActor.run {
-            (inspection.isExpanded(8), inspection.isExpanded(10), inspection.selectedLayerID)
+            (inspection.isExpanded(8), inspection.isExpanded(20), inspection.selectedLayerID)
         }
         XCTAssertEqual(state.0, false)
         XCTAssertEqual(state.1, true)
