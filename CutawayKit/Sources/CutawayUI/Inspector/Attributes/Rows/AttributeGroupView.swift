@@ -12,10 +12,18 @@ final class AttributeGroupView: NSView {
     static let headerIdentifier = "attributes.group"
     static let partHeadingIdentifier = "attributes.group.part"
 
-    /// One group's rows, under a heading or not.
+    /// One group's rows, under a heading or not: built at once, or, for a layer with very many
+    /// attributes, page by page as the list comes near them (C-SCALE-03).
     struct Part {
         var heading: String?
         var rows: [any AttributeListRow]
+        var lazy: LazyRowsView?
+
+        init(heading: String?, rows: [any AttributeListRow], lazy: LazyRowsView? = nil) {
+            self.heading = heading
+            self.rows = rows
+            self.lazy = lazy
+        }
     }
 
     let title: String
@@ -30,11 +38,17 @@ final class AttributeGroupView: NSView {
         didSet { if summary != oldValue { apply() } }
     }
 
-    /// Every row, an attribute's own or a compound one (C-ATTR-19), part after part.
+    /// Every row built at once, an attribute's own or a compound one (C-ATTR-19), part after
+    /// part.
     let rows: [any AttributeListRow]
+    /// The parts built page by page (C-SCALE-03), in order.
+    let lazyParts: [LazyRowsView]
 
-    /// How many attributes the rows show.
-    var attributeCount: Int { rows.reduce(0) { $0 + $1.attributeCount } }
+    /// How many attributes the rows show, built or not.
+    var attributeCount: Int {
+        rows.reduce(0) { $0 + $1.attributeCount } + lazyParts.reduce(0) { $0 + $1.attributeCount }
+    }
+
     let parts: [Part]
     /// The lines before the attributes, in the Object section.
     let lines: IdentityLinesView?
@@ -68,6 +82,7 @@ final class AttributeGroupView: NSView {
         self.icon = icon
         self.parts = parts
         rows = parts.flatMap(\.rows)
+        lazyParts = parts.compactMap(\.lazy)
         self.lines = lines
         self.isCollapsed = isCollapsed
         let headings = parts.map { part in part.heading.map(Self.heading) }
@@ -79,6 +94,7 @@ final class AttributeGroupView: NSView {
             for (part, heading) in zip(parts, headings) {
                 if let heading { heading }
                 part.rows
+                if let lazy = part.lazy { lazy }
             }
             constraintsSlot
         }
@@ -162,6 +178,13 @@ final class AttributeGroupView: NSView {
                 part.heading.map { AttributesViewModel.match(of: filter, in: $0) != nil }
             } ?? false
             let rowFilter = keepsPart ? nil : sectionFilter
+            if let lazy = part.lazy {
+                // Worked out from the items: most of the rows are not there (C-SCALE-03).
+                lazy.apply(filter: rowFilter)
+                shown += lazy.shownAttributeCount
+                heading?.isHidden = lazy.items.isEmpty
+                continue
+            }
             for row in part.rows {
                 let keeps = rowFilter.map { row.matches($0) } ?? true
                 row.isHidden = !keeps
@@ -185,7 +208,8 @@ final class AttributeGroupView: NSView {
 
     /// Whether the section has nothing at all to show, whatever the filter.
     var isBlank: Bool {
-        rows.isEmpty && (lines?.lines.isEmpty ?? true) && constraintsPart == nil
+        rows.isEmpty && lazyParts.allSatisfy(\.allItems.isEmpty) && (lines?.lines.isEmpty ?? true)
+            && constraintsPart == nil
     }
 
     private func apply() {
