@@ -23,12 +23,12 @@ final class AttributesViewModel {
         var offersRetry = false
     }
 
-    /// Where the attributes are listed (C-ATTR-10): five sections by what the attributes are
-    /// for, in a fixed order.
+    /// Where the attributes are listed (C-ATTR-10, C-ATTR-26): six sections by what the
+    /// attributes are for, in a fixed order.
     struct Listing: Equatable {
         /// The sections, in the order of the list.
         enum Kind: String, CaseIterable, Equatable {
-            case content, appearance, layout, behavior, object
+            case content, appearance, layout, behavior, accessibility, object
         }
 
         /// The attributes one group gives a section.
@@ -231,10 +231,10 @@ final class AttributesViewModel {
     nonisolated static func kind(of section: AttributeSection) -> Listing.Kind {
         switch section {
         case .content: .content
-        // Accessibility until C-ATTR-26 gives it a section of its own.
-        case .appearance, .general, .unspecified, .accessibility: .appearance
+        case .appearance, .general, .unspecified: .appearance
         case .layout: .layout
         case .behavior: .behavior
+        case .accessibility: .accessibility
         case .identity: .object
         }
     }
@@ -301,6 +301,11 @@ final class AttributesViewModel {
 
     func hasEditor(_ attribute: Attribute) -> Bool {
         offersEditors && attribute.isEditable && attribute.id != nil && store.selectedID != nil
+    }
+
+    /// Whether the selected layer's lists count rows or items (C-ATTR-27): a table's do.
+    var clusterWords: ClusterText.Words {
+        ClusterText.Words(viewBaseClassName: store.selectedID.flatMap { tree.node($0)?.viewBaseClassName })
     }
 
     func key(of attribute: Attribute) -> AttributeKey? {

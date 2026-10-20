@@ -40,19 +40,49 @@ extension InspectionStore: EnvironmentControllerDelegate {
     /// A change of the environment goes ahead of the screenshots, as a change of an
     /// attribute does (C-DET-06, P-REQ-06).
     func environmentWillSend(_ controller: EnvironmentController) -> Task<Void, Never>? {
+        // A refresh still waiting for the last change is not wanted: this one's comes after.
+        cancelEnvironmentSettle()
         changesOnTheirWay += 1
         return fetcher.cancel()
     }
 
     /// The app may have rebuilt its interface: the whole tree is taken again, and with it the
-    /// screenshots and the attributes (C-ENV-02).
+    /// screenshots and the attributes (C-ENV-02). Not at once: the app is given
+    /// `environmentSettleDelay` to redraw, and no screenshots are asked for meanwhile, as they
+    /// would show the look it had (reported by the user, 2026-10-20: Wikipedia changes its
+    /// colours 0.3 s after the change).
     func environmentController(_ controller: EnvironmentController, didAnswer refresh: Bool) {
-        if changesOnTheirWay > 0 { changesOnTheirWay -= 1 }
-        if refresh, isOpen {
-            self.refresh()
-        } else {
+        guard refresh, isOpen else {
+            endChange()
             fetchNext()
+            return
         }
+        let delay = environmentSettleDelay
+        guard delay > .zero else {
+            endChange()
+            self.refresh()
+            return
+        }
+        environmentSettle = Task { [weak self] in
+            try? await Task.sleep(for: delay)
+            guard !Task.isCancelled, let self else { return }
+            environmentSettle = nil
+            endChange()
+            self.refresh()
+        }
+    }
+
+    /// A refresh that waits for the app to redraw is not made: another change goes out, the
+    /// inspection closes or the connection went. Its change is no longer on its way.
+    func cancelEnvironmentSettle() {
+        guard let settle = environmentSettle else { return }
+        settle.cancel()
+        environmentSettle = nil
+        endChange()
+    }
+
+    private func endChange() {
+        if changesOnTheirWay > 0 { changesOnTheirWay -= 1 }
     }
 
     func environmentStateChanged(_ controller: EnvironmentController) {

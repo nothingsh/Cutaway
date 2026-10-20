@@ -43,15 +43,14 @@ final class CompoundRowTests: XCTestCase {
         let three = try Self.layer("layer-details", 3)
         XCTAssertEqual(Self.items(.appearance, of: three), [
             "[visibility: hidden, opacity]", "view.backgroundColor", "view.tintColor",
-            "view.accessibilityLabel", "[shadow: opacity, offset]", "[border: width, color]",
+            "[shadow: opacity, offset]", "[border: width, color]",
         ])
+        XCTAssertEqual(Self.items(.accessibility, of: three), ["view.accessibilityLabel"])
         XCTAssertEqual(Self.items(.layout, of: three), [
             "view.layoutMargins", "[geometry: frame, bounds, position, transform]",
         ])
         XCTAssertEqual(Self.items(.content, of: three), [
-            // 1.2's slots of `font` are not drawn yet: on rows of their own (P-ATTR-12).
-            "label.text", "[font: size]", "label.fontTextStyle",
-            "label.adjustsFontForContentSizeCategory", "[lines: count]", "label.textAlignment",
+            "label.text", "[font: size, textStyle, scalable]", "[lines: count]", "label.textAlignment",
         ])
         // Every attribute once.
         let listed = AttributesViewModel.listing(of: three).attributes.compactMap(\.id)

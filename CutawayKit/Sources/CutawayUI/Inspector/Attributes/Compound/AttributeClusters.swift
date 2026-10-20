@@ -1,3 +1,4 @@
+import CutawayModel
 import CutawayWire
 
 /// The compound rows the panel knows (C-ATTR-19, P-ATTR-12): which clusters, which parts each
@@ -8,6 +9,8 @@ enum AttributeClusters {
     enum Kind: String, CaseIterable {
         case visibility, corners, border, shadow, geometry, sizing, autoLayout, font, lines, state,
              scrolling
+        // Protocol 1.2.
+        case image, indexPath, listCounts
     }
 
     /// What a part takes.
@@ -30,7 +33,8 @@ enum AttributeClusters {
         }
     }
 
-    /// The slots of each cluster, in the order the row shows them.
+    /// The slots of each cluster, in the order the row shows them. `font`'s `textStyle` and
+    /// `scalable` and `lines`' `drawn` and `truncated` are 1.2's (C-ATTR-27).
     private static let slots: [Kind: [(String, Takes)]] = [
         .visibility: [("hidden", .bool), ("opacity", .number)],
         .corners: [("radius", .number), ("clip", .bool)],
@@ -46,11 +50,33 @@ enum AttributeClusters {
             ("intrinsic.width", .number), ("intrinsic.height", .number),
         ],
         .autoLayout: [("autoresizing", .bool), ("ambiguous", .bool)],
-        .font: [("name", .string), ("size", .number)],
-        .lines: [("count", .integer), ("lineBreak", .enumeration)],
+        .font: [("name", .string), ("size", .number), ("textStyle", .string), ("scalable", .bool)],
+        .lines: [("count", .integer), ("lineBreak", .enumeration), ("drawn", .integer), ("truncated", .bool)],
         .state: [("enabled", .bool), ("selected", .bool), ("highlighted", .bool)],
         .scrolling: [("enabled", .bool), ("paging", .bool)],
+        .image: [
+            ("name", .string), ("size", .size), ("scale", .number), ("renderingMode", .enumeration),
+            ("symbolConfiguration", .string),
+        ],
+        .indexPath: [("section", .integer), ("item", .integer)],
+        .listCounts: [("sections", .integer), ("items", .integer)],
     ]
+
+    /// The slots a row writes as text, not in an editor (C-ATTR-27): what the app works out
+    /// rather than what is set. One that can be changed has its own row and its editor, so
+    /// that putting it in the row takes nothing away.
+    private static let textSlots: [Kind: Set<String>] = [
+        .font: ["textStyle"],
+        .lines: ["drawn", "truncated"],
+        .image: ["name", "size", "scale", "symbolConfiguration"],
+        .indexPath: ["section", "item"],
+        .listCounts: ["sections", "items"],
+    ]
+
+    /// Whether a row writes the slot as text.
+    static func isText(_ slot: String, in kind: Kind) -> Bool {
+        textSlots[kind]?.contains(slot) ?? false
+    }
 
     /// The slots of a cluster, in order.
     static func slotNames(of kind: Kind) -> [String] {
@@ -58,9 +84,11 @@ enum AttributeClusters {
     }
 
     /// Whether an attribute can be the given slot of a cluster: the slot is the cluster's,
-    /// and its value is of the kind the part takes.
+    /// its value is of the kind the part takes, and it is not one written as text that can be
+    /// changed.
     static func fits(_ attribute: Attribute, slot: String, in kind: Kind) -> Bool {
         guard let takes = slots[kind]?.first(where: { $0.0 == slot })?.1 else { return false }
+        if isText(slot, in: kind), attribute.isEditable { return false }
         let valueKind = attribute.valueKind == .none ? attribute.value?.kind : attribute.valueKind
         return valueKind.map(takes.accepts) ?? false
     }

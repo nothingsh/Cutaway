@@ -8,6 +8,8 @@ import DeclarativeAppKit
 struct CompoundFactory {
     var editor: (Attribute, AttributeEditorView.Options) -> AttributeEditorView
     var sender: (Attribute) -> AttributeSender?
+    /// Whether the layer's list counts rows or items (C-ATTR-27).
+    var words = ClusterText.Words(viewBaseClassName: nil)
 }
 
 /// The attributes of one cluster in one row (C-ATTR-19): lines of a label in the title column
@@ -18,6 +20,10 @@ struct CompoundFactory {
 /// The labels are the panel's own, by the cluster's and the slots' names; a part's tooltip
 /// gives the attribute's title and ID. A filter keeps the row when its labels, or a member's
 /// title or ID, hold it (C-ATTR-14).
+///
+/// What the app works out rather than sets (a text style, the lines drawn, an image's size, an
+/// index path) is written as text under or beside the parts (C-ATTR-27); the text follows the
+/// members' values as they come.
 final class CompoundRowView: NSView, AttributeListRow {
     static let identifier = "attributes.compound"
     static let lineLabelIdentifier = "attributes.compound.label"
@@ -31,6 +37,14 @@ final class CompoundRowView: NSView, AttributeListRow {
     private var values: [String: AttributeValue?] = [:]
     private var views: [String: NSView] = [:]
     private let stack = VStack(alignment: .fill, spacing: 4) {}
+    private let words: ClusterText.Words
+    /// The slots written as text, and the texts by what they say.
+    private var textSlots: Set<String> = []
+    private var textLabels: [(role: TextRole, label: NSTextField)] = []
+    /// Lines that hold only texts, with the texts: hidden when none of them says anything.
+    private var textLines: [(line: NSView, roles: [TextRole])] = []
+    /// The dots between two things on a line, with the two: shown when both are.
+    private var dots: [(dot: NSView, between: (NSView, NSView))] = []
     private lazy var noteLabel = NSTextField(wrappingLabelWithString: "")
         .font(.systemFont(ofSize: 11))
         .accessibilityIdentifier(AttributeRowView.noteIdentifier)
@@ -39,6 +53,7 @@ final class CompoundRowView: NSView, AttributeListRow {
 
     init(_ row: AttributeClusters.Row, factory: CompoundFactory) {
         self.row = row
+        words = factory.words
         title = Self.title(of: row)
         titleField = WrappingTitleField(title: title)
         titleField.widthIsGiven = true
@@ -46,6 +61,15 @@ final class CompoundRowView: NSView, AttributeListRow {
         setAccessibilityIdentifier(Self.identifier)
         for slot in row.order {
             guard let attribute = row[slot] else { continue }
+            if Self.isText(slot, attribute, in: row.kind) {
+                textSlots.insert(slot)
+                values[slot] = attribute.value
+                cells.append((attribute, ForwardingCell(TextSlotCell()) { [weak self] value in
+                    self?.values[slot] = value
+                    self?.refresh()
+                }))
+                continue
+            }
             let (view, cell) = makePart(slot, attribute, factory)
             views[slot] = view
             values[slot] = attribute.value
@@ -64,6 +88,7 @@ final class CompoundRowView: NSView, AttributeListRow {
             if let view = views[slot] { compact.insert(ObjectIdentifier(view)) }
         }
         if let clip = views["clip"], row.kind == .corners { hugs.insert(ObjectIdentifier(clip)) }
+        if let scalable = views["scalable"], row.kind == .font { hugs.insert(ObjectIdentifier(scalable)) }
         build()
         addVStack(alignment: .fill, spacing: 2) {
             stack
@@ -108,7 +133,17 @@ final class CompoundRowView: NSView, AttributeListRow {
         case .lines: localized("attributes.cluster.lines")
         case .state: localized("attributes.cluster.state")
         case .scrolling: localized("attributes.cluster.scrolling")
+        case .image: localized("attributes.cluster.image")
+        case .indexPath: localized("attributes.cluster.indexPath")
+        case .listCounts: localized("attributes.cluster.counts")
         }
+    }
+
+    /// Whether a member is written as text: a slot the row always writes so, and an image's
+    /// rendering mode that cannot be changed.
+    private static func isText(_ slot: String, _ attribute: Attribute, in kind: AttributeClusters.Kind) -> Bool {
+        AttributeClusters.isText(slot, in: kind)
+            || (kind == .image && slot == "renderingMode" && !attribute.isEditable)
     }
 
     /// "Border Width (layer.borderWidth)".
@@ -145,6 +180,11 @@ final class CompoundRowView: NSView, AttributeListRow {
             var clip = attribute
             clip.title = localized("attributes.cluster.clip")
             let view = factory.editor(clip, .init())
+            return (view, EditorPart(view))
+        case (.font, "scalable"):
+            var scalable = attribute
+            scalable.title = localized("attributes.cluster.dynamicType")
+            let view = factory.editor(scalable, .init())
             return (view, EditorPart(view))
         case (.autoLayout, "autoresizing"):
             return toggle(.mode(
@@ -248,6 +288,11 @@ final class CompoundRowView: NSView, AttributeListRow {
         case .shadow: buildShadow()
         case .geometry: buildGeometry()
         case .sizing: buildSizing()
+        case .font: buildFont()
+        case .lines: buildLines()
+        case .image: buildImage()
+        case .indexPath: add(textLine(title, [.indexPath], first: true))
+        case .listCounts: add(textLine(title, [.counts], first: true))
         case .autoLayout, .state, .scrolling:
             let chips = HStack(alignment: .center, spacing: 4) {
                 for view in parts(AttributeClusters.slotNames(of: row.kind)) { view }
@@ -312,6 +357,167 @@ final class CompoundRowView: NSView, AttributeListRow {
         }
     }
 
+    // MARK: - Texts (C-ATTR-27)
+
+    /// What a text of a row says.
+    enum TextRole {
+        case textStyle, drawn, truncated, imageName, imageDetails, symbolConfiguration, indexPath, counts
+
+        /// Whether it is the row's value rather than a note on it.
+        var isPrimary: Bool { self == .imageName || self == .indexPath || self == .counts }
+    }
+
+    static let textIdentifier = "attributes.compound.text"
+
+    private func label(_ role: TextRole) -> NSTextField {
+        let label = NSTextField(labelWithString: "")
+            .font(role.isPrimary ? .systemFont(ofSize: 12) : Theme.Font.caption)
+            .textColor(role == .truncated ? .systemOrange : role.isPrimary ? .labelColor : .secondaryLabelColor)
+            .lineBreakMode(.byTruncatingTail)
+            .isSelectable(true)
+            .accessibilityIdentifier(Self.textIdentifier)
+            .compressionResistancePriority(Theme.textGivesWay, for: .horizontal)
+        hugs.insert(ObjectIdentifier(label))
+        textLabels.append((role, label))
+        return label
+    }
+
+    /// A "·" between two things on a line, shown when both are.
+    private func dot(between first: NSView, and second: NSView) -> NSView {
+        let dot = NSTextField(labelWithString: "·")
+            .font(Theme.Font.caption)
+            .textColor(.tertiaryLabelColor)
+        hugs.insert(ObjectIdentifier(dot))
+        dots.append((dot, (first, second)))
+        return dot
+    }
+
+    /// A line of texts alone, hidden while none says anything.
+    private func textLine(_ label: String?, _ roles: [TextRole], first: Bool = false) -> NSView {
+        var parts: [NSView] = []
+        for role in roles {
+            let text = self.label(role)
+            if let last = parts.last { parts.append(dot(between: last, and: text)) }
+            parts.append(text)
+        }
+        let line = line(label, parts, first: first)
+        textLines.append((line, roles))
+        return line
+    }
+
+    /// The font and size, then the text style and whether it follows the text size.
+    private func buildFont() {
+        let top = parts(["name", "size"])
+        if !top.isEmpty { add(line(title, top, first: true)) }
+        var second: [NSView] = []
+        if textSlots.contains("textStyle") { second.append(label(.textStyle)) }
+        if let scalable = views["scalable"] {
+            if let style = second.last { second.append(dot(between: style, and: scalable)) }
+            second.append(scalable)
+        }
+        if !second.isEmpty { add(line(nil, second, first: top.isEmpty)) }
+    }
+
+    /// The number of lines and how they break, then how many are drawn and whether the text is
+    /// cut short.
+    private func buildLines() {
+        let top = parts(["count", "lineBreak"])
+        if !top.isEmpty { add(line(title, top, first: true)) }
+        let roles = [("drawn", TextRole.drawn), ("truncated", .truncated)]
+            .filter { textSlots.contains($0.0) }.map(\.1)
+        if !roles.isEmpty { add(textLine(nil, roles, first: top.isEmpty)) }
+    }
+
+    /// The name, then the size, scale and rendering mode, then the symbol's configuration.
+    private func buildImage() {
+        if textSlots.contains("name") { add(textLine(title, [.imageName], first: true)) }
+        var second: [NSView] = []
+        if !textSlots.isDisjoint(with: ["size", "scale", "renderingMode"]) { second.append(label(.imageDetails)) }
+        if let mode = views["renderingMode"] {
+            if let details = second.last { second.append(dot(between: details, and: mode)) }
+            second.append(mode)
+        }
+        if !second.isEmpty {
+            let line = line(nil, second, first: stack.arrangedSubviews.isEmpty)
+            if views["renderingMode"] == nil { textLines.append((line, [.imageDetails])) }
+            add(line)
+        }
+        if textSlots.contains("symbolConfiguration") {
+            add(textLine(nil, [.symbolConfiguration], first: stack.arrangedSubviews.isEmpty))
+        }
+    }
+
+    /// What a text says now, or nil for nothing.
+    private func text(_ role: TextRole) -> String? {
+        func string(_ slot: String) -> String? {
+            if case .string(let text) = value(of: slot) { return text }
+            return nil
+        }
+        switch role {
+        case .textStyle:
+            return string("textStyle").map(ClusterText.textStyle)
+        case .drawn:
+            return ClusterText.integer(value(of: "drawn")).map {
+                ClusterText.drawn($0, of: ClusterText.integer(value(of: "count")))
+            }
+        case .truncated:
+            guard case .bool(true) = value(of: "truncated") else { return nil }
+            return localized("attributes.cluster.truncated")
+        case .imageName:
+            return AttributeText.text(of: value(of: "name"))
+        case .imageDetails:
+            return ClusterText.image(
+                size: textSlots.contains("size") ? value(of: "size") : nil, unit: row["size"]?.unit ?? .unspecified,
+                scale: textSlots.contains("scale") ? value(of: "scale") : nil,
+                mode: textSlots.contains("renderingMode") ? value(of: "renderingMode") : nil)
+        case .symbolConfiguration:
+            return string("symbolConfiguration")
+        // The row's only line: with no values it reads as a nil value does (P-ATTR-03).
+        case .indexPath:
+            return ClusterText.indexPath(
+                section: ClusterText.integer(value(of: "section")), item: ClusterText.integer(value(of: "item")),
+                words: words) ?? localized("attributes.value.none")
+        case .counts:
+            return ClusterText.counts(
+                sections: ClusterText.integer(value(of: "sections")), items: ClusterText.integer(value(of: "items")),
+                words: words) ?? localized("attributes.value.none")
+        }
+    }
+
+    private func showTexts() {
+        for (role, label) in textLabels {
+            let text = text(role)
+            label.stringValue = text ?? ""
+            label.isHidden = text == nil
+            label.toolTip = text
+        }
+        for (dot, (first, second)) in dots {
+            dot.isHidden = first.isHidden || second.isHidden
+        }
+        for (line, roles) in textLines {
+            line.isHidden = roles.allSatisfy { role in text(role) == nil }
+        }
+    }
+
+    /// The texts shown, in order. For tests.
+    var texts: [String] {
+        textLabels.filter { isShown($0.label) }.map(\.label.stringValue)
+    }
+
+    /// Whether "Truncated" shows, in the warning colour. For tests.
+    var truncationIsMarked: Bool {
+        textLabels.contains { $0.role == .truncated && isShown($0.label) && $0.label.textColor == .systemOrange }
+    }
+
+    private func isShown(_ view: NSView) -> Bool {
+        var current: NSView? = view
+        while let candidate = current, candidate !== self {
+            if candidate.isHidden { return false }
+            current = candidate.superview
+        }
+        return true
+    }
+
     // MARK: - Showing
 
     /// The value shown for a slot, nil when it has none or the row has no such member.
@@ -320,6 +526,7 @@ final class CompoundRowView: NSView, AttributeListRow {
     }
 
     private func refresh() {
+        if !textLabels.isEmpty { showTexts() }
         switch row.kind {
         case .visibility:
             if case .bool(true) = value(of: "hidden") {
@@ -377,6 +584,15 @@ final class CompoundRowView: NSView, AttributeListRow {
 }
 
 /// A part's cell that tells its row what it shows, so that the row can follow its values.
+/// A member written as text: the row writes it from the values its forwarding cell passes on.
+@MainActor
+private final class TextSlotCell: AttributeCell {
+    func show(_ value: AttributeValue?, names: ValueNames) {}
+    func show(sending: Bool, failure: String?) {}
+    func showInactive(_ reason: String?) {}
+    func show(layerSize: String?) {}
+}
+
 @MainActor
 private final class ForwardingCell: AttributeCell {
     let inner: any AttributeCell

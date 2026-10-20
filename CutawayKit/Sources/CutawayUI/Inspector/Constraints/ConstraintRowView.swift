@@ -12,7 +12,7 @@ enum ConstraintPointer: Equatable {
 
 /// One constraint: whether it holds, its equation, and the lines below it. Pointing anywhere
 /// on it marks its other ends on the preview (C-LAYOUT-07), and fills it as the hierarchy
-/// fills a hovered row.
+/// fills a hovered row. The section says which row the pointer is on (`ConstraintsSectionView`).
 final class ConstraintRowView: NSView {
     static let identifier = "constraints.row"
     static let statusIdentifier = "constraints.status"
@@ -31,8 +31,6 @@ final class ConstraintRowView: NSView {
             onPoint(isHovered ? .entered([text.index], stresses: true) : .left([text.index]))
         }
     }
-
-    private var trackingArea: NSTrackingArea?
 
     init(
         _ text: ConstraintRow, showsClass: Bool, onShowLayer: @escaping (UInt64) -> Void,
@@ -104,29 +102,9 @@ final class ConstraintRowView: NSView {
         fatalError("init(coder:) is not supported")
     }
 
-    /// Puts the pointer on the row, or off it, as the mouse does. For tests.
+    /// Puts the pointer on the row, or off it.
     func point(_ inside: Bool) {
         isHovered = inside
-    }
-
-    override func updateTrackingAreas() {
-        super.updateTrackingAreas()
-        if let trackingArea { removeTrackingArea(trackingArea) }
-        let area = NSTrackingArea(
-            rect: .zero, options: [.mouseEnteredAndExited, .activeInActiveApp, .inVisibleRect],
-            owner: self)
-        addTrackingArea(area)
-        trackingArea = area
-    }
-
-    override func mouseEntered(with event: NSEvent) {
-        super.mouseEntered(with: event)
-        isHovered = true
-    }
-
-    override func mouseExited(with event: NSEvent) {
-        super.mouseExited(with: event)
-        isHovered = false
     }
 
     /// The hover fill, as the hierarchy's (C-HIER-15), inset from the panel's edges.
