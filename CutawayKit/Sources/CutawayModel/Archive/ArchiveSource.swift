@@ -57,6 +57,15 @@ public actor ArchiveSource: InspectionSource {
         throw RequestError.unsupported
     }
 
+    /// The environment the archive was saved in (C-ENV-04).
+    public func environment() async throws -> Environment {
+        guard let environment = decoder.environment else { throw RequestError.unsupported }
+        return environment
+    }
+
+    /// The environment the archive was saved in, known from opening on (C-ENV-04).
+    public nonisolated var savedEnvironment: Environment? { decoder.environment }
+
     public func setAttribute(_ request: SetAttribute) async throws -> SetAttributeResult {
         throw RequestError.unsupported
     }

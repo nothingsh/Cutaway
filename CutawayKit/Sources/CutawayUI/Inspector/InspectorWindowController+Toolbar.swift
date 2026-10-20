@@ -78,7 +78,8 @@ extension InspectorWindowController: NSToolbarDelegate {
     }
 
     public func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        toolbarDefaultItemIdentifiers(toolbar)
+        // The Environment button joins once the app's environment is known (C-ENV-01).
+        toolbarDefaultItemIdentifiers(toolbar) + (isArchive ? [] : [Self.environmentItem])
     }
 
     public func toolbar(
@@ -100,6 +101,8 @@ extension InspectorWindowController: NSToolbarDelegate {
             item.label = localized("toolbar.archive.label")
             item.isBordered = false
             return item
+        case Self.environmentItem:
+            return makeEnvironmentItem()
         case Self.modeItem:
             let item = NSToolbarItem(itemIdentifier: identifier)
             item.view = makeModeControl()

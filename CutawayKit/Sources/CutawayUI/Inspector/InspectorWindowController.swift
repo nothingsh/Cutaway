@@ -34,6 +34,9 @@ public final class InspectorWindowController: NSWindowController {
     var modeControl: NSSegmentedControl?
     /// The toolbar's app capsule, once the toolbar has made it (C-WIN-06).
     var appCapsule: AppCapsuleView?
+    /// The toolbar's Environment button and its popover, once there are (C-ENV-01).
+    var environmentButton: NSButton?
+    var environmentPopover: NSPopover?
     /// The title and subtitle the window is given; the capsule shows them.
     let windowTitle: InspectorWindowTitle
     /// The way to the app's project folder (C-SRC-01 to C-SRC-03).
@@ -74,7 +77,7 @@ public final class InspectorWindowController: NSWindowController {
         @MainActor (NSWindow, String, @escaping (URL) -> Void) -> Void =
         InspectorWindowController.runPNGSavePanel
     private let appName: String
-    private var cancellables = Set<AnyCancellable>()
+    var cancellables = Set<AnyCancellable>()
 
     /// The window of an app over a connection.
     convenience init(
@@ -97,7 +100,8 @@ public final class InspectorWindowController: NSWindowController {
         self.init(
             location: nil, archiveURL: archive.url, info: archive.app, icon: archive.icon,
             title: InspectorWindowTitle(
-                archive: archive.url, app: archive.app, savedAt: archive.manifest.savedAt),
+                archive: archive.url, app: archive.app, savedAt: archive.manifest.savedAt,
+                overrides: archive.source.savedEnvironment?.overrides ?? .unspecified),
             store: store, paneWidths: paneWidths, savedNoticeDuration: .seconds(4), projects: projects)
     }
 
@@ -144,7 +148,10 @@ public final class InspectorWindowController: NSWindowController {
         window.contentMinSize = Self.minimumSize
         super.init(window: window)
 
-        let toolbar = NSToolbar(identifier: "inspector")
+        // One identifier for each window: toolbars that share one take each other's
+        // insertions, and the Environment button joins only the window of an app that can
+        // override its environment (C-ENV-01).
+        let toolbar = NSToolbar(identifier: "inspector-\(UUID().uuidString)")
         toolbar.delegate = self
         toolbar.displayMode = .iconOnly
         toolbar.allowsUserCustomization = false
@@ -178,6 +185,7 @@ public final class InspectorWindowController: NSWindowController {
                 self?.connectionWasLost()
             }
             .store(in: &cancellables)
+        followEnvironment()
     }
 
     /// Whether this window shows an archive rather than an app (C-ARCH-05).
@@ -216,6 +224,8 @@ public final class InspectorWindowController: NSWindowController {
         guard !isDisconnected else { return }
         isDisconnected = true
         modeControl?.isEnabled = false
+        environmentButton?.isEnabled = false
+        environmentPopover?.close()
     }
 
     /// The capsule follows the inspection: the screenshots, a save and the connection
@@ -496,6 +506,9 @@ extension InspectorWindowController: NSMenuItemValidation {
             return !selectionOpenable.isEmpty
         case #selector(copyLLDBPrintCommand(_:)), #selector(copyLLDBFrameBreakpoints(_:)):
             return validateLLDBItem(menuItem)
+        case #selector(chooseEnvironmentValue(_:)), #selector(toggleAppearance(_:)),
+             #selector(resetEnvironment(_:)):
+            return validateEnvironmentItem(menuItem)
         case #selector(exportLayerScreenshot(_:)):
             return canExport(.solo, menuItem)
         case #selector(exportScreenshotWithSublayers(_:)):

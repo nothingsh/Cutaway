@@ -45,6 +45,9 @@ final class MainMenuTests: XCTestCase {
         /// As `selection`, with a class of the layer declared in the app's project folder
         /// (C-SRC-03): never here, where no folder is linked.
         case declared
+        /// As `online`, with an app that can override its environment (C-MENU-05): never here,
+        /// where no environment is given; `EnvironmentWindowTests` gives one.
+        case environment
         /// Left to AppKit: the responder chain, the undo manager, or the app's own rules (the
         /// hide items depend on the app being active and on the other apps).
         case appKit
@@ -96,6 +99,18 @@ final class MainMenuTests: XCTestCase {
     private static let lldb: [Expected] = [
         Expected("Print Object", #selector(Window.copyLLDBPrintCommand(_:)), rule: .addressed),
         Expected("Stop When the Frame Changes", #selector(Window.copyLLDBFrameBreakpoints(_:)), rule: .addressed),
+    ]
+
+    /// View › Environment (C-MENU-05), without the values' submenus.
+    private static let environment: [Expected] = [
+        Expected("Appearance", nil, rule: .appKit),
+        Expected("Text Size", nil, rule: .appKit),
+        Expected("Layout Direction", nil, rule: .appKit),
+        Expected("Size Classes", nil, rule: .appKit),
+        Expected(
+            "Toggle Light and Dark", #selector(Window.toggleAppearance(_:)), "a", [.command, .shift],
+            rule: .environment),
+        Expected("Reset", #selector(Window.resetEnvironment(_:)), rule: .environment),
     ]
 
     /// Every item of a menu and of its submenus, depth first.
@@ -166,6 +181,7 @@ final class MainMenuTests: XCTestCase {
             Expected(
                 "Show Constraint Ends", #selector(Window.toggleConstraintEnds(_:)), "k",
                 [.command, .shift], rule: .inspector),
+            Expected("Environment", nil, rule: .appKit),
             Expected(
                 "Select Parent Layer", #selector(Window.selectParentLayer(_:)),
                 arrow(NSUpArrowFunctionKey), .command, rule: .selection),
@@ -318,7 +334,7 @@ final class MainMenuTests: XCTestCase {
         case .always, .window: return true
         case .inspector, .selection, .unfocusedSelection, .focusing: return live
         case .layout, .addressed: return situation.inspector
-        case .declared: return false
+        case .declared, .environment: return false
         case .online, .subtree: return live && situation.online
         case .appKit: return nil
         }
@@ -335,8 +351,12 @@ final class MainMenuTests: XCTestCase {
             "Borders": view?.items.first { $0.title == "Borders" }?.submenu,
             "Copy LLDB Command": menu.items.first { $0.title == "Edit" }?.submenu?
                 .items.first { $0.title == "Copy LLDB Command" }?.submenu,
+            "Environment": view?.items.first { $0.title == "Environment" }?.submenu,
         ]
-        for (title, items) in Self.table + [("Borders", Self.borders), ("Copy LLDB Command", Self.lldb)] {
+        let submenuTables = [
+            ("Borders", Self.borders), ("Copy LLDB Command", Self.lldb), ("Environment", Self.environment),
+        ]
+        for (title, items) in Self.table + submenuTables {
             guard let submenu = submenus[title] ?? menu.items.first(where: { $0.title == title })?.submenu
             else {
                 XCTFail("no \(title) menu", file: file, line: line)
@@ -367,7 +387,7 @@ final class MainMenuTests: XCTestCase {
             XCTAssertNil(seen[shortcut], "\(item.title) and \(seen[shortcut] ?? "") share a shortcut")
             seen[shortcut] = item.title
         }
-        XCTAssertEqual(seen.count, 38)
+        XCTAssertEqual(seen.count, 39)
     }
 
     /// The key and modifiers an item answers to: an upper-case key implies Shift.
