@@ -138,51 +138,24 @@ final class ExtremeAttributeTests: XCTestCase {
         }
     }
 
+    /// Every one of 1,000 attributes can be scrolled to, and has its row there; most are built
+    /// only then (C-SCALE-03, whose tests time it).
+    @MainActor
     func test_C_ATTR_09_aThousandAttributesAreShown() async throws {
-        var responder = try MockResponder.demo()
-        var detail = try XCTUnwrap(responder.details[3])
-        detail.attributeGroups = (0..<10).map { group in
-            AttributeGroup(
-                id: "group\(group)", title: "Group \(group)",
-                attributes: (0..<100).map { index in
-                    Attribute(
-                        id: "a\(group).\(index)", title: "Attribute \(index)",
-                        value: .double(Double(index)), editable: true, valueKind: .double)
-                })
+        let panel = try await ManyAttributes(groups: ManyAttributes.groups(10, of: 100))
+        let selected = await panel.select()
+        XCTAssertTrue(selected)
+        XCTAssertLessThan(panel.controller.attributeRows.count, 1_000, "built page by page")
+        var seen = Set(panel.titlesInView)
+        var y: CGFloat = 0
+        while y + panel.visible.height < panel.document.frame.height {
+            y += panel.visible.height / 2
+            panel.scroll(to: y)
+            seen.formUnion(panel.titlesInView)
         }
-        responder.details[3] = detail
-        let server = try await MockServer.start(
-            script: MockScript(
-                steps: try MockScript.fixtures("handshake").steps + [.respond(responder)]))
-        let channel = try await ConnectionChannel.connect(
-            host: "127.0.0.1", port: server.port, timeout: .seconds(2))
-        let session = Session(
-            channel: channel, client: ClientInfo(name: "Cutaway", version: "0.1.0"))
-        _ = try await session.handshake()
-        let model = InspectionStore(session: session)
-        model.enter()
-        let listed = await Wait.until { await model.tree.count == 9 }
-        XCTAssertTrue(listed)
-
-        let layer = Publishers.CombineLatest(model.$selectedLayerID, model.$tree)
-            .map { id, tree in LayerSummary(tree, id) }
-            .eraseToAnyPublisher()
-        let controller = AttributesViewController(
-            store: model.attributes, appName: "Demo", layer: layer, onRetry: {})
-        let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 300, height: 600), styleMask: [.titled],
-            backing: .buffered, defer: false)
-        window.contentViewController = controller
-
-        let start = ContinuousClock.now
-        model.select(3)
-        let shown = await Wait.untilOnMain(within: .seconds(20)) {
-            window.layoutIfNeeded()
-            return controller.attributeRows.map(\.row).count == 1_000
-        }
-        XCTAssertTrue(shown, "\(controller.attributeRows.map(\.row).count) rows")
-        print("C-ATTR-09: 1,000 attributes were shown in \(ContinuousClock.now - start)")
-        model.leave()
-        await session.close()
+        XCTAssertEqual(seen.count, 1_000)
+        XCTAssertEqual(
+            seen, Set((0..<10).flatMap { group in (0..<100).map { "Attribute \(group).\($0)" } }))
+        await panel.close()
     }
 }

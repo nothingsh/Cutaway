@@ -47,6 +47,8 @@ extension AttributesViewController {
             // The Object section has nothing to say until a layer is selected.
             section.isHidden = result.isEmpty || section.isBlank
         }
+        // The pages the filter made again have no rows yet (C-SCALE-03).
+        if !lazyParts.isEmpty { listBuiltRows() }
         var anyAbove = false
         for (line, section) in separators {
             line.isHidden = section.isHidden || !anyAbove
@@ -68,6 +70,7 @@ extension AttributesViewController {
     func updateStickyAfterLayout() {
         guard isViewLoaded else { return }
         view.layoutSubtreeIfNeeded()
+        arrangePages()
         updateSticky()
     }
 

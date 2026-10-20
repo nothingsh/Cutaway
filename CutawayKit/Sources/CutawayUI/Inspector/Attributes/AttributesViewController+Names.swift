@@ -14,6 +14,13 @@ extension AttributesViewController {
         pasteboard.setString(text, forType: .string)
     }
 
+    /// A line between two sections.
+    static func separator() -> NSView {
+        VStack(alignment: .fill) {
+            NSBox().configure { $0.boxType = .separator }
+        }
+    }
+
     /// The panel's backdrop, and the header's that stays at the top over the list: the
     /// window's own material, so that the panel looks as the window does, and the same view
     /// for both, so that they look alike over any desktop and in any state of the window.

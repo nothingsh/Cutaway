@@ -23,9 +23,9 @@ protocol ScreenshotFetcherDelegate: AnyObject {
     func fetcher(_ fetcher: ScreenshotFetcher, failedWith failure: any Error, outOfDate: Bool)
 }
 
-/// Asks the app for screenshots, a batch at a time, in the order the scheduler decides
-/// (C-DET-01, C-DET-02): the batch under way, the wait for the rows in view before a new
-/// tree's first batch, and whether asking stopped on a failure.
+/// Asks the app for screenshots, two batches under way at a time (C-SCALE-04), in the order the
+/// scheduler decides (C-DET-01, C-DET-02): the batches under way, the wait for the rows in
+/// view before a new tree's first batch, and whether asking stopped on a failure.
 @MainActor
 final class ScreenshotFetcher {
     private let source: any InspectionSource
@@ -37,9 +37,16 @@ final class ScreenshotFetcher {
 
     /// Which layers' screenshots to ask for next, and what has come this round.
     var scheduler = DetailScheduler()
-    /// The batch being asked for, the active generation it was asked under, and the task
-    /// that reads its stream.
-    private var fetch: (batch: UInt64, generation: UInt64, task: Task<Void, Never>)?
+    /// A batch being asked for, the active generation it was asked under, and the task that
+    /// reads its stream.
+    private struct Fetch {
+        var batch: UInt64
+        var generation: UInt64
+        var task: Task<Void, Never>
+    }
+
+    /// The batches being asked for, oldest first.
+    private var fetches: [Fetch] = []
     /// Set when asking for screenshots stopped on a failure; a new round clears it.
     private(set) var isStopped = false
     /// Set when the server ended a batch's stream as cancelled without being asked to, and
@@ -65,7 +72,11 @@ final class ScreenshotFetcher {
     }
 
     /// Whether a batch is on its way.
-    var isFetching: Bool { fetch != nil }
+    var isFetching: Bool { !fetches.isEmpty }
+
+    private func isUnderWay(_ batch: UInt64) -> Bool {
+        fetches.contains { $0.batch == batch }
+    }
 
     // MARK: - Rounds
 
@@ -93,12 +104,18 @@ final class ScreenshotFetcher {
 
     // MARK: - Batches
 
-    /// Asks for the next batch, unless one is under way, asking stopped on a failure, a new
-    /// tree's first batch waits for the rows in view, or the inspection says not now.
+    /// Asks for batches until as many are under way as the scheduler allows, unless asking
+    /// stopped on a failure, a new tree's first batch waits for the rows in view, or the
+    /// inspection says not now.
     func fetchNext() {
-        guard let delegate, delegate.mayFetchScreenshots, !isStopped, !awaitingRows, fetch == nil,
+        while startBatch() {}
+    }
+
+    /// Asks for one more batch; false when none went out.
+    private func startBatch() -> Bool {
+        guard let delegate, delegate.mayFetchScreenshots, !isStopped, !awaitingRows,
               let batch = scheduler.nextBatch()
-        else { return }
+        else { return false }
         batchesStarted += 1
         let request = GetLayerDetails(
             requests: batch.needs.map {
@@ -119,7 +136,7 @@ final class ScreenshotFetcher {
                     // again once the chunk is decompressed, which a cancel may have overtaken.
                     guard let decode = self?.decoder(forBatch: batch.id) else { break }
                     let decompressed = await ImageDecompression.decompress(details, using: decode)
-                    guard let self, self.fetch?.batch == batch.id else { break }
+                    guard let self, self.isUnderWay(batch.id) else { break }
                     self.delegate?.fetcher(self, took: decompressed)
                 }
             } catch {
@@ -133,20 +150,21 @@ final class ScreenshotFetcher {
             }
             self?.finishBatch(batch.id, failure: failure)
         }
-        fetch = (batch.id, delegate.activeGeneration, task)
+        fetches.append(Fetch(batch: batch.id, generation: delegate.activeGeneration, task: task))
+        return true
     }
 
     /// The decompression to use for a chunk of this batch; nil once the batch was cancelled or
     /// replaced.
     private func decoder(forBatch id: UInt64) -> (@Sendable (EncodedImage) throws -> Bitmap)? {
-        fetch?.batch == id ? delegate?.decodeImage : nil
+        isUnderWay(id) ? delegate?.decodeImage : nil
     }
 
     /// The end of a batch's stream. Ignored for a batch that was cancelled or replaced.
     private func finishBatch(_ id: UInt64, failure: (any Error)?) {
         // Held for the whole answer: what the delegate does may let go of it.
-        guard let current = fetch, current.batch == id, let delegate else { return }
-        fetch = nil
+        guard let index = fetches.firstIndex(where: { $0.batch == id }), let delegate else { return }
+        let current = fetches.remove(at: index)
         guard let failure else {
             scheduler.batchEnded(id, completed: true)
             delegate.fetcherProgressChanged(self)
@@ -155,6 +173,7 @@ final class ScreenshotFetcher {
         }
         scheduler.batchEnded(id, completed: false)
         if case .cancelled = failure as? RequestError, !retriedServerCancel {
+            // The other batch goes on.
             // The client forgets a batch before it cancels it, so this stream was cancelled
             // by the server on its own, which P-REQ-04 does not provide for. Asked for once
             // more in this round; a second time, the inspection decides.
@@ -163,21 +182,30 @@ final class ScreenshotFetcher {
             fetchNext()
             return
         }
+        // The other batch is cancelled too: what it did not bring is due again, and the
+        // inspection decides what the failure means, as with one batch.
+        cancel()
         delegate.fetcher(
             self, failedWith: failure, outOfDate: current.generation != delegate.activeGeneration)
     }
 
-    /// Cancels the batch under way. Reading its stream stops, which cancels the request
-    /// (P-REQ-04); what it did not bring is due again.
-    /// Returns the cancelled batch's task, which ends once its `Cancel` has gone out.
+    /// Cancels the batches under way. Reading their streams stops, which cancels the
+    /// requests (P-REQ-04); what they did not bring is due again.
+    /// Returns a task that ends once every `Cancel` has gone out (C-DET-06).
     @discardableResult
     func cancel() -> Task<Void, Never>? {
-        guard let current = fetch else { return nil }
-        fetch = nil
-        current.task.cancel()
-        scheduler.batchEnded(current.batch, completed: false)
+        guard !fetches.isEmpty else { return nil }
+        let cancelled = fetches
+        fetches = []
+        for fetch in cancelled {
+            fetch.task.cancel()
+            scheduler.batchEnded(fetch.batch, completed: false)
+        }
         delegate?.fetcherProgressChanged(self)
-        return current.task
+        let tasks = cancelled.map(\.task)
+        return Task {
+            for task in tasks { await task.value }
+        }
     }
 
     // MARK: - The rows in view
