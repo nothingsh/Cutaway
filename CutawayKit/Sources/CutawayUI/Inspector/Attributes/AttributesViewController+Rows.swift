@@ -22,6 +22,15 @@ extension AttributesViewController {
         }
     }
 
+    /// The row of one item, not kept anywhere: for a part built page by page (C-SCALE-03),
+    /// whose rows the panel lists from the pages built.
+    func makeListRow(_ item: AttributeClusters.Item) -> any AttributeListRow {
+        switch item {
+        case .single(let attribute): makeRow(attribute)
+        case .cluster(let cluster): makeCompound(cluster)
+        }
+    }
+
     private func makeRow(_ attribute: Attribute) -> AttributeRowView {
         let title = AttributeText.title(attribute.title, id: attribute.id)
         let row: AttributeRowView

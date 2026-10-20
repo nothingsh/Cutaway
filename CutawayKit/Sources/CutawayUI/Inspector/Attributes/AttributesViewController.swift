@@ -77,6 +77,10 @@ final class AttributesViewController: NSViewController {
     var attributeCells: [(attribute: Attribute, cell: any AttributeCell)] = []
     /// The compound rows, in the order of the list.
     var compoundRows: [CompoundRowView] = []
+    /// Set while pages are built and taken down, which scrolls the list (C-SCALE-03).
+    var isArrangingPages = false
+    /// Set while the pages are to be arranged on the next turn of the run loop.
+    var isPageArrangementDue = false
 
     /// The filter (C-ATTR-14): kept while the panel lives, whatever is selected, refreshed or
     /// changed; nil when it keeps everything.
@@ -392,7 +396,10 @@ final class AttributesViewController: NSViewController {
             .store(in: &cancellables)
 
         list.documentVisibleRectPublisher
-            .sink { [weak self] _ in self?.updateSticky() }
+            .sink { [weak self] _ in
+                self?.arrangePagesSoon()
+                self?.updateSticky()
+            }
             .store(in: &cancellables)
 
         // The names of colours and texts follow the project folder's index (C-SRC-04,
@@ -418,7 +425,7 @@ final class AttributesViewController: NSViewController {
     }
 
     /// Each row's value and state: a row being changed shows the value on its way.
-    private func showRowStates() {
+    func showRowStates() {
         let layer = groups.flatMap(\.attributes)
         for (attribute, row) in attributeCells {
             let state = viewModel.rowState(of: attribute, among: layer)
@@ -470,6 +477,9 @@ final class AttributesViewController: NSViewController {
         }
         message.send(shown)
         list.isHidden = shown != nil
+        // The pages near the top, now that the list shows (C-SCALE-03).
+        if !lazyParts.isEmpty { view.layoutSubtreeIfNeeded() }
+        arrangePages()
         updateSticky()
     }
 
@@ -497,13 +507,6 @@ final class AttributesViewController: NSViewController {
         if rows != nil { scrollToTopForAnotherLayer() }
     }
 
-    /// A line between two sections.
-    private static func separator() -> NSView {
-        VStack(alignment: .fill) {
-            NSBox().configure { $0.boxType = .separator }
-        }
-    }
-
     /// Another layer's attributes start at the top; a new answer for the same layer stays
     /// where the user scrolled to.
     private func scrollToTopForAnotherLayer() {
@@ -525,6 +528,12 @@ final class AttributesViewController: NSViewController {
             // shape lists them the same way, so the rows follow in the same order.
             groups = new
             shownListing = listing
+            if !lazyParts.isEmpty {
+                replaceValues(listing)
+                showRowStates()
+                showObjectSummary()
+                return
+            }
             attributeCells = zip(listing.attributes, attributeCells.map(\.cell)).map {
                 (attribute: $0, cell: $1)
             }
@@ -550,6 +559,7 @@ final class AttributesViewController: NSViewController {
         attributeRows = []
         attributeCells = []
         compoundRows = []
+        let byPage = Self.isBuiltByPage(listing)
         sectionViews = AttributesViewModel.Listing.Kind.allCases.compactMap { kind in
             let section = listing.section(kind)
             switch kind {
@@ -560,10 +570,12 @@ final class AttributesViewController: NSViewController {
             let parts = (section?.parts ?? []).enumerated().map { index, part in
                 // The Content section is titled by its first group; the others' groups go
                 // without headings, as the section is about what they are for.
-                AttributeGroupView.Part(
-                    heading: kind == .content && index > 0
-                        ? AttributeText.title(part.groupTitle, id: part.groupID) : nil,
-                    rows: rows(part.listed))
+                let heading = kind == .content && index > 0
+                    ? AttributeText.title(part.groupTitle, id: part.groupID) : nil
+                // Very many: page by page as the list comes near them (C-SCALE-03).
+                return byPage
+                    ? pagedPart(part.listed, heading: heading)
+                    : AttributeGroupView.Part(heading: heading, rows: rows(part.listed))
             }
             return sectionView(kind, first: section?.parts.first, parts: parts)
         }

@@ -27,8 +27,18 @@ struct DetailBatch: Equatable, Sendable {
 /// A round starts each time the hierarchy is loaded: everything is due again, while the
 /// images already held stay shown until new ones replace them.
 struct DetailScheduler: Sendable {
-    /// Small, so that the order can follow the list soon after a scroll or a collapse.
-    static let batchSize = 8
+    /// 32 (C-SCALE-04): what each answer costs the main thread, the preview's new
+    /// projection and drawing above all, is paid once a batch rather than once in 8 layers.
+    /// Still small enough that the order follows the list soon after a scroll or a collapse:
+    /// a batch takes about 10 ms in the test configuration.
+    static let defaultBatchSize = 32
+    /// Two, so that the next batch waits at the server while one is answered (C-SCALE-04).
+    static let batchesInFlight = 2
+
+    /// How many layers a batch asks for, and how many batches may be under way at once. Eight
+    /// and one give the scheduling of before, for the test that compares the two.
+    var batchSize = Self.defaultBatchSize
+    var maxInFlight = Self.batchesInFlight
 
     private var round: UInt64 = 0
     private var needs: [TextureNeed] = []
@@ -36,7 +46,8 @@ struct DetailScheduler: Sendable {
     private var visible: [UInt64] = []
     private var receivedIn: [TextureNeed: UInt64] = [:]
     private var failedIn: [TextureNeed: UInt64] = [:]
-    private var current: DetailBatch?
+    /// The batches under way, oldest first.
+    private var inFlight: [DetailBatch] = []
     private var nextBatchID: UInt64 = 1
     /// How many times each need is in `needs`.
     private var neededCount: [TextureNeed: Int] = [:]
@@ -48,11 +59,11 @@ struct DetailScheduler: Sendable {
 
     init() {}
 
-    /// Everything is due again. A batch under way no longer counts. What arrived or failed
+    /// Everything is due again. The batches under way no longer count. What arrived or failed
     /// in earlier rounds is forgotten: only this round's records are read.
     mutating func startRound() {
         round += 1
-        current = nil
+        inFlight = []
         receivedIn.removeAll(keepingCapacity: true)
         failedIn.removeAll(keepingCapacity: true)
         settledCount = 0
@@ -75,19 +86,21 @@ struct DetailScheduler: Sendable {
         visible = ids
     }
 
-    /// The next batch: needs that are not settled in this round, rows in view first, then the
-    /// rest in tree order. Nil while a batch is under way or when nothing is due.
+    /// The next batch: needs that are not settled in this round nor asked for by a batch under
+    /// way, rows in view first, then the rest in tree order. Nil while as many batches as may
+    /// be are under way, or when nothing is due.
     mutating func nextBatch() -> DetailBatch? {
-        guard current == nil else { return nil }
+        guard inFlight.count < maxInFlight else { return nil }
+        let asked = Set(inFlight.flatMap(\.needs).map(\.layerID))
         while cursor < needs.count, isSettled(needs[cursor]) { cursor += 1 }
         let inView = visible.compactMap { id in
             kindByLayer[id].map { TextureNeed(layerID: id, kind: $0) }
         }
         var chosen: [TextureNeed] = []
-        var seen = Set<UInt64>()
+        var seen = asked
         func consider(_ need: TextureNeed) -> Bool {
             if !isSettled(need), seen.insert(need.layerID).inserted { chosen.append(need) }
-            return chosen.count < Self.batchSize
+            return chosen.count < batchSize
         }
         search: do {
             for need in inView where !consider(need) { break search }
@@ -96,7 +109,7 @@ struct DetailScheduler: Sendable {
         guard !chosen.isEmpty else { return nil }
         let batch = DetailBatch(id: nextBatchID, needs: chosen)
         nextBatchID += 1
-        current = batch
+        inFlight.append(batch)
         return batch
     }
 
@@ -125,18 +138,21 @@ struct DetailScheduler: Sendable {
         }
     }
 
-    /// A successful detail for the layer was taken in. If the batch under way asked for a
-    /// kind that is still needed and it did not come, that kind failed this round.
+    /// A successful detail for the layer was taken in. If a batch under way asked for a kind
+    /// that is still needed and it did not come, that kind failed this round.
     mutating func answered(_ layerID: UInt64) {
-        guard let asked = current?.needs.first(where: { $0.layerID == layerID }) else { return }
-        failIfStillDue(asked)
+        for batch in inFlight {
+            guard let asked = batch.needs.first(where: { $0.layerID == layerID }) else { continue }
+            failIfStillDue(asked)
+        }
     }
 
     /// The batch with this number ended. When it completed, what it asked for and did not
-    /// get failed this round; otherwise that is due again. An earlier batch's end is ignored.
+    /// get failed this round; otherwise that is due again. The other batch under way goes on.
+    /// The end of a batch of an earlier round is ignored.
     mutating func batchEnded(_ id: UInt64, completed: Bool) {
-        guard let batch = current, batch.id == id else { return }
-        current = nil
+        guard let index = inFlight.firstIndex(where: { $0.id == id }) else { return }
+        let batch = inFlight.remove(at: index)
         guard completed else { return }
         for need in batch.needs { failIfStillDue(need) }
     }

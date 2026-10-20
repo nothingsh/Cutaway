@@ -37,16 +37,68 @@ final class DetailSchedulerTests: XCTestCase {
             [group(7), group(8), solo(1), solo(2), group(3), solo(4), solo(6)])
     }
 
-    func test_C_DET_01_aBatchHoldsAtMostEightLayers() throws {
-        let needs = (UInt64(1)...20).map { group($0) }
+    private static let size = DetailScheduler.defaultBatchSize
+
+    /// The layers from `first`, `count` of them.
+    private func ids(_ first: Int, _ count: Int) -> [UInt64] {
+        (first..<first + count).map(UInt64.init)
+    }
+
+    func test_C_DET_01_aBatchHoldsAtMostThirtyTwoLayers() throws {
+        XCTAssertEqual(Self.size, 32, "C-SCALE-04")
+        let needs = (UInt64(1)...80).map { group($0) }
         var scheduler = scheduler(needs)
         let first = scheduler.nextBatch()
-        XCTAssertEqual(first?.needs, Array(needs[0..<8]))
-        XCTAssertNil(scheduler.nextBatch(), "one batch at a time")
+        XCTAssertEqual(first?.needs, Array(needs[0..<32]))
+        XCTAssertEqual(scheduler.nextBatch()?.needs, Array(needs[32..<64]), "the second asks for others")
+        XCTAssertNil(scheduler.nextBatch(), "two batches at a time (C-SCALE-04)")
 
         scheduler.batchEnded(try XCTUnwrap(first).id, completed: false)
-        // Nothing of it arrived and it was not completed: the same eight are due again.
-        XCTAssertEqual(scheduler.nextBatch()?.needs, Array(needs[0..<8]))
+        // Nothing of it arrived and it was not completed: the same ones are due again.
+        XCTAssertEqual(scheduler.nextBatch()?.needs, Array(needs[0..<32]))
+    }
+
+    // MARK: - C-SCALE-04
+
+    func test_C_SCALE_04_twoBatchesUnderWayNeverAskForTheSameLayer() throws {
+        let needs = (UInt64(1)...80).map { group($0) }
+        var scheduler = scheduler(needs)
+        // 40 is in view: the first batch takes it, the second does not again.
+        scheduler.setVisible([40])
+        let first = try XCTUnwrap(scheduler.nextBatch())
+        let second = try XCTUnwrap(scheduler.nextBatch())
+        XCTAssertEqual(first.needs.map(\.layerID), [40] + ids(1, 31))
+        XCTAssertEqual(second.needs.map(\.layerID), ids(32, 8) + ids(41, 24))
+        XCTAssertNotEqual(first.id, second.id)
+    }
+
+    func test_C_SCALE_04_aBatchEndsOnItsOwn() throws {
+        let needs = (UInt64(1)...100).map { group($0) }
+        var scheduler = scheduler(needs)
+        let first = try XCTUnwrap(scheduler.nextBatch())
+        let second = try XCTUnwrap(scheduler.nextBatch())
+        // An answer is the batch's that asked for the layer.
+        scheduler.answered(40)
+        XCTAssertEqual(scheduler.progress, DetailProgress(completed: 1, total: 100), "40's kind did not come")
+        // The second ends first: completed, what it did not get failed; the first goes on.
+        scheduler.batchEnded(second.id, completed: true)
+        XCTAssertEqual(scheduler.progress, DetailProgress(completed: 32, total: 100))
+        let third = try XCTUnwrap(scheduler.nextBatch(), "room for one more")
+        XCTAssertEqual(third.needs.map(\.layerID), ids(65, 32))
+        XCTAssertNil(scheduler.nextBatch())
+        scheduler.batchEnded(first.id, completed: false)
+        XCTAssertEqual(scheduler.nextBatch()?.needs.map(\.layerID), ids(1, 32), "due again")
+    }
+
+    func test_C_SCALE_04_aNewRoundDropsBothBatches() {
+        let needs = (UInt64(1)...100).map { group($0) }
+        var scheduler = scheduler(needs)
+        _ = scheduler.nextBatch()
+        _ = scheduler.nextBatch()
+        XCTAssertNil(scheduler.nextBatch())
+        scheduler.startRound()
+        XCTAssertEqual(scheduler.nextBatch()?.needs.map(\.layerID), ids(1, 32))
+        XCTAssertEqual(scheduler.nextBatch()?.needs.map(\.layerID), ids(33, 32))
     }
 
     func test_C_DET_01_whatArrivedIsNotAskedForAgain() throws {

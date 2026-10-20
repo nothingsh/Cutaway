@@ -22,6 +22,18 @@ extension InspectionStore {
     /// How many batches of screenshots were asked for.
     var batchesStarted: Int { fetcher.batchesStarted }
 
+    /// How many layers a batch of screenshots asks for, and how many batches may be under way
+    /// at once (C-SCALE-04): 8 and 1 for the test that compares them with what they are.
+    var screenshotBatchSize: Int {
+        get { fetcher.scheduler.batchSize }
+        set { fetcher.scheduler.batchSize = newValue }
+    }
+
+    var screenshotBatchesInFlight: Int {
+        get { fetcher.scheduler.maxInFlight }
+        set { fetcher.scheduler.maxInFlight = newValue }
+    }
+
     /// How long a new tree's first batch waits for the rows in view.
     var rowsWait: Duration {
         get { fetcher.rowsWait }
