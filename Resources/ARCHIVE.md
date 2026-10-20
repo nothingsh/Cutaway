@@ -44,7 +44,8 @@ The frames are, in order:
 1. The Server's `Hello` (`role` is `Server`, with `app`), exactly one;
 2. `AppIcon`, exactly one;
 3. `Hierarchy`, exactly one;
-4. `LayerDetailsChunk`, zero or more. Saving an archive may send several `GetLayerDetails`; their chunks follow one after another.
+4. `Environment`, at most one: the app's trait environment when the archive was saved (C-ENV-04). Written from protocol 1.2 on; an archive without it, from 1.1 for example, has none, and a reader treats it as no overrides;
+5. `LayerDetailsChunk`, zero or more. Saving an archive may send several `GetLayerDetails`; their chunks follow one after another.
 
 Each buffer holds the bytes as they were received, not re-encoded, so fields appended by a higher minor version are kept too. `request_id` and `sequence` mean something only on the connection they came from; a reader ignores them. `StreamEnd`, `Error`, `AppStateChanged` and frames sent by the Client are not saved.
 

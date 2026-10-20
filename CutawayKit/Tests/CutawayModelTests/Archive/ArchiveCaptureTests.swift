@@ -108,13 +108,14 @@ final class ArchiveCaptureTests: XCTestCase {
             })
         }
 
-        // The file holds the frames as the server sent them: Hello, icon, hierarchy, chunks.
+        // The file holds the frames as the server sent them: Hello, icon, hierarchy, the
+        // environment (C-ENV-04), chunks.
         let decoder = try ArchiveDecoder(try Data(contentsOf: destination))
         let sent = await server.sentPayloads
         let kept = sent.filter {
             guard let body = try? FrameCodec.decode($0).body else { return false }
             switch body {
-            case .hello, .appIcon, .hierarchy, .layerDetailsChunk: return true
+            case .hello, .appIcon, .hierarchy, .environment, .layerDetailsChunk: return true
             default: return false
             }
         }

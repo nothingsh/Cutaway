@@ -21,6 +21,9 @@ public actor MockServer {
     public private(set) var sentPayloads: [Data] = []
     /// What did not match the script. Empty when clients behaved as scripted.
     public private(set) var mismatches: [String] = []
+    /// How many `GetEnvironment` requests the script did not expect and the server answered
+    /// on its own (`MockScript.unscriptedEnvironment`). They are not in `receivedFrames`.
+    public private(set) var unscriptedEnvironmentRequests = 0
     /// How many connections ended because the client closed them.
     public private(set) var clientCloseCount = 0
     /// Bytes whose sending completed: handed to the system's send buffer, across all
@@ -93,7 +96,9 @@ public actor MockServer {
             for step in script.steps {
                 switch step {
                 case .expect(let kind, let scriptID):
-                    guard let frame = try await nextFrame(from: channel, reader: &reader) else {
+                    guard let frame = try await nextScriptedFrame(
+                        from: channel, reader: &reader, expecting: kind)
+                    else {
                         mismatches.append("expected \(kind), but the client closed the connection")
                         clientCloseCount += 1
                         channel.close()
@@ -138,7 +143,9 @@ public actor MockServer {
                 return
             }
             // The script is over. Stay until the client leaves and record what it still sends.
-            while let frame = try await nextFrame(from: channel, reader: &reader) {
+            while let frame = try await nextScriptedFrame(
+                from: channel, reader: &reader, expecting: nil)
+            {
                 record(frame)
             }
             clientCloseCount += 1
@@ -173,6 +180,7 @@ public actor MockServer {
         var responder = responder
         var detailRequests = 0
         var heldOnce = false
+        var setEnvironmentRequests = 0
         while let frame = try await nextFrame(from: channel, reader: &reader) {
             record(frame)
             let id = frame.requestID
@@ -228,6 +236,17 @@ public actor MockServer {
                     Frame(requestID: id, body: .streamEnd(StreamEnd(
                         status: .completed, chunkCount: UInt32(chunks.count), error: nil))),
                     on: channel)
+            case .getEnvironment:
+                try await send(
+                    Frame(requestID: id, body: .environment(responder.environmentAnswer())), on: channel)
+            case .setEnvironment(let request):
+                setEnvironmentRequests += 1
+                guard try await answer(
+                    request, id: id, count: setEnvironmentRequests, with: &responder, on: channel)
+                else {
+                    await closeGracefully(channel, reader: &reader)
+                    return
+                }
             case .cancel:
                 // Every stream ended before the next frame was read.
                 continue
@@ -237,6 +256,44 @@ public actor MockServer {
         }
         clientCloseCount += 1
         channel.close()
+    }
+
+    /// Answers the `count`th `SetEnvironment` of the connection as the responder says.
+    /// Returns false when the server is to close the connection instead.
+    private func answer(
+        _ request: SetEnvironment, id: UInt32, count: Int, with responder: inout MockResponder,
+        on channel: ConnectionChannel
+    ) async throws -> Bool {
+        if let (held, gate) = responder.holdBeforeSetEnvironment, held == count {
+            await gate.wait()
+        }
+        let body: Body
+        switch responder.failSetEnvironment {
+        case .some((count, .disconnect)):
+            return false
+        case .some((count, .appNotActive)):
+            body = .error(ServerError(code: .appNotActive, message: nil))
+        default:
+            body = responder.setEnvironment(request)
+        }
+        try await send(Frame(requestID: id, body: body), on: channel)
+        return true
+    }
+
+    /// The next frame for the script: a `GetEnvironment` the script does not expect here is
+    /// answered as an app that can override nothing, and passed over. A 1.2 client
+    /// asks for it at the start of every inspection, which most scripts leave out.
+    private func nextScriptedFrame(
+        from channel: ConnectionChannel, reader: inout FrameReader, expecting kind: MessageKind?
+    ) async throws -> Frame? {
+        while let frame = try await nextFrame(from: channel, reader: &reader) {
+            guard case .getEnvironment = frame.body, kind != .getEnvironment else { return frame }
+            unscriptedEnvironmentRequests += 1
+            try await send(
+                Frame(requestID: frame.requestID, body: .environment(MockScript.unscriptedEnvironment)),
+                on: channel)
+        }
+        return nil
     }
 
     private func nextFrame(

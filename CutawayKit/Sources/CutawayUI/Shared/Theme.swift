@@ -44,6 +44,8 @@ enum Theme {
         static let incompatible = "exclamationmark.triangle.fill"
         static let twoD = "square"
         static let threeD = "square.3.layers.3d"
+        /// The toolbar's Environment button (C-ENV-01): the appearance is what is changed most.
+        static let environment = "circle.lefthalf.filled"
         static let notActive = "moon.zzz.fill"
         static let screenshotsFailed = "exclamationmark.triangle.fill"
         static let disconnected = "cable.connector.slash"

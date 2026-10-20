@@ -15,7 +15,7 @@ public enum LayoutDirection: Equatable, Sendable { case unspecified, leftToRight
 public enum SizeClass: Equatable, Sendable { case unspecified, compact, regular }
 
 /// A kind of trait a server can override (P-ENV-01).
-public enum TraitKind: Equatable, Hashable, Sendable {
+public enum TraitKind: Equatable, Hashable, Sendable, CaseIterable {
     case userInterfaceStyle, contentSizeCategory, layoutDirection, horizontalSizeClass
     case verticalSizeClass
 }
@@ -43,6 +43,55 @@ public struct Traits: Equatable, Sendable {
 
     /// No trait set: as overrides, none at all (P-ENV-02).
     public static let unspecified = Self()
+}
+
+extension Traits {
+    /// One trait's value, whatever its kind.
+    public enum Value: Equatable, Sendable {
+        case userInterfaceStyle(UserInterfaceStyle)
+        case contentSizeCategory(ContentSizeCategory)
+        case layoutDirection(LayoutDirection)
+        case sizeClass(SizeClass)
+    }
+
+    /// The value of one kind of trait.
+    public subscript(kind: TraitKind) -> Value {
+        get {
+            switch kind {
+            case .userInterfaceStyle: .userInterfaceStyle(userInterfaceStyle)
+            case .contentSizeCategory: .contentSizeCategory(contentSizeCategory)
+            case .layoutDirection: .layoutDirection(layoutDirection)
+            case .horizontalSizeClass: .sizeClass(horizontalSizeClass)
+            case .verticalSizeClass: .sizeClass(verticalSizeClass)
+            }
+        }
+        set {
+            switch (kind, newValue) {
+            case (.userInterfaceStyle, .userInterfaceStyle(let value)): userInterfaceStyle = value
+            case (.contentSizeCategory, .contentSizeCategory(let value)): contentSizeCategory = value
+            case (.layoutDirection, .layoutDirection(let value)): layoutDirection = value
+            case (.horizontalSizeClass, .sizeClass(let value)): horizontalSizeClass = value
+            case (.verticalSizeClass, .sizeClass(let value)): verticalSizeClass = value
+            default: preconditionFailure("a \(newValue) is not a value of \(kind)")
+            }
+        }
+    }
+
+    /// Whether the trait of this kind is set: as overrides, whether it is overridden.
+    public func isSpecified(_ kind: TraitKind) -> Bool {
+        self[kind] != Self.unspecified[kind]
+    }
+
+    /// The kinds that are set, in the order of `TraitKind.allCases`.
+    public var specifiedKinds: [TraitKind] { TraitKind.allCases.filter(isSpecified) }
+
+    /// These traits with every trait `overrides` sets put in their place, as the server
+    /// applies overrides over the app's own traits (P-ENV-02).
+    public func overridden(by overrides: Traits) -> Traits {
+        var result = self
+        for kind in overrides.specifiedKinds { result[kind] = overrides[kind] }
+        return result
+    }
 }
 
 /// Replaces every override of the connection (P-ENV-02).

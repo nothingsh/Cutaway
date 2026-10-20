@@ -165,6 +165,8 @@ public final class InspectionStore: ObservableObject {
     @Published public internal(set) var archiveSave = ArchiveSaveState.idle
     /// Exporting a layer's screenshot (C-ARCH-06).
     @Published public internal(set) var screenshotExport = ScreenshotExportState.idle
+    /// The app's trait environment and the overrides set on it (C-ENV-01).
+    @Published public internal(set) var environment = EnvironmentState.unavailable
 
     // MARK: - What the store is made of
 
@@ -182,6 +184,8 @@ public final class InspectionStore: ObservableObject {
     /// Asks the app for screenshots, a batch at a time.
     private(set) lazy var fetcher = ScreenshotFetcher(
         source: source, maxTextureDimension: maxTextureDimension, delegate: self)
+    /// Asks for the app's trait environment and changes it (C-ENV-01).
+    private(set) lazy var environmentController = EnvironmentController(source: source, delegate: self)
     /// Captures archives (C-ARCH-02).
     let saver = ArchiveSaver()
     let arrivingPixelsSubject = PassthroughSubject<[TextureKey: Bitmap], Never>()
@@ -268,12 +272,16 @@ public final class InspectionStore: ObservableObject {
 
     /// Opens the inspection: loads the hierarchy, then asks for screenshots and the selected
     /// layer's attributes. The hierarchy is asked for once `previous` (the app's icon) is
-    /// done: the app answers in order anyway (P-REQ-06), and one order on the wire is what
-    /// a replayed connection expects.
+    /// done, and the first time also the environment (C-ENV-03): the app answers in order
+    /// anyway (P-REQ-06), and one order on the wire is what a replayed connection expects.
     public func enter(after previous: Task<Void, Never>? = nil) {
         isOpen = true
         enteredAfter = previous
-        loader.reload(after: previous)
+        let environmentLoaded = Task { [weak self] in
+            await previous?.value
+            await self?.environmentController.load()
+        }
+        loader.reload(after: environmentLoaded)
         attributes.setOpen(true)
         Task { [weak self, source] in
             // The handshake is long over when an inspection opens, so this is the final word.
@@ -335,6 +343,7 @@ public final class InspectionStore: ObservableObject {
     package func connectionLost(waiting: Bool = false) {
         connectionWasLost = true
         if connection == .live { connection = .lost(waiting: waiting) }
+        environmentController.connectionLost()
     }
 
     // MARK: - Publishing the view of the tree

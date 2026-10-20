@@ -15,13 +15,18 @@ struct InspectorWindowTitle: Equatable {
     }
 
     /// An archive's window (C-ARCH-05): its file's name is the title; the app, its device and
-    /// when it was saved are under it, the date written as the region writes it (C-LOC-02).
-    init(archive url: URL, app: AppInfo, savedAt: Date, locale: Locale = .current) {
+    /// when it was saved are under it, the date written as the region writes it (C-LOC-02),
+    /// then what Cutaway had overridden of the app's environment (C-ENV-04).
+    init(
+        archive url: URL, app: AppInfo, savedAt: Date, overrides: Traits = .unspecified,
+        locale: Locale = .current
+    ) {
         let date = savedAt.formatted(
             Date.FormatStyle(date: .abbreviated, time: .shortened, locale: locale))
         let saved = localized("archive.subtitle.saved", date)
-        subtitle = [AppEntryPresentation.name(of: app), AppEntryPresentation.deviceLine(app), saved]
-            .compactMap { $0 }.joined(separator: " \u{00B7} ")
+        subtitle = ([AppEntryPresentation.name(of: app), AppEntryPresentation.deviceLine(app), saved]
+            .compactMap { $0 } + EnvironmentNames.overrideNames(overrides))
+            .joined(separator: " \u{00B7} ")
         title = url.deletingPathExtension().lastPathComponent
     }
 

@@ -111,6 +111,11 @@ public struct MockScript: Sendable {
 }
 
 extension MockScript {
+    /// What a `GetEnvironment` the script leaves out gets: an app that can override nothing,
+    /// so the inspection shows no environment controls (C-ENV-01).
+    public static let unscriptedEnvironment = Environment(
+        overrides: .unspecified, current: .unspecified, overridable: [])
+
     /// The script with the attributes in every chunk it sends renamed (C-ATTR-03).
     public func renamingAttributes() -> MockScript {
         MockScript(

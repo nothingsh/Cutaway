@@ -43,6 +43,13 @@ public struct MockResponder: Sendable {
     public var holdBeforeDetails: (@Sendable (GetLayerDetails) -> Bool, MockGate)?
     /// Instead of answering any `GetLayerDetails` the condition holds for, fail.
     public var failDetails: (@Sendable (GetLayerDetails) -> Bool, Failure)?
+    /// The app's trait environment (C-ENV-02). Nil answers as an app that can override
+    /// nothing, as `MockScript.unscriptedEnvironment` does.
+    public var environment: MockEnvironment?
+    /// Before answering the nth `SetEnvironment` of a connection (from 1), wait at the gate.
+    public var holdBeforeSetEnvironment: (Int, MockGate)?
+    /// Instead of answering the nth `SetEnvironment` of a connection (from 1), fail.
+    public var failSetEnvironment: (Int, Failure)?
 
     /// A request an archive's capture makes: every part of every layer (C-ARCH-02).
     public static let isArchiveBatch: @Sendable (GetLayerDetails) -> Bool = { request in
@@ -161,6 +168,24 @@ public struct MockResponder: Sendable {
         }
     }
 
+    /// What a `GetEnvironment` gets.
+    func environmentAnswer() -> Environment {
+        environment?.answer ?? MockScript.unscriptedEnvironment
+    }
+
+    /// What a `SetEnvironment` gets: the new environment, or `NotSupported` for a kind the
+    /// app cannot override, changing nothing (P-ENV-02, P-ENV-04). An app with no
+    /// `environment` can override nothing.
+    mutating func setEnvironment(_ request: SetEnvironment) -> Body {
+        var environment = self.environment ?? MockEnvironment(overridable: [], own: .unspecified)
+        guard request.overrides.specifiedKinds.allSatisfy(environment.overridable.contains) else {
+            return .error(ServerError(code: .notSupported, message: "cannot override that"))
+        }
+        environment.overrides = request.overrides
+        self.environment = environment
+        return .environment(environment.answer)
+    }
+
     /// A layer and all its descendants, as `GetSubtree` answers (P-HIER-10). Nil for a layer
     /// that is not in the hierarchy.
     func subtree(of id: UInt64) -> Hierarchy? {
@@ -174,5 +199,36 @@ public struct MockResponder: Sendable {
             nodes.append(node)
         }
         return Hierarchy(nodes: nodes, keyWindowID: hierarchy.keyWindowID)
+    }
+}
+
+/// An app's trait environment as a `MockResponder` keeps it (P-ENV-01).
+public struct MockEnvironment: Equatable, Sendable {
+    /// What the app can override, in the server's order.
+    public var overridable: [TraitKind]
+    /// The key window's traits without overrides.
+    public var own: Traits
+    /// What the client has set on this connection.
+    public var overrides = Traits.unspecified
+
+    public init(overridable: [TraitKind], own: Traits) {
+        self.overridable = overridable
+        self.own = own
+    }
+
+    /// The `environment` fixtures' app (Protocol/fixtures/README.md): an iPhone in portrait,
+    /// Light, Large, Left to Right, Compact width, Regular height. On iOS 17 it can
+    /// override every kind; before, only the appearance.
+    public static func iPhone(overridable: [TraitKind] = TraitKind.allCases) -> Self {
+        Self(
+            overridable: overridable,
+            own: Traits(
+                userInterfaceStyle: .light, contentSizeCategory: .large,
+                layoutDirection: .leftToRight, horizontalSizeClass: .compact,
+                verticalSizeClass: .regular))
+    }
+
+    public var answer: Environment {
+        Environment(overrides: overrides, current: own.overridden(by: overrides), overridable: overridable)
     }
 }
