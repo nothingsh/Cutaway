@@ -133,8 +133,8 @@ enum AppWindows {
     }
 
     /// The rows the list first shows for the `hierarchy` fixture: it opens down to its view
-    /// controller, layer 2, and layers 4 and 6 start collapsed (C-HIER-09).
-    static let fixtureRowsAtFirst = 7
+    /// controller, layer 2, and layers 4, 6 and 13 start collapsed (C-HIER-09).
+    static let fixtureRowsAtFirst = 8
 
     /// Expands every layer of the inspection, as the list's Expand All does: for tests that
     /// work with the whole `hierarchy` fixture in view.

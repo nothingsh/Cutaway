@@ -71,6 +71,7 @@ extension AttributesViewController {
     static func title(of kind: AttributesViewModel.Listing.Kind) -> String {
         switch kind {
         case .content: localized("attributes.section.content")
+        case .app: localized("attributes.section.app")
         case .appearance: localized("attributes.section.appearance")
         case .layout: localized("attributes.section.layout")
         case .behavior: localized("attributes.section.behavior")
@@ -83,6 +84,7 @@ extension AttributesViewController {
     static func symbol(of kind: AttributesViewModel.Listing.Kind) -> String? {
         switch kind {
         case .content: nil
+        case .app: "app.badge"
         case .appearance: "circle.lefthalf.filled"
         case .layout: "ruler"
         case .behavior: "hand.point.up.left"

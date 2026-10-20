@@ -99,7 +99,7 @@ final class ArchiveTests: XCTestCase {
         XCTAssertEqual(decoder.hello.app?.name, "Demo")
         XCTAssertEqual(decoder.appIcon, icon)
         XCTAssertEqual(decoder.hierarchy, hierarchy)
-        XCTAssertEqual(decoder.hierarchy.nodes.count, 9)
+        XCTAssertEqual(decoder.hierarchy.nodes.count, 14)
 
         XCTAssertEqual(decoder.chunkCount, 3)
         for index in 0..<3 {
@@ -195,9 +195,11 @@ final class ArchiveTests: XCTestCase {
             FrameCodec.encode(Frame(requestID: 3, body: .layerDetailsChunk(chunk))),
         ]
         let decoder = try ArchiveDecoder(try archive(payloads))
+        // Addresses are not optional, except that a virtual node has none (P-HIER-14).
         XCTAssertTrue(decoder.hierarchy.nodes.allSatisfy {
             $0.layerClassOrigin == .unknown && $0.viewBaseClassName == nil
-                && $0.viewControllerVisibility == .unknown && $0.layerAddress != nil
+                && $0.viewControllerVisibility == .unknown
+                && ($0.layerAddress != nil || $0.kind == .virtual)
         })
         let attributes = try decoder.chunk(at: 0).details[0].attributeGroups.flatMap(\.attributes)
         XCTAssertTrue(attributes.allSatisfy { $0.cluster == nil && $0.unit == .unspecified })
@@ -225,19 +227,21 @@ final class ArchiveTests: XCTestCase {
             .map { scenario, file -> Data in
                 guard case .layerDetailsChunk(var chunk) = try FrameCodec.decode(try fixture(scenario, file)).body
                 else { throw CocoaError(.fileReadCorruptFile) }
-                chunk.details = chunk.details.map {
+                // A 1.1 app has no virtual nodes and excludes nothing: 10 and 13 are 1.2's.
+                chunk.details = chunk.details.filter { $0.layerID < 10 }.map {
                     var detail = $0
                     detail.attributeGroups = Fixtures.withoutProtocol12(detail.attributeGroups)
                     return detail
                 }
                 return FrameCodec.encode(Frame(requestID: 3, body: .layerDetailsChunk(chunk)))
             }
+        let hierarchy = Fixtures.withoutProtocol12(try Fixtures.hierarchyBeforeProtocol12())
         let old = ArchiveManifest(
             protocolVersion: Version(major: 1, minor: 1), cutawayVersion: "1.1.0",
             savedAt: manifest.savedAt)
         let decoder = try ArchiveDecoder(try archive(
             [try fixture("handshake", "02-s2c-hello.bin"), try fixture("app-icon", "02-s2c-app-icon.bin"),
-             try fixture("hierarchy", "02-s2c-hierarchy.bin")] + payloads,
+             FrameCodec.encode(Frame(requestID: 2, body: .hierarchy(hierarchy)))] + payloads,
             manifest: old))
         XCTAssertEqual(decoder.manifest.protocolVersion, Version(major: 1, minor: 1))
         let attributes = try (0..<2).flatMap { try decoder.chunk(at: $0).details }
@@ -245,6 +249,13 @@ final class ArchiveTests: XCTestCase {
         XCTAssertEqual(attributes.count, 22 + 2)
         XCTAssertTrue(attributes.allSatisfy {
             $0.appearanceColors == nil && $0.section != .accessibility && $0.valueKind != .references
+                && $0.registeredColorName == nil
+        })
+        XCTAssertFalse(try (0..<2).flatMap { try decoder.chunk(at: $0).details }
+            .flatMap(\.attributeGroups).contains(where: \.isFromApp))
+        XCTAssertEqual(decoder.hierarchy.nodes.count, 9)
+        XCTAssertTrue(decoder.hierarchy.nodes.allSatisfy {
+            $0.kind == .layer && $0.name == nil && !$0.isCollapsedByDefault && !$0.isCaptureExcluded
         })
     }
 

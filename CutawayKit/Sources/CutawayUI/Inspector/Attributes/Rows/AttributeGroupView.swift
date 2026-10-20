@@ -2,9 +2,10 @@ import AppKit
 import DeclarativeAppKit
 
 /// One section of the attribute panel (C-ATTR-10, C-ATTR-15): a header that folds it away, and
-/// its attributes in parts, one to a group. A part after the first has a heading with its
-/// group's title. The Object section has the lines that say what the object is before its
-/// attributes, and the Layout section the constraints after them (C-LAYOUT-02). A filter keeps
+/// its attributes in parts, one to a group. A part may have a heading with its group's title:
+/// one after the first in Content, every one in App (C-ATTR-23). The Object section has the
+/// lines that say what the object is before its attributes, and the Layout section the
+/// constraints after them (C-LAYOUT-02). A filter keeps
 /// the rows whose titles or IDs hold it, all of a part whose heading holds it, or all of them
 /// when the section's title does, and opens a folded section while it finds something there
 /// (C-ATTR-14).
@@ -118,7 +119,7 @@ final class AttributeGroupView: NSView {
         fatalError("init(coder:) is not supported")
     }
 
-    /// The heading of a part after the first: its group's title.
+    /// The heading of a part: its group's title.
     private static func heading(_ text: String) -> NSView {
         VStack(alignment: .fill) {
             NSTextField(labelWithString: text)

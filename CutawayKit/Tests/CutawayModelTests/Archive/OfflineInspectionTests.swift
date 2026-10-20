@@ -37,7 +37,7 @@ final class OfflineInspectionTests: XCTestCase {
         model.enter()
         let loaded = await eventually { model.loadState == .loaded }
         XCTAssertTrue(loaded)
-        XCTAssertEqual(model.tree.count, 9)
+        XCTAssertEqual(model.tree.count, 14)
 
         // The screenshots come in as they do from an app.
         let imaged = await eventually {

@@ -111,7 +111,7 @@ final class HierarchyToolsViewTests: XCTestCase {
         wait(HierarchyViewController.searchDelay + 0.2)
         XCTAssertEqual(published, ["label"])
         XCTAssertEqual(controller.reloadCount, reloads + 1)
-        XCTAssertEqual(layers(of: controller), [1, 2, 3, 6, 7])
+        XCTAssertEqual(layers(of: controller), [1, 2, 3, 6, 7, 13, 14])
     }
 
     @MainActor
@@ -122,7 +122,7 @@ final class HierarchyToolsViewTests: XCTestCase {
         try typeSearch("labe", in: controller)
         try typeSearch("", in: controller)
         XCTAssertEqual(model.searchText, "")
-        XCTAssertEqual(layers(of: controller), [1, 2, 3, 4, 5, 6, 7, 8, 9])
+        XCTAssertEqual(layers(of: controller), [1, 2, 3, 4, 10, 11, 12, 5, 6, 7, 8, 9, 13, 14])
         wait(HierarchyViewController.searchDelay + 0.2)
         XCTAssertEqual(model.searchText, "")
     }
@@ -177,7 +177,7 @@ final class HierarchyToolsViewTests: XCTestCase {
         let revision = model.expansionRevision
         let row = try XCTUnwrap(layers(of: controller).firstIndex(of: 6))
         controller.outlineView.collapseItem(controller.outlineView.item(atRow: row))
-        XCTAssertEqual(layers(of: controller), [1, 2, 3, 6])
+        XCTAssertEqual(layers(of: controller), [1, 2, 3, 6, 13, 14])
         XCTAssertEqual(model.expansionRevision, revision)
         XCTAssertTrue(model.isExpanded(6))
     }
@@ -265,15 +265,15 @@ final class HierarchyToolsViewTests: XCTestCase {
         let (model, controller) = try loaded()
         let reloads = controller.reloadCount
         model.expand(toDepth: 2)
-        XCTAssertEqual(layers(of: controller), [1, 2, 3, 4, 6, 8, 9])
+        XCTAssertEqual(layers(of: controller), [1, 2, 3, 4, 6, 8, 9, 13])
         model.expandAll()
-        XCTAssertEqual(layers(of: controller), [1, 2, 3, 4, 5, 6, 7, 8, 9])
+        XCTAssertEqual(layers(of: controller), [1, 2, 3, 4, 10, 11, 12, 5, 6, 7, 8, 9, 13, 14])
         XCTAssertEqual(controller.reloadCount, reloads, "followed, not reloaded")
         // A row the user collapses is recorded once and not applied back.
         let row = try XCTUnwrap(layers(of: controller).firstIndex(of: 4))
         controller.outlineView.collapseItem(controller.outlineView.item(atRow: row))
         XCTAssertFalse(model.isExpanded(4))
-        XCTAssertEqual(layers(of: controller), [1, 2, 3, 4, 6, 7, 8, 9])
+        XCTAssertEqual(layers(of: controller), [1, 2, 3, 4, 6, 7, 8, 9, 13, 14])
     }
 
     @MainActor

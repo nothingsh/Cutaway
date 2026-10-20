@@ -185,7 +185,7 @@ final class WindowCoordinatorTests: XCTestCase {
         XCTAssertFalse(try XCTUnwrap(coordinator.launcher.window).isVisible)
         XCTAssertTrue(isShown(panel))
         // What it last showed stays, faded, and takes no clicks on layers.
-        XCTAssertEqual(split.hierarchyController.outlineView.numberOfRows, 7)
+        XCTAssertEqual(split.hierarchyController.outlineView.numberOfRows, 8)
         XCTAssertFalse(split.hierarchyController.outlineView.isEnabled)
         XCTAssertLessThan(split.hierarchyController.view.alphaValue, 1)
         let shield = try XCTUnwrap(AppListViewTests.descendant(

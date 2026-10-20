@@ -9,7 +9,9 @@ extension InspectionStore {
     /// Takes the images that came with layer details. A layer that is not in the tree is
     /// skipped. An `ok` detail replaces the kinds of image it brings and leaves the others;
     /// an image that does not decompress counts as not brought. A layer whose detail did not
-    /// succeed has no image afterwards. The images are decompressed away from the main thread
+    /// succeed has no image afterwards. A layer the app excludes from images is marked so in
+    /// the tree with what is below it, and no longer asked for (C-DET-11). The images are decompressed away from the
+    /// main thread
     /// first (C-DET-09). Publishes once, and not at all when nothing changed. Package for tests.
     package func applyDetails(_ details: [LayerDetail]) async {
         take(await ImageDecompression.decompress(details, using: decodeImage))
@@ -20,13 +22,19 @@ extension InspectionStore {
     /// place, entry by entry: a chunk costs what its layers cost (C-SCALE-02).
     func take(_ decompressed: [ImageDecompression.DecompressedDetail]) {
         var changedIDs: [UInt64] = []
+        var excludedIDs: [UInt64] = []
         var pixels: [TextureKey: Bitmap] = [:]
         for item in decompressed where tree.contains(item.detail.layerID) {
             let detail = item.detail
             let id = detail.layerID
             guard detail.status == .ok else {
                 if images.removeValue(forKey: id) != nil { changedIDs.append(id) }
-                fetcher.scheduler.failed(id)
+                // Not a failure: the layer leaves the needs below, and the round with them.
+                if detail.status == .excluded {
+                    excludedIDs.append(id)
+                } else {
+                    fetcher.scheduler.failed(id)
+                }
                 continue
             }
             var layerImages = images[id] ?? LayerImages()
@@ -51,13 +59,26 @@ extension InspectionStore {
             }
             fetcher.scheduler.answered(id)
         }
+        let marked = !excludedIDs.isEmpty && markCaptureExcluded(excludedIDs)
         if !changedIDs.isEmpty {
             if !pixels.isEmpty { arrivingPixelsSubject.send(pixels) }
             imagesChangedSubject.send(changedIDs)
             swapTextures(of: changedIDs)
+        } else if marked {
+            swapTextures()
         } else {
             publishProgress()
         }
+    }
+
+    /// Marks the layers excluded from images in the tree, with what is below them, and lays
+    /// the tree out again: their needs go (C-DET-11). Whether the tree changed.
+    private func markCaptureExcluded(_ ids: [UInt64]) -> Bool {
+        let marked = tree.markingCaptureExcluded(ids)
+        guard marked != tree else { return false }
+        layOut(marked)
+        tree = marked
+        return true
     }
 
     /// The pixels of held images, decompressed again away from the main thread (C-DET-08,

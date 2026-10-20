@@ -12,6 +12,7 @@ enum PreviewPaneText {
         switch failure {
         case .layerGone: localized("preview.screenshot.layerGone", appName)
         case .notCaptured: localized("preview.screenshot.notCaptured", appName)
+        case .excluded: localized("preview.screenshot.excluded", appName)
         case .appNotActive: localized("preview.screenshot.appNotActive", appName)
         case .disconnected: localized("preview.screenshot.disconnected", appName)
         case .other: localized("preview.screenshot.other", appName)

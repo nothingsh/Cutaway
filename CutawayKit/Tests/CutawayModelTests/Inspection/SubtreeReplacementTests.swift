@@ -36,21 +36,23 @@ final class SubtreeReplacementTests: XCTestCase {
     func test_C_HIER_08_onlyTheSubtreeChanges() throws {
         let tree = try fixtureTree()
         let hierarchy = try Fixtures.hierarchy()
-        // Node 4 now holds 5, renamed, and a new node 10; 5 keeps its place.
+        // Node 4 now holds 5, renamed, and a new node 20; 5 keeps its place, and the virtual
+        // nodes 10 to 12 are gone.
         var four = try XCTUnwrap(tree.node(4))
         four.opacity = 0.5
         let answer = [four, Self.node(5, parent: 4, className: "CAShapeLayer"),
-                      Self.node(10, parent: 4)]
+                      Self.node(20, parent: 4)]
         let replaced = try tree.replacingSubtree(with: Hierarchy(nodes: answer, keyWindowID: 1))
 
-        XCTAssertEqual(replaced.ids, [1, 2, 3, 4, 5, 10, 6, 7, 8, 9])
-        XCTAssertEqual(replaced.children(of: 4), [5, 10])
-        XCTAssertEqual(replaced.children(of: 2), [3, 4, 6, 8, 9])
+        XCTAssertEqual(replaced.ids, [1, 2, 3, 4, 5, 20, 6, 7, 8, 9, 13, 14])
+        XCTAssertEqual(replaced.children(of: 4), [5, 20])
+        XCTAssertEqual(replaced.children(of: 2), [3, 4, 6, 8, 9, 13])
         XCTAssertEqual(replaced.node(4), four)
         XCTAssertEqual(replaced.node(5)?.className, "CAShapeLayer")
-        XCTAssertEqual(replaced.parent(of: 10), 4)
+        XCTAssertEqual(replaced.parent(of: 20), 4)
+        XCTAssertFalse(replaced.contains(10))
         // Everything outside the subtree is as it was, fields included.
-        for node in hierarchy.nodes where ![4, 5].contains(node.id) {
+        for node in hierarchy.nodes where ![4, 5, 10, 11, 12].contains(node.id) {
             XCTAssertEqual(replaced.node(node.id), node, "layer \(node.id)")
         }
         XCTAssertEqual(replaced.keyWindowID, 1)
@@ -61,7 +63,7 @@ final class SubtreeReplacementTests: XCTestCase {
         // Node 6 lost its child 7.
         let six = try XCTUnwrap(tree.node(6))
         let replaced = try tree.replacingSubtree(with: Hierarchy(nodes: [six], keyWindowID: 1))
-        XCTAssertEqual(replaced.ids, [1, 2, 3, 4, 5, 6, 8, 9])
+        XCTAssertEqual(replaced.ids, [1, 2, 3, 4, 10, 11, 12, 5, 6, 8, 9, 13, 14])
         XCTAssertFalse(replaced.contains(7))
         XCTAssertEqual(replaced.children(of: 6), [])
     }

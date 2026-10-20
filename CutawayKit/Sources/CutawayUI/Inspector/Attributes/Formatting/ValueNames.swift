@@ -34,20 +34,23 @@ struct ValueNames: Equatable {
         self.stringKeys = stringKeys
     }
 
-    /// The names of an attribute's value: the first colour set it matches in the project, then
-    /// UIKit's name (C-ATTR-24, until the app's own names in 1.2's `dev.2`); the first key of a
-    /// text. Only the value the app gave has names: one on its way has none.
+    /// The names of an attribute's value: the name the app registered, then the first colour
+    /// set it matches in the project, then UIKit's name (C-ATTR-24); the first key of a text.
+    /// Only the value the app gave has names: one on its way has none.
     init(_ attribute: Attribute, index: ProjectIndex?) {
         switch attribute.value {
         case .color(let color):
             let system = attribute.systemColorName.map(AttributeText.systemColorName)
             let assets = index?.colors.matches(color, appearanceColors: attribute.appearanceColors) ?? []
-            guard let first = assets.first else {
+            let notes = assets.map(Self.note) + [system].compactMap { $0 }
+            // The app's own name is written as it is; the others are notes in the tooltip.
+            if let registered = attribute.registeredColorName {
+                self.init(colorName: registered, colorNotes: notes)
+            } else if let first = assets.first {
+                self.init(colorName: first.name, colorNotes: notes)
+            } else {
                 self.init(systemColorName: attribute.systemColorName)
-                appearance = attribute.appearanceColors
-                return
             }
-            self.init(colorName: first.name, colorNotes: assets.map(Self.note) + [system].compactMap { $0 })
             appearance = attribute.appearanceColors
         case .string(let text):
             let keys = index?.keys.matches(text) ?? []

@@ -31,11 +31,12 @@ public enum SceneInput {
                 isHidden: node.isHidden,
                 opacity: Double(node.opacity),
                 solo: images?.solo,
-                group: images?.group)
+                group: images?.group,
+                capturesImage: !node.isCaptureExcluded)
         }
     }
 
-    /// The nine layers of the `hierarchy` fixture.
+    /// The fourteen layers of the `hierarchy` fixture.
     public static func hierarchyFixture(
         textures: [UInt64: LayerTextures] = [:]
     ) throws -> [SceneLayer] {

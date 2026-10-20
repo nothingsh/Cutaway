@@ -82,6 +82,12 @@ public struct MockResponder: Sendable {
                 detail.group = part.group ?? detail.group
                 if !part.attributeGroups.isEmpty { detail.attributeGroups = part.attributeGroups }
             }
+            // The app excludes it: no images, whatever is asked (P-DET-10).
+            if node.isCaptureExcluded {
+                detail.status = .excluded
+                detail.solo = nil
+                detail.group = nil
+            }
             details[node.id] = detail
         }
         return Self(icon: icon, hierarchy: hierarchy, details: details)

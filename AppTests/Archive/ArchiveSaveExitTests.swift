@@ -144,9 +144,9 @@ final class ArchiveSaveExitTests: XCTestCase {
         let written = await eventually { FileManager.default.fileExists(atPath: self.destination.path) }
         XCTAssertTrue(written, "no archive was written")
         let decoder = try ArchiveDecoder(try Data(contentsOf: destination))
-        XCTAssertEqual(decoder.hierarchy.nodes.count, 9)
+        XCTAssertEqual(decoder.hierarchy.nodes.count, 14)
         let layers = try (0..<decoder.chunkCount).flatMap { try decoder.chunk(at: $0).details }
-        XCTAssertEqual(layers.map(\.layerID), [1, 2, 3, 4, 5, 6, 7, 8, 9])
+        XCTAssertEqual(layers.map(\.layerID), [1, 2, 3, 4, 10, 11, 12, 5, 6, 7, 8, 9, 13, 14])
         // The manifest carries the version the About panel and the handshake show (C-DIST-01).
         XCTAssertEqual(
             decoder.manifest.cutawayVersion,

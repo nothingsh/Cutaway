@@ -151,7 +151,7 @@ final class SessionBackpressureTests: XCTestCase {
         answer.requestID = 3
         await channel.feed(FrameCodec.encodeForStream(answer))
         let nodes = try await hierarchy.nodes.count
-        XCTAssertEqual(nodes, 9)
+        XCTAssertEqual(nodes, 14)
 
         // The same layers again (request 4): all of it, nothing left over from before.
         let again = await session.layerDetails(Self.request)

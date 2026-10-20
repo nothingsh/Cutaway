@@ -23,12 +23,12 @@ final class AttributesViewModel {
         var offersRetry = false
     }
 
-    /// Where the attributes are listed (C-ATTR-10, C-ATTR-26): six sections by what the
-    /// attributes are for, in a fixed order.
+    /// Where the attributes are listed (C-ATTR-10, C-ATTR-23, C-ATTR-26): sections by what the
+    /// attributes are for, and one for the groups the app adds, in a fixed order.
     struct Listing: Equatable {
         /// The sections, in the order of the list.
         enum Kind: String, CaseIterable, Equatable {
-            case content, appearance, layout, behavior, accessibility, object
+            case content, app, appearance, layout, behavior, accessibility, object
         }
 
         /// The attributes one group gives a section.
@@ -203,11 +203,18 @@ final class AttributesViewModel {
     /// General, Unspecified and values this client does not know in Appearance, Identity in
     /// Object. Within a section the groups go in reverse, from the most specific to the most
     /// general, as the server sends them the other way round, and a group's attributes in the
-    /// order they came. A section without attributes is not listed. Only the sections decide,
-    /// never the IDs (C-ATTR-03).
+    /// order they came. A section without attributes is not listed. The groups the app adds
+    /// go whole into the App section, in the order they came, whatever their attributes'
+    /// sections (C-ATTR-23). Only the sections and that flag decide, never the IDs (C-ATTR-03).
     nonisolated static func listing(of groups: [AttributeGroup]) -> Listing {
         var parts: [Listing.Kind: [Listing.Part]] = [:]
-        for group in groups.reversed() {
+        let fromApp = groups.filter { $0.isFromApp && !$0.attributes.isEmpty }.map { group in
+            Listing.Part(
+                groupID: group.id, groupTitle: group.title, groupClassName: group.className,
+                attributes: group.attributes)
+        }
+        if !fromApp.isEmpty { parts[.app] = fromApp }
+        for group in groups.reversed() where !group.isFromApp {
             var byKind: [Listing.Kind: [Attribute]] = [:]
             for attribute in group.attributes {
                 byKind[kind(of: attribute.section), default: []].append(attribute)

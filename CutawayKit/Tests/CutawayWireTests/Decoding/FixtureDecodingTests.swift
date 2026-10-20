@@ -93,42 +93,61 @@ final class FixtureDecodingTests: XCTestCase {
             return
         }
         XCTAssertEqual(hierarchy.keyWindowID, expected.keyWindowID)
-        XCTAssertEqual(hierarchy.nodes.count, 9)
+        XCTAssertEqual(hierarchy.nodes.count, 14)
         // Compared one by one so that a failure names the node.
         for (actual, wanted) in zip(hierarchy.nodes, expected.nodes) {
             XCTAssertEqual(actual, wanted, "node \(wanted.id)")
         }
     }
 
+    /// Protocol 1.2 (P-HIER-19, 20, 23): a part of a card the app draws itself, in the parent's
+    /// coordinate space, with no view, address or base class.
+    private static func virtual(
+        _ id: UInt64, parent: UInt64, className: String, name: String, bounds: Rect,
+        position: Point, collapsed: Bool = false
+    ) -> LayerNode {
+        LayerNode(
+            id: id, parentID: parent, className: "Demo." + className, displayClassName: className,
+            viewClassName: nil, viewDisplayClassName: nil, bounds: bounds, position: position,
+            anchorPoint: Point(x: 0.5, y: 0.5), transform: .identity, zPosition: 0,
+            isHidden: false, opacity: 1, masksToBounds: false, layerClassOrigin: .app,
+            kind: .virtual, name: name, isCollapsedByDefault: collapsed)
+    }
+
+    /// A layer node of the `hierarchy` fixture.
+    private static func node(
+        _ id: UInt64, parent: UInt64, layer: String, view: String?, viewDisplay: String? = nil,
+        bounds: Rect, position: Point, anchor: Point = Point(x: 0.5, y: 0.5),
+        transform: Transform3D = .identity, hidden: Bool = false, opacity: Float = 1,
+        masks: Bool = false, controller: Bool = false, members: [MemberReference] = [],
+        appView: Bool = false, viewBase: String? = nil, layerBase: String? = nil,
+        excluded: Bool = false
+    ) -> LayerNode {
+        LayerNode(
+            id: id, parentID: parent, className: layer, displayClassName: layer,
+            viewClassName: view, viewDisplayClassName: viewDisplay ?? view,
+            bounds: bounds, position: position, anchorPoint: anchor, transform: transform,
+            zPosition: 0, isHidden: hidden, opacity: opacity, masksToBounds: masks,
+            viewControllerClassName: controller ? "Demo.HomeViewController" : nil,
+            viewControllerDisplayClassName: controller ? "HomeViewController" : nil,
+            memberReferences: members,
+            // Protocol 1.1 (P-HIER-14): the formulas of Protocol/fixtures/README.md.
+            layerAddress: 0x6000_03B4_C000 + 0x40 * (id - 1),
+            viewAddress: view == nil ? nil : 0x1_0380_6800 + 0x200 * id,
+            viewControllerAddress: controller ? 0x1_0300_7A00 : nil,
+            // P-HIER-16 to 18: "Origins, base classes and
+            // visibility" in Protocol/fixtures/README.md.
+            layerClassOrigin: .system,
+            viewClassOrigin: view == nil ? .unknown : appView ? .app : .system,
+            viewControllerClassOrigin: controller ? .app : .unknown,
+            layerBaseClassName: layerBase, viewBaseClassName: viewBase,
+            viewControllerVisibility: controller ? .shown : .unknown,
+            // P-DET-10: "Virtual nodes and excluded subtrees (1.2)".
+            isCaptureExcluded: excluded)
+    }
+
     /// The layers of the `hierarchy` fixture's answer.
     private static func expectedHierarchy() -> Hierarchy {
-        func node(
-            _ id: UInt64, parent: UInt64, layer: String, view: String?, viewDisplay: String? = nil,
-            bounds: Rect, position: Point, anchor: Point = Point(x: 0.5, y: 0.5),
-            transform: Transform3D = .identity, hidden: Bool = false, opacity: Float = 1,
-            masks: Bool = false, controller: Bool = false, members: [MemberReference] = [],
-            appView: Bool = false, viewBase: String? = nil, layerBase: String? = nil
-        ) -> LayerNode {
-            LayerNode(
-                id: id, parentID: parent, className: layer, displayClassName: layer,
-                viewClassName: view, viewDisplayClassName: viewDisplay ?? view,
-                bounds: bounds, position: position, anchorPoint: anchor, transform: transform,
-                zPosition: 0, isHidden: hidden, opacity: opacity, masksToBounds: masks,
-                viewControllerClassName: controller ? "Demo.HomeViewController" : nil,
-                viewControllerDisplayClassName: controller ? "HomeViewController" : nil,
-                memberReferences: members,
-                // Protocol 1.1 (P-HIER-14): the formulas of Protocol/fixtures/README.md.
-                layerAddress: 0x6000_03B4_C000 + 0x40 * (id - 1),
-                viewAddress: view == nil ? nil : 0x1_0380_6800 + 0x200 * id,
-                viewControllerAddress: controller ? 0x1_0300_7A00 : nil,
-                // P-HIER-16 to 18: "Origins, base classes and
-                // visibility" in Protocol/fixtures/README.md.
-                layerClassOrigin: .system,
-                viewClassOrigin: view == nil ? .unknown : appView ? .app : .system,
-                viewControllerClassOrigin: controller ? .app : .unknown,
-                layerBaseClassName: layerBase, viewBaseClassName: viewBase,
-                viewControllerVisibility: controller ? .shown : .unknown)
-        }
         // Protocol 0.2 (P-HIER-07 to P-HIER-09; Protocol/fixtures/README.md).
         func home(_ name: String) -> MemberReference {
             MemberReference(
@@ -158,6 +177,13 @@ final class FixtureDecodingTests: XCTestCase {
                 node(4, parent: 2, layer: "CALayer", view: "Demo.CardView", viewDisplay: "CardView",
                      bounds: rect(0, 0, 300, 180), position: Point(x: 196.5, y: 300),
                      transform: rotation, masks: true, members: [home("cardView")], appView: true),
+                // Its virtual nodes come before its sublayer (P-HIER-21).
+                virtual(10, parent: 4, className: "CardRow", name: "Total",
+                        bounds: rect(0, 0, 300, 40), position: Point(x: 150, y: 20), collapsed: true),
+                virtual(11, parent: 10, className: "CardBadge", name: "New",
+                        bounds: rect(0, 0, 40, 20), position: Point(x: 270, y: 20)),
+                virtual(12, parent: 4, className: "CardRow", name: "Tax",
+                        bounds: rect(0, 0, 300, 40), position: Point(x: 150, y: 60)),
                 node(5, parent: 4, layer: "CAShapeLayer", view: nil,
                      bounds: rect(0, 0, 40, 40), position: Point(x: 40, y: 40),
                      hidden: true, opacity: 0.5,
@@ -185,6 +211,13 @@ final class FixtureDecodingTests: XCTestCase {
                      ]),
                 node(9, parent: 2, layer: "CALayer", view: "UIView",
                      bounds: rect(0, 0, 0, 0), position: Point(x: 300, y: 700)),
+                node(13, parent: 2, layer: "CALayer", view: "Demo.PaymentCardView",
+                     viewDisplay: "PaymentCardView", bounds: rect(0, 0, 300, 80),
+                     position: Point(x: 196.5, y: 790), members: [home("paymentCardView")],
+                     appView: true, excluded: true),
+                node(14, parent: 13, layer: "_UILabelLayer", view: "UILabel",
+                     bounds: rect(0, 0, 260, 24), position: Point(x: 150, y: 40),
+                     viewBase: "UILabel", excluded: true),
             ],
             keyWindowID: 1)
     }
@@ -198,6 +231,9 @@ final class FixtureDecodingTests: XCTestCase {
                     LayerDetailRequest(layerID: 4, wantSolo: true, wantGroup: true, wantAttributes: false),
                     LayerDetailRequest(layerID: 99, wantSolo: false, wantGroup: true, wantAttributes: false),
                     LayerDetailRequest(layerID: 6, wantSolo: false, wantGroup: false, wantAttributes: true),
+                    // 1.2: a virtual node and an excluded layer (P-DET-09, 10).
+                    LayerDetailRequest(layerID: 10, wantSolo: true, wantGroup: true, wantAttributes: true),
+                    LayerDetailRequest(layerID: 13, wantSolo: false, wantGroup: true, wantAttributes: true),
                 ],
                 maxTextureDimension: 16384))))
 
@@ -228,7 +264,7 @@ final class FixtureDecodingTests: XCTestCase {
             return
         }
         XCTAssertEqual(chunk1.sequence, 1)
-        XCTAssertEqual(chunk1.details.map(\.layerID), [4, 99, 6])
+        XCTAssertEqual(chunk1.details.map(\.layerID), [4, 99, 6, 10, 13])
         let layer4 = chunk1.details[0]
         XCTAssertEqual(layer4.status, .ok)
         for image in [try XCTUnwrap(layer4.solo), try XCTUnwrap(layer4.group)] {
@@ -244,6 +280,18 @@ final class FixtureDecodingTests: XCTestCase {
             LayerDetail(
                 layerID: 6, status: .ok, solo: nil, group: nil,
                 attributeGroups: ExpectedAttributes.layer6()))
+        // A virtual node: no images though both were asked for, and not a failure (P-DET-09).
+        XCTAssertEqual(
+            chunk1.details[3],
+            LayerDetail(
+                layerID: 10, status: .ok, solo: nil, group: nil,
+                attributeGroups: ExpectedAttributes.layer10()))
+        // Excluded: no group though one was asked for, attributes as usual (P-DET-10).
+        XCTAssertEqual(
+            chunk1.details[4],
+            LayerDetail(
+                layerID: 13, status: .excluded, solo: nil, group: nil,
+                attributeGroups: ExpectedAttributes.layer13()))
 
         XCTAssertEqual(
             try decode("layer-details", "04-s2c-stream-end.bin"),

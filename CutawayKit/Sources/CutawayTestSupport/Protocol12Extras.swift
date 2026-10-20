@@ -1,8 +1,9 @@
 import CutawayWire
 
-/// Attributes of protocol 1.2 that no fixture has: the `lines` cluster's `drawn` and
-/// `truncated`, the `image`, `indexPath` and `listCounts` clusters, and references to several
-/// layers, as a stack view's arranged subviews. Made after the fixtures' layer 3: the same
+/// Attributes of protocol 1.2 that no fixture has: the `lines` cluster's
+/// `drawn` and `truncated`, the `image`, `indexPath` and `listCounts` clusters, references to
+/// several layers, as a stack view's arranged subviews, and two groups from the host app on
+/// one layer. Made after the fixtures' layer 3: the same
 /// shape of attribute, a section, read-only where the value is computed. The IDs are only an
 /// example, as the fixtures' are.
 public enum Protocol12Extras {
@@ -96,5 +97,41 @@ public enum Protocol12Extras {
         guard let label = groups.firstIndex(where: { $0.className == "UILabel" }) else { return groups }
         groups[label].attributes += extra
         return groups
+    }
+
+    /// Two groups the host app adds to a label of its own class (P-ATTR-19), after the
+    /// fixtures' `app.row` of virtual node 10: a price, whose attributes name the Content and
+    /// Appearance sections, and its formatting.
+    public static func hostAppGroups() -> [AttributeGroup] {
+        let brandBlue = Color(red: 0.2, green: 0.4, blue: 0.8, alpha: 1)
+        var highlight = attribute(
+            "app.price.highlight", "Highlight", .color(brandBlue), .color, editable: true,
+            section: .appearance)
+        highlight.registeredColorName = "brandBlue"
+        var amount = attribute("app.price.amount", "Amount", .double(128.5), .double, editable: true)
+        amount.limits = [NumberLimit(minimum: 0, maximum: nil)]
+        return [
+            AttributeGroup(
+                id: "app.price", title: "Price",
+                attributes: [
+                    amount,
+                    attribute("app.price.currency", "Currency", .string("EUR"), .string, editable: true),
+                    highlight,
+                ],
+                className: "Demo.PriceLabel", isFromApp: true),
+            AttributeGroup(
+                id: "app.format", title: "Formatting",
+                attributes: [
+                    attribute("app.format.showsSign", "Shows Sign", .bool(false), .bool, editable: true,
+                              section: .appearance),
+                ],
+                className: "Demo.PriceLabel", isFromApp: true),
+        ]
+    }
+
+    /// The fixtures' layer 3 groups followed by `hostAppGroups()`, as a label of the app's own
+    /// class would have them.
+    public static func layerThreeWithHostAppGroups() throws -> [AttributeGroup] {
+        try Fixtures.attributes(of: 3, scenario: "layer-details") + hostAppGroups()
     }
 }

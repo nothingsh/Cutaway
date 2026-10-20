@@ -5051,6 +5051,41 @@
         }
       }
     },
+    "attributes.section.app" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "App"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "App"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "App"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "App"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "앱"
+          }
+        }
+      }
+    },
     "attributes.section.appearance" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -11274,6 +11309,41 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "스크린샷을 내보내지 못했습니다. %@과(와)의 연결이 끊어졌습니다."
+          }
+        }
+      }
+    },
+    "preview.screenshot.excluded" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The screenshot wasn’t exported: %@ doesn’t allow this layer to be captured."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "截图未导出：%@ 不允许截取此图层。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "截圖未輸出：%@ 不允許擷取此圖層。"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "スクリーンショットを書き出せませんでした：%@ はこのレイヤーのキャプチャを許可していません。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "스크린샷을 내보내지 못했습니다. %@에서 이 레이어의 캡처를 허용하지 않습니다."
           }
         }
       }

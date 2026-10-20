@@ -255,7 +255,7 @@ final class ConstraintsStoreTests: XCTestCase {
         let settled = await Wait.until {
             await MainActor.run {
                 model.attributes.canEdit
-                    && model.detailProgress == DetailProgress(completed: 7, total: 7)
+                    && model.detailProgress == DetailProgress(completed: 10, total: 10)
             }
         }
         XCTAssertTrue(settled)

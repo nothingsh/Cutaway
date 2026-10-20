@@ -126,7 +126,7 @@ final class HierarchyViewStateTests: XCTestCase {
         XCTAssertNil(state.selection)
         XCTAssertNil(state.hover)
         XCTAssertFalse(state.expansion.isExpanded(6), "kept")
-        XCTAssertTrue(state.expansion.isExpanded(10), "new layers open by the rule")
+        XCTAssertTrue(state.expansion.isExpanded(20), "new layers open by the rule")
         XCTAssertFalse(state.expansion.knows(8))
     }
 

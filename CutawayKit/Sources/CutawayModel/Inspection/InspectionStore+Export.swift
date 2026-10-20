@@ -9,6 +9,8 @@ public enum ScreenshotExportFailure: Error, Equatable, Sendable {
     case layerGone
     /// The app could not capture it, or sent no such image (P-DET-03).
     case notCaptured
+    /// The host app excludes it from images (P-DET-10).
+    case excluded
     case appNotActive
     case disconnected
     case other
@@ -59,6 +61,7 @@ enum ScreenshotExporter {
         switch detail.status {
         case .layerNotFound: throw .layerGone
         case .captureFailed: throw .notCaptured
+        case .excluded: throw .excluded
         case .ok: break
         }
         let image = kind == .solo ? detail.solo ?? detail.group : detail.group
@@ -87,10 +90,12 @@ extension InspectionStore {
     // MARK: - Exporting a screenshot
 
     /// Whether a layer's `solo` or `group` can be exported (C-ARCH-06): one export at a time,
-    /// of a layer in the tree. An app is asked when the time comes; an archive is known to
+    /// of a layer in the tree that the app lets be captured. An app is asked when the time comes; an archive is known
+    /// to
     /// hold the image or not, a missing `solo` standing for the `group` (P-DET-04).
     public func canExportImage(of id: UInt64, kind: TextureKey.Kind) -> Bool {
-        guard tree.contains(id), screenshotExport != .exporting else { return false }
+        guard let node = tree.node(id), !node.isCaptureExcluded, screenshotExport != .exporting
+        else { return false }
         guard let known = source.imagePresence else { return true }
         guard let presence = known[id] else { return false }
         return kind == .group ? presence.group : presence.solo || presence.group

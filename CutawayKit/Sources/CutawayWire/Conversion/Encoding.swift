@@ -118,6 +118,7 @@ extension DetailStatus {
         case .ok: return .ok
         case .layerNotFound: return .layernotfound
         case .captureFailed: return .capturefailed
+        case .excluded: return .excluded
         }
     }
 }
@@ -232,7 +233,20 @@ extension LayerNode {
         object.layerBaseClassName = layerBaseClassName
         object.viewBaseClassName = viewBaseClassName
         object.viewControllerVisibility = viewControllerVisibility.wire
+        object.nodeKind = kind.wire
+        object.name = name
+        object.collapsedByDefault = isCollapsedByDefault
+        object.captureExcluded = isCaptureExcluded
         return object
+    }
+}
+
+extension NodeKind {
+    var wire: Cutaway_Wire_NodeKind {
+        switch self {
+        case .layer: return .layer
+        case .virtual: return .virtual
+        }
     }
 }
 
@@ -383,6 +397,7 @@ extension Attribute {
             color.systemName = systemColorName
             color.light = appearanceColors?.light.wire
             color.dark = appearanceColors?.dark.wire
+            color.name = registeredColorName
         }
         return object
     }
@@ -433,6 +448,7 @@ extension AttributeGroup {
         object.title = title
         object.attributes = attributes.map { $0.makeObject() }
         object.className = className
+        object.fromApp = isFromApp
         return object
     }
 }

@@ -653,7 +653,7 @@ final class AttributesStoreTests: XCTestCase {
         model.rowsWait = .zero
 
         model.enter()
-        let tree = await Wait.until { await model.tree.count == 9 }
+        let tree = await Wait.until { await model.tree.count == 14 }
         XCTAssertTrue(tree)
         model.select(3)
         let loaded = await Wait.until {
@@ -715,7 +715,7 @@ final class AttributesStoreTests: XCTestCase {
 
         model.enter()
         let settled = await Wait.until {
-            await model.detailProgress == DetailProgress(completed: 7, total: 7)
+            await model.detailProgress == DetailProgress(completed: 10, total: 10)
         }
         XCTAssertTrue(settled)
         model.select(3)
@@ -769,7 +769,7 @@ final class AttributesStoreTests: XCTestCase {
 
         model.enter()
         let settled = await Wait.until {
-            await model.detailProgress == DetailProgress(completed: 7, total: 7)
+            await model.detailProgress == DetailProgress(completed: 10, total: 10)
         }
         XCTAssertTrue(settled)
         model.select(3)
@@ -808,7 +808,7 @@ final class AttributesStoreTests: XCTestCase {
         let expected = try Self.layerThree()
 
         model.enter()
-        let tree = await Wait.until { await model.tree.count == 9 }
+        let tree = await Wait.until { await model.tree.count == 14 }
         XCTAssertTrue(tree)
         model.select(3)
         let loaded = await Wait.until {
@@ -818,7 +818,7 @@ final class AttributesStoreTests: XCTestCase {
         // The screenshots are settled too: a batch still under way would be cancelled by the
         // new round, and the script has no Cancel.
         let settled = await Wait.until {
-            await model.detailProgress == DetailProgress(completed: 7, total: 7)
+            await model.detailProgress == DetailProgress(completed: 10, total: 10)
         }
         XCTAssertTrue(settled)
 
@@ -855,7 +855,7 @@ final class AttributesStoreTests: XCTestCase {
 
         model.enter()
         let settled = await Wait.until {
-            await model.detailProgress == DetailProgress(completed: 7, total: 7)
+            await model.detailProgress == DetailProgress(completed: 10, total: 10)
         }
         XCTAssertTrue(settled)
         model.select(3)
