@@ -63,6 +63,11 @@ public protocol InspectionSource: AnyObject, Sendable {
     func subtree(of rootID: UInt64) async throws -> Hierarchy
     func layerDetails(_ request: GetLayerDetails) async -> LayerDetailsStream
     func setAttribute(_ request: SetAttribute) async throws -> SetAttributeResult
+    /// The app's trait environment (P-ENV-01), or, for an archive, the one it was saved in
+    /// (C-ENV-04). Throws `.unsupported` when there is none.
+    func environment() async throws -> Environment
+    /// Replaces every override of the app's trait environment (P-ENV-02). Only an app can.
+    func setEnvironment(_ overrides: Traits) async throws -> Environment
 }
 
 extension InspectionSource {
@@ -78,6 +83,16 @@ extension InspectionSource {
 
     /// By default, nothing can be captured.
     public nonisolated var recordable: (any ArchiveRecordable)? { nil }
+
+    /// By default, there is no environment.
+    public func environment() async throws -> Environment {
+        throw RequestError.unsupported
+    }
+
+    /// By default, the environment cannot be changed.
+    public func setEnvironment(_ overrides: Traits) async throws -> Environment {
+        throw RequestError.unsupported
+    }
 }
 
 /// What capturing an archive needs of a connection (C-ARCH-02, Resources/ARCHIVE.md): the
@@ -88,6 +103,8 @@ public protocol ArchiveRecordable: AnyObject, Sendable {
     func recordedAppIcon() async throws -> Recorded<EncodedImage?>
     func recordedHierarchy() async throws -> Recorded<Hierarchy>
     func recordedLayerDetails(_ request: GetLayerDetails) async -> RecordedLayerDetailsStream
+    /// From protocol 1.2 on (C-ENV-04).
+    func recordedEnvironment() async throws -> Recorded<Environment>
 }
 
 extension Session: InspectionSource, ArchiveRecordable {

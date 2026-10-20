@@ -46,12 +46,16 @@ public struct ArchiveDecoder: Sendable {
     public let hello: Hello
     public let appIcon: AppIcon
     public let hierarchy: Hierarchy
+    /// The environment the archive was saved in: from protocol 1.2, and optional (C-ENV-04).
+    public let environment: Environment?
 
     private let data: Data
     /// Where each frame's buffer lies in `data`.
     private let frames: [Range<Data.Index>]
     /// The layers of each chunk, noted as the chunks were checked.
     private let chunkLayers: [[ArchiveLayer]]
+    /// The index of the first chunk's frame: after the optional `Environment`.
+    private let firstChunk: Int
 
     public init(_ data: Data) throws(ArchiveError) {
         let (manifestBytes, state, frames) = try Self.structure(of: data)
@@ -72,13 +76,25 @@ public struct ArchiveDecoder: Sendable {
         guard case .hierarchy(let hierarchy) = try Self.decode(data[frames[2]], index: 2) else {
             throw .damaged("frame 2 is not a Hierarchy")
         }
-        let chunkLayers = try Self.checkChunks(data, frames: Array(frames.dropFirst(3)))
+        // An Environment may follow the Hierarchy; anywhere else it is not a chunk.
+        var environment: Environment?
+        if frames.count > 3, Self.isEnvironment(data[frames[3]]) {
+            guard case .environment(let saved) = try Self.decode(data[frames[3]], index: 3) else {
+                throw .damaged("frame 3 is not an Environment")
+            }
+            environment = saved
+        }
+        let firstChunk = environment == nil ? 3 : 4
+        let chunkLayers = try Self.checkChunks(
+            data, frames: Array(frames.dropFirst(firstChunk)), firstIndex: firstChunk)
 
         self.manifest = manifest
         self.state = state
         self.hello = hello
         self.appIcon = appIcon
         self.hierarchy = hierarchy
+        self.environment = environment
+        self.firstChunk = firstChunk
         self.data = data
         self.frames = frames
         self.chunkLayers = chunkLayers
@@ -137,7 +153,7 @@ public struct ArchiveDecoder: Sendable {
     /// processor's cores: one after another, opening an archive of thousands of layers took
     /// seconds. A failure is that of the first chunk that fails.
     private static func checkChunks(
-        _ data: Data, frames: [Range<Data.Index>]
+        _ data: Data, frames: [Range<Data.Index>], firstIndex: Int
     ) throws(ArchiveError) -> [[ArchiveLayer]] {
         final class Results: @unchecked Sendable {
             private let lock = NSLock()
@@ -155,7 +171,7 @@ public struct ArchiveDecoder: Sendable {
         let results = Results(count: frames.count)
         DispatchQueue.concurrentPerform(iterations: frames.count) { chunk in
             results[chunk] = Result { () throws(ArchiveError) -> [ArchiveLayer] in
-                let index = 3 + chunk
+                let index = firstIndex + chunk
                 let root: Cutaway_Wire_Frame
                 do {
                     root = try FrameCodec.checkedRoot(data[frames[chunk]])
@@ -173,21 +189,21 @@ public struct ArchiveDecoder: Sendable {
         var layers: [[ArchiveLayer]] = []
         layers.reserveCapacity(frames.count)
         for chunk in frames.indices {
-            guard let result = results[chunk] else { throw .damaged("frame \(3 + chunk)") }
+            guard let result = results[chunk] else { throw .damaged("frame \(firstIndex + chunk)") }
             layers.append(try result.get())
         }
         return layers
     }
 
     /// The number of `LayerDetailsChunk` frames.
-    public var chunkCount: Int { frames.count - 3 }
+    public var chunkCount: Int { frames.count - firstChunk }
 
     /// One chunk, decoded. Throws only when the data changed since it was checked, which a
     /// mapped file that was modified on disk can do.
     public func chunk(at index: Int) throws -> LayerDetailsChunk {
         let frame = try FrameCodec.decode(data[try chunkFrame(index)])
         guard case .layerDetailsChunk(let chunk) = frame.body else {
-            throw ArchiveError.damaged("frame \(3 + index) is not a LayerDetailsChunk")
+            throw ArchiveError.damaged("frame \(firstChunk + index) is not a LayerDetailsChunk")
         }
         return chunk
     }
@@ -203,12 +219,18 @@ public struct ArchiveDecoder: Sendable {
     /// Where chunk `index` lies in the data (C-WIRE-09).
     private func chunkFrame(_ index: Int) throws(ArchiveError) -> Range<Int> {
         guard index >= 0, index < chunkCount else { throw .noSuchChunk(index) }
-        return frames[3 + index]
+        return frames[firstChunk + index]
     }
 
     /// Every frame's buffer as stored, in order.
     public var payloads: [Data] {
         frames.map { Data(data[$0]) }
+    }
+
+    /// Whether a frame that verifies holds an `Environment`; a frame that does not verify is
+    /// left for the check of its kind to report.
+    private static func isEnvironment(_ payload: Data) -> Bool {
+        (try? FrameCodec.checkedRoot(payload))?.bodyType == .environment
     }
 
     private static func decode(_ payload: Data, index: Int) throws(ArchiveError) -> Body? {

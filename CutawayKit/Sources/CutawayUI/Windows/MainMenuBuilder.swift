@@ -1,4 +1,5 @@
 import AppKit
+import CutawayWire
 
 /// Builds the menu bar (C-MENU-01). The coordinator's own commands are sent to it; the standard items have
 /// no target: AppKit sends them along the responder chain and enables them as it does in
@@ -112,6 +113,8 @@ struct MainMenuBuilder {
         view.addItem(.separator())
         addPreviewItems(to: view)
         view.addItem(.separator())
+        add(localized("menu.view.environment"), nil, to: view).submenu = makeEnvironmentMenu()
+        view.addItem(.separator())
         addListItems(to: view)
         view.addItem(.separator())
         add(
@@ -165,6 +168,41 @@ struct MainMenuBuilder {
             localized("menu.view.borders.onlyAppClasses"),
             #selector(InspectorWindowController.toggleOnlyAppClasses(_:)), to: borders)
         return borders
+    }
+
+    /// The app's trait environment (C-MENU-05, C-ENV-01): a submenu of values for each kind,
+    /// a value's item tagged with what it chooses.
+    private func makeEnvironmentMenu() -> NSMenu {
+        let environment = NSMenu(title: localized("menu.view.environment"))
+        for kind in [TraitKind.userInterfaceStyle, .contentSizeCategory, .layoutDirection] {
+            let values = NSMenu(title: EnvironmentNames.title(of: kind))
+            addChoices(of: kind, to: values)
+            add(values.title, nil, to: environment).submenu = values
+        }
+        let sizeClasses = NSMenu(title: localized("environment.sizeClasses"))
+        sizeClasses.addItem(.sectionHeader(title: localized("environment.width")))
+        addChoices(of: .horizontalSizeClass, to: sizeClasses)
+        sizeClasses.addItem(.separator())
+        sizeClasses.addItem(.sectionHeader(title: localized("environment.height")))
+        addChoices(of: .verticalSizeClass, to: sizeClasses)
+        add(sizeClasses.title, nil, to: environment).submenu = sizeClasses
+        environment.addItem(.separator())
+        add(
+            localized("environment.toggleAppearance"), #selector(InspectorWindowController.toggleAppearance(_:)),
+            key: "a", modifiers: [.command, .shift], to: environment)
+        add(localized("environment.reset"), #selector(InspectorWindowController.resetEnvironment(_:)), to: environment)
+        return environment
+    }
+
+    /// App's Own, then a separator before the text sizes, then the values.
+    private func addChoices(of kind: TraitKind, to menu: NSMenu) {
+        for (index, value) in EnvironmentNames.choices(of: kind).enumerated() {
+            if index == 1, kind == .contentSizeCategory { menu.addItem(.separator()) }
+            add(
+                EnvironmentNames.name(of: value), #selector(InspectorWindowController.chooseEnvironmentValue(_:)),
+                to: menu
+            ).tag = InspectorWindowController.environmentTag(kind, value)
+        }
     }
 
     /// The list's commands (C-ATTR-16, C-HIER-05, C-HIER-06).

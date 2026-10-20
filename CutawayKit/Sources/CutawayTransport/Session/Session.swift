@@ -307,6 +307,11 @@ public actor Session {
     /// Asks for the overrides of the app's trait environment and its current traits
     /// (P-ENV-01). Protocol 1.2: below it nothing is sent, and it throws `.unsupported`.
     public func environment() async throws -> Environment {
+        try await environmentRequest(.getEnvironment).value
+    }
+
+    /// `environment()`, with the bytes of the response (C-ENV-04).
+    public func recordedEnvironment() async throws -> Recorded<Environment> {
         try await environmentRequest(.getEnvironment)
     }
 
@@ -314,21 +319,20 @@ public actor Session {
     /// removes them all. Returns the environment after the change. Protocol 1.2, as
     /// `environment()`.
     public func setEnvironment(_ overrides: Traits) async throws -> Environment {
-        try await environmentRequest(.setEnvironment(SetEnvironment(overrides: overrides)))
+        try await environmentRequest(.setEnvironment(SetEnvironment(overrides: overrides))).value
     }
 
-    private func environmentRequest(_ body: Body) async throws -> Environment {
+    private func environmentRequest(_ body: Body) async throws -> Recorded<Environment> {
         guard phase == .ready else { throw RequestError.disconnected }
         // C-WIRE-12: a peer below 1.2 does not know the message.
         guard let negotiatedVersion, negotiatedVersion.minor >= 2 else {
             throw RequestError.unsupported
         }
-        guard case .environment(let environment) =
-            try await request(body, expecting: .environment).body
-        else {
+        let received = try await request(body, expecting: .environment)
+        guard case .environment(let environment) = received.body else {
             throw RequestError.protocolViolation("the response is not an Environment")
         }
-        return environment
+        return Recorded(value: environment, payload: received.payload)
     }
 
     /// Asks for screenshots and attributes of layers. The response is a stream (P-REQ-03).

@@ -31,7 +31,7 @@ enum ArchiveCaptureError: Error, Equatable {
 }
 
 /// Captures one archive (C-ARCH-02, Resources/ARCHIVE.md): the app's icon, its hierarchy asked for
-/// again, and every layer's screenshots, attributes and constraints, written as they arrive
+/// again, its environment (C-ENV-04), and every layer's screenshots, attributes and constraints, written as they arrive
 /// into a temporary file that takes the destination's place only when complete.
 enum ArchiveCapture {
     /// What an archive says of itself besides the protocol version: the version of Cutaway
@@ -83,6 +83,14 @@ enum ArchiveCapture {
             let hierarchy = try await session.recordedHierarchy()
             try Task.checkCancellation()
             try await writer.write(try encoder.frame(hierarchy.payload))
+
+            // The environment the app is in, from 1.2 on (C-ENV-04): it cannot change during
+            // the capture, since no override is sent while an archive is saved.
+            if version.minor >= 2 {
+                let environment = try await session.recordedEnvironment()
+                try Task.checkCancellation()
+                try await writer.write(try encoder.frame(environment.payload))
+            }
 
             let ids = hierarchy.value.nodes.map(\.id)
             progress(0, ids.count)
