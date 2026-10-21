@@ -1,23 +1,60 @@
 <script setup lang="ts">
 // A session from the handshake to a stream and its end, as a sequence of frames.
-const rows = [
-  { dir: 'right', id: '0', name: 'Hello', note: 'role Client, protocol 1.2' },
-  { dir: 'left', id: '0', name: 'Hello', note: 'role Server, its version, the app' },
-  { dir: 'left', id: '0', name: 'AppStateChanged', note: 'event: Active' },
-  { dir: 'right', id: '1', name: 'GetHierarchy', note: 'ordinary request' },
-  { dir: 'left', id: '1', name: 'Hierarchy', note: 'exactly one response' },
-  { dir: 'right', id: '2', name: 'GetLayerDetails', note: 'streaming request' },
-  { dir: 'left', id: '2', name: 'LayerDetailsChunk', note: 'sequence 0, 1, …' },
-  { dir: 'left', id: '2', name: 'StreamEnd', note: 'Completed, or Cancelled after a Cancel' }
+import { computed } from 'vue'
+import { useLocale } from '../locale'
+
+const { t } = useLocale({
+  en: {
+    label:
+      'The Client sends Hello and the Server answers with Hello, then the event AppStateChanged. Request 1, GetHierarchy, gets one Hierarchy. Request 2, GetLayerDetails, gets LayerDetailsChunk frames and then StreamEnd. Every frame carries the request_id of its request; 0 is the handshake and events.',
+    notes: [
+      'role Client, protocol 1.2',
+      'role Server, its version, the app',
+      'event: Active',
+      'ordinary request',
+      'exactly one response',
+      'streaming request',
+      'sequence 0, 1, …',
+      'Completed, or Cancelled after a Cancel'
+    ],
+    caption: ['The number beside each arrow is the frame’s ', ': 0 for the handshake and events, then one per request, counted by the Client.']
+  },
+  'zh-Hans': {
+    label:
+      'Client 发送 Hello，Server 以 Hello 回答，随后发出事件 AppStateChanged。请求 1 是 GetHierarchy，得到一个 Hierarchy。请求 2 是 GetLayerDetails，得到若干 LayerDetailsChunk 帧，然后是 StreamEnd。每一帧都带着所属请求的 request_id；0 是握手和事件。',
+    notes: [
+      '角色 Client，协议 1.2',
+      '角色 Server，它的版本，App',
+      '事件：Active',
+      '普通请求',
+      '恰好一个回答',
+      '流式请求',
+      '序号 0、1、…',
+      'Completed，或在 Cancel 之后为 Cancelled'
+    ],
+    caption: ['箭头旁的数字是这一帧的 ', '：握手和事件为 0，此后每个请求一个，由 Client 计数。']
+  }
+})
+
+const frames = [
+  { dir: 'right', id: '0', name: 'Hello' },
+  { dir: 'left', id: '0', name: 'Hello' },
+  { dir: 'left', id: '0', name: 'AppStateChanged' },
+  { dir: 'right', id: '1', name: 'GetHierarchy' },
+  { dir: 'left', id: '1', name: 'Hierarchy' },
+  { dir: 'right', id: '2', name: 'GetLayerDetails' },
+  { dir: 'left', id: '2', name: 'LayerDetailsChunk' },
+  { dir: 'left', id: '2', name: 'StreamEnd' }
 ]
+const rows = computed(() => frames.map((frame, index) => ({ ...frame, note: t.value.notes[index] })))
 const top = 64
 const step = 52
-const height = top + rows.length * step + 10
+const height = top + frames.length * step + 10
 </script>
 
 <template>
   <figure class="exchange">
-    <svg :viewBox="`0 0 680 ${height}`" role="img" aria-label="The Client sends Hello and the Server answers with Hello, then the event AppStateChanged. Request 1, GetHierarchy, gets one Hierarchy. Request 2, GetLayerDetails, gets LayerDetailsChunk frames and then StreamEnd. Every frame carries the request_id of its request; 0 is the handshake and events.">
+    <svg :viewBox="`0 0 680 ${height}`" role="img" :aria-label="t.label">
       <text class="head" x="120" y="26" text-anchor="middle">Cutaway (Client)</text>
       <text class="head" x="560" y="26" text-anchor="middle">CutawayServer</text>
       <line class="life" x1="120" y1="40" x2="120" :y2="height - 6" />
@@ -30,7 +67,7 @@ const height = top + rows.length * step + 10
         <text class="id" :x="row.dir === 'right' ? 100 : 580" :y="top + index * step + 4" :text-anchor="row.dir === 'right' ? 'end' : 'start'">{{ row.id }}</text>
       </g>
     </svg>
-    <figcaption>The number beside each arrow is the frame’s <code>request_id</code>: 0 for the handshake and events, then one per request, counted by the Client.</figcaption>
+    <figcaption>{{ t.caption[0] }}<code>request_id</code>{{ t.caption[1] }}</figcaption>
   </figure>
 </template>
 

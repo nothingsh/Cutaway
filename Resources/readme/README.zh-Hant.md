@@ -74,7 +74,7 @@ xattr -dr com.apple.quarantine /Applications/Cutaway.app
 <a id="documentation"></a>
 ## 文件
 
-其餘內容都在 [Cutaway 網站](https://nothingsh.github.io/Cutaway/)上（目前只有英文）：
+其餘內容都在 [Cutaway 網站](https://nothingsh.github.io/Cutaway/)上（目前只有英文和簡體中文）：
 
 - [指南](https://nothingsh.github.io/Cutaway/guide/getting-started)：依工作講解 Cutaway 的用法，以及所有[鍵盤快速鍵](https://nothingsh.github.io/Cutaway/guide/shortcuts)。
 - [整合](https://nothingsh.github.io/Cutaway/integrate/)：把 CutawayServer 加入你的 App、Debug 與 Release 建置，以及顯示 App 自己的資訊。

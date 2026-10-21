@@ -75,7 +75,7 @@ xattr -dr com.apple.quarantine /Applications/Cutaway.app
 <a id="documentation"></a>
 ## 문서
 
-나머지는 모두 [Cutaway 웹사이트](https://nothingsh.github.io/Cutaway/)에 있습니다(현재 영어만 제공).
+나머지는 모두 [Cutaway 웹사이트](https://nothingsh.github.io/Cutaway/)에 있습니다(현재 영어와 중국어 간체만 제공).
 
 - [가이드](https://nothingsh.github.io/Cutaway/guide/getting-started): 작업별 Cutaway 사용법과 모든 [키보드 단축키](https://nothingsh.github.io/Cutaway/guide/shortcuts).
 - [통합](https://nothingsh.github.io/Cutaway/integrate/): 앱에 CutawayServer 추가하기, Debug와 Release 빌드, 앱 고유의 정보 표시하기.

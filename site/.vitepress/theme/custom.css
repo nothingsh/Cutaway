@@ -1,7 +1,7 @@
 /* Cutaway's colors: the blue of the app icon. Brand text passes 4.5:1 on both backgrounds. */
 :root {
   --vp-font-family-base: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', 'Helvetica Neue', Arial,
-    'PingFang SC', 'Hiragino Sans', 'Apple SD Gothic Neo', sans-serif;
+    'PingFang SC', 'Microsoft YaHei', 'Hiragino Sans', 'Apple SD Gothic Neo', sans-serif;
   --vp-font-family-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
 
   --vp-c-brand-1: #2f5bd8;

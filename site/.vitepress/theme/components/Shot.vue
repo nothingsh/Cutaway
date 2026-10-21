@@ -5,12 +5,14 @@
 import { computed } from 'vue'
 import { withBase } from 'vitepress'
 import { data } from '../media.data'
+import { useLocale } from '../locale'
 
 const props = defineProps<{ name: string; alt: string; width?: number; height?: number }>()
 
 const light = computed(() => `${props.name}-light.png`)
 const dark = computed(() => `${props.name}-dark.png`)
 const ready = computed(() => data.files.includes(light.value) && data.files.includes(dark.value))
+const { t } = useLocale({ en: 'Screenshot', 'zh-Hans': '截图' })
 </script>
 
 <template>
@@ -20,7 +22,7 @@ const ready = computed(() => data.files.includes(light.value) && data.files.incl
       <img class="dark-only" :src="withBase(`/media/${dark}`)" :alt="alt" :width="width" :height="height" loading="lazy" decoding="async" />
     </template>
     <div v-else class="placeholder" role="img" :aria-label="alt">
-      <b>Screenshot · {{ name }}</b>
+      <b>{{ t }} · {{ name }}</b>
       <span>{{ alt }}</span>
     </div>
   </figure>
