@@ -22,10 +22,11 @@ extension HierarchyViewController {
     }
 
     /// The layer under the pointer in the list, or none: it is the hovered layer, as in the
-    /// preview. Not once the connection is gone, as there.
+    /// preview, and measured with ⌥ held. Not once the connection is gone, as there.
     private func pointerIsOver(_ id: UInt64?) {
         guard !store.connection.isLost else { return }
         store.hover(id)
+        onPointerOverRow?(id != nil)
     }
 
     // MARK: - Rows

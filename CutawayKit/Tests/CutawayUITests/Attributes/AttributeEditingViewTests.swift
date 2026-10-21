@@ -45,8 +45,12 @@ final class AttributeEditingViewTests: XCTestCase {
         }
         XCTAssertTrue(ready, "the attributes did not arrive, or cannot be changed")
         // The screenshots too, so that what the test sends next is what the script expects.
+        // A 1.0 server sends no kinds: its virtual nodes are asked for as layers.
         let settled = await Wait.until {
-            await model.detailProgress == DetailProgress(completed: 10, total: 10)
+            await MainActor.run {
+                model.detailProgress.total > 0
+                    && model.detailProgress.completed == model.detailProgress.total
+            }
         }
         XCTAssertTrue(settled)
         return (model, session, server)

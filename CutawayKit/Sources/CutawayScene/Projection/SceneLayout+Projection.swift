@@ -10,6 +10,7 @@ struct Placement: Sendable {
     /// As drawn: for a ghost, the opacity it would have if it were shown.
     var opacity: Double
     var isGhost: Bool
+    var content: SceneLayer.Content
     /// Where the layer is in the order of the wire, which orders the layers of one level.
     var index: Int
     /// Which end of a transition the layer is drawn at; a still frame draws every layer at
@@ -97,7 +98,7 @@ extension SceneLayout {
             id: entry.layer.id, quad: entry.quad, level: Double(entry.level),
             texture: texture(at: index), kind: Self.neededKind(for: entry),
             opacity: entry.isGhost ? entry.opacityIfShown : entry.opacity,
-            isGhost: entry.isGhost, index: index)
+            isGhost: entry.isGhost, content: entry.layer.content, index: index)
     }
 
     /// The marks whose layers have a level, with their corners.
@@ -192,7 +193,7 @@ extension SceneLayout {
                 DrawItem(
                     layerID: id, corners: corners, points: points, texture: placement.texture,
                     opacity: placement.opacity, highlight: highlight,
-                    isGhost: placement.isGhost))
+                    isGhost: placement.isGhost, content: placement.content))
         }
 
         let drawnMarks = marks.map { placed in

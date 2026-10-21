@@ -103,11 +103,13 @@ final class ArchiveCaptureTests: XCTestCase {
         ])
         for request in requests {
             XCTAssertEqual(request.maxTextureDimension, 4096)
-            // Everything of every layer, but no images of those the app excludes (C-DET-11).
+            // Everything of every layer, but no images of virtual nodes or of those the app
+            // excludes, and no constraints of virtual nodes (C-DET-11).
             XCTAssertTrue(request.requests.allSatisfy {
-                let wantsImages = ![13, 14].contains($0.layerID)
+                let isVirtual = [10, 11, 12].contains($0.layerID)
+                let wantsImages = !isVirtual && ![13, 14].contains($0.layerID)
                 return $0.wantSolo == wantsImages && $0.wantGroup == wantsImages
-                    && $0.wantAttributes && $0.wantConstraints
+                    && $0.wantAttributes && $0.wantConstraints == !isVirtual
             })
         }
 

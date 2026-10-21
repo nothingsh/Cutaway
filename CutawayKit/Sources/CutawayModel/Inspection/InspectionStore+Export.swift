@@ -90,11 +90,13 @@ extension InspectionStore {
     // MARK: - Exporting a screenshot
 
     /// Whether a layer's `solo` or `group` can be exported (C-ARCH-06): one export at a time,
-    /// of a layer in the tree that the app lets be captured. An app is asked when the time comes; an archive is known
-    /// to
-    /// hold the image or not, a missing `solo` standing for the `group` (P-DET-04).
+    /// of a layer in the tree that has images of its own, so neither a virtual node
+    /// (C-HIER-16) nor one the app does not let be captured. An app is asked when the time
+    /// comes; an archive is known to hold the image or not, a missing `solo` standing for the
+    /// `group` (P-DET-04).
     public func canExportImage(of id: UInt64, kind: TextureKey.Kind) -> Bool {
-        guard let node = tree.node(id), !node.isCaptureExcluded, screenshotExport != .exporting
+        guard let node = tree.node(id), node.kind != .virtual, !node.isCaptureExcluded,
+              screenshotExport != .exporting
         else { return false }
         guard let known = source.imagePresence else { return true }
         guard let presence = known[id] else { return false }

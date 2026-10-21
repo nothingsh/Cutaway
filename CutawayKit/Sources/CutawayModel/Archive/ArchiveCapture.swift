@@ -98,12 +98,14 @@ enum ArchiveCapture {
             for start in stride(from: 0, to: nodes.count, by: batchSize) {
                 let batch = nodes[start..<min(start + batchSize, nodes.count)]
                 let request = GetLayerDetails(
-                    // No images of what the app excludes from them (C-DET-11).
+                    // No images of a virtual node, which has none, or of what the app
+                    // excludes from them; no constraints of a virtual node (C-DET-11).
                     requests: batch.map {
-                        LayerDetailRequest(
-                            layerID: $0.id, wantSolo: !$0.isCaptureExcluded,
-                            wantGroup: !$0.isCaptureExcluded, wantAttributes: true,
-                            wantConstraints: true)
+                        let isVirtual = $0.kind == .virtual
+                        let images = !isVirtual && !$0.isCaptureExcluded
+                        return LayerDetailRequest(
+                            layerID: $0.id, wantSolo: images, wantGroup: images,
+                            wantAttributes: true, wantConstraints: !isVirtual)
                     },
                     maxTextureDimension: maxTextureDimension)
                 let stream = await session.recordedLayerDetails(request)

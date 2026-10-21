@@ -66,6 +66,9 @@ final class InspectorSplitViewController: NSSplitViewController {
         super.init(nibName: nil, bundle: nil)
         hierarchyController.layerMenu.project = project
         previewController.layerMenu.project = project
+        hierarchyController.onPointerOverRow = { [weak self] isOn in
+            self?.previewController.pointerIsOnList(isOn)
+        }
     }
 
     @available(*, unavailable)

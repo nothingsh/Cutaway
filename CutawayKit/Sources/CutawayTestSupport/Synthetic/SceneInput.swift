@@ -32,7 +32,8 @@ public enum SceneInput {
                 opacity: Double(node.opacity),
                 solo: images?.solo,
                 group: images?.group,
-                capturesImage: !node.isCaptureExcluded)
+                content: node.kind == .virtual
+                    ? .drawnByParent : node.isCaptureExcluded ? .excluded : .captured)
         }
     }
 

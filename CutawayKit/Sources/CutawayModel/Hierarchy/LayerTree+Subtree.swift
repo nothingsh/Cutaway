@@ -59,32 +59,50 @@ extension LayerTree {
 
 extension LayerTree {
     /// For a subtree the user refreshed (C-DET-07): its layers' images and its ancestors'
-    /// group images.
+    /// group images. A virtual node's look is in its nearest layer ancestor's images
+    /// (P-DET-09): a virtual subtree renews that layer's two images and its ancestors' group
+    /// images.
     static func needs(ofSubtree root: UInt64, in tree: LayerTree) -> [TextureNeed] {
-        tree.layers(within: root).flatMap { bothKinds($0.id) }
+        guard let holder = tree.imageHolder(of: root) else { return [] }
+        if holder != root {
+            return bothKinds(holder)
+                + tree.path(to: holder).dropLast().map { TextureNeed(layerID: $0, kind: .group) }
+        }
+        return tree.layers(within: root).flatMap { bothKinds($0.id) }
             + tree.path(to: root).dropLast().map { TextureNeed(layerID: $0, kind: .group) }
     }
 
     /// For a window taken again after changes (C-DET-06): each changed layer with its subtree;
     /// every layer of the window whose node changed or that is new (one that left and came
     /// back still has this round's records); and the group images of everything above a
-    /// layer that changed, moved, came or went, which may show it.
+    /// layer that changed, moved, came or went, which may show it. A virtual node is drawn
+    /// in its nearest layer ancestor's images (P-SET-05, P-DET-09): that layer stands for it,
+    /// without the layer's subtree, which the virtual node does not draw.
     static func needsAfterChanges(
         _ changed: Set<UInt64>, in root: UInt64, from old: LayerTree, to new: LayerTree
     ) -> [TextureNeed] {
         var needs: [TextureNeed] = []
         var touched = changed
         for id in changed where new.contains(id) {
-            needs += new.layers(within: id).flatMap { bothKinds($0.id) }
+            if let holder = new.imageHolder(of: id), holder != id {
+                needs += bothKinds(holder)
+                touched.insert(holder)
+            } else {
+                needs += new.layers(within: id).flatMap { bothKinds($0.id) }
+            }
         }
         for layer in new.layers(within: root)
             where !old.contains(layer.id) || old.node(layer.id) != new.node(layer.id)
         {
-            needs += bothKinds(layer.id)
-            touched.insert(layer.id)
+            let holder = new.imageHolder(of: layer.id) ?? layer.id
+            needs += bothKinds(holder)
+            touched.insert(holder)
         }
         for layer in old.layers(within: root) where !new.contains(layer.id) {
             touched.insert(layer.id)
+            if let holder = old.imageHolder(of: layer.id), holder != layer.id, new.contains(holder) {
+                needs += bothKinds(holder)
+            }
         }
         var above = Set<UInt64>()
         for id in touched {

@@ -43,6 +43,8 @@ struct LayerSummary: Equatable {
     var references: [String]
     /// Whether the layer backs a view, and so can have constraints (P-LAYOUT-01).
     var backsView: Bool
+    /// Whether it is a virtual node, which has no address (P-HIER-20, C-HIER-16).
+    var isVirtual: Bool
     /// From the window's root layer down to the layer's parent (C-ATTR-16).
     var ancestors: [Ancestor]
     /// Where its classes are declared in the app's project folder (C-SRC-03).
@@ -59,6 +61,7 @@ struct LayerSummary: Equatable {
             .first { !$0.isEmpty }
         let backsView = viewClass != nil
         self.backsView = backsView
+        isVirtual = tree.isVirtual(id)
         className = viewClass ?? layerClass
         layerClassName = backsView ? layerClass : nil
         viewAddress = node.viewAddress.map(AttributeText.address)

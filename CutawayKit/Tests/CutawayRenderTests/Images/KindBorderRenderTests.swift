@@ -13,16 +13,19 @@ final class KindBorderRenderTests: XCTestCase {
     static let textColor = RenderStyle.premultiplied(10 / 255, 132 / 255, 255 / 255, 1)
     static let scrollColor = RenderStyle.premultiplied(191 / 255, 90 / 255, 242 / 255, 1)
     static let containerColor = RenderStyle.premultiplied(152 / 255, 152 / 255, 157 / 255, 1)
+    static let virtualColor = RenderStyle.premultiplied(0 / 255, 218 / 255, 195 / 255, 1)
 
     /// The standard style with the borders by kind, as the interface sets them for the
-    /// fixture: strong for the app's own classes (the controller's root view 2, the card 4),
-    /// faint for the system's, the layers alone (5, 8) left plain.
+    /// fixture: strong for the app's own classes (the controller's root view 2, the card 4,
+    /// its virtual nodes 10 to 12, the payment card 13), faint for the system's, the layers
+    /// alone (5, 8) left plain.
     static var byKind: RenderStyle {
         var style = RenderStyle.standard
         style.borderColors = [
             1: windowColor * 0.42, 2: controllerColor * 0.95, 3: textColor * 0.42,
             4: containerColor * 0.95, 6: scrollColor * 0.42, 7: textColor * 0.42,
-            9: containerColor * 0.42,
+            9: containerColor * 0.42, 10: virtualColor * 0.95, 11: virtualColor * 0.95,
+            12: virtualColor * 0.95, 13: containerColor * 0.95, 14: textColor * 0.42,
         ]
         style.bordersRecede = true
         return style
