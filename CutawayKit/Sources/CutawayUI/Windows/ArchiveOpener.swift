@@ -13,6 +13,8 @@ final class ArchiveOpener {
     private(set) var windows: [InspectorWindowController] = []
     /// Called after one of the windows closed.
     var didCloseWindow: () -> Void = {}
+    /// Whether the windows open and close with AppKit's animation (`WindowCoordinator`).
+    var animatesWindows = true
 
     private let settings: AppSettings
     /// The apps' project folders: an archive's is found by the bundle ID it was saved from
@@ -63,6 +65,7 @@ final class ArchiveOpener {
         }
         if let window = controller.window {
             cascadePoint = window.cascadeTopLeft(from: cascadePoint)
+            if !animatesWindows { window.animationBehavior = .none }
         }
         windows.append(controller)
         inspection.restore(archive.state)
