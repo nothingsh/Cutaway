@@ -4,6 +4,9 @@ The pages name every image and video they need. Until a file exists, the page sh
 placeholder; `scripts/site.sh check` lists what is still missing. This file says how to make them
 so that they look alike. It is not part of the site.
 
+Every language of the site uses the same files, taken with Cutaway in English: a translated page
+translates only the alt text.
+
 ## How to take them
 
 - **The app inspected:** Wikipedia in the Simulator for everything except the two `integrate-…`

@@ -30,14 +30,14 @@ Cutaway 是一个用来查看正在运行的 iOS App 界面内部的 macOS App�
 <a id="features"></a>
 ## 功能
 
-- **看清界面是如何构建的。** 每个窗口的图层树，标出视图控制器，以及持有各个视图的成员变量。 [图层列表](https://nothingsh.github.io/Cutaway/guide/hierarchy)
-- **在 3D 中拆开来看。** 每个图层的截图，平铺为 2D 或在 3D 中分开展示；可以旋转、缩放、改变层间距。 [预览](https://nothingsh.github.io/Cutaway/guide/preview)
-- **测量。** 按住 ⌥ 并指向另一个图层（在预览或列表中），就能看到以点为单位的距离。 [测量](https://nothingsh.github.io/Cutaway/guide/measuring)
-- **在运行中修改。** 编辑属性，修改会立即应用到正在运行的 App；⌘Z 可以撤销。 [属性](https://nothingsh.github.io/Cutaway/guide/attributes)
-- **跟随约束。** 视图的每一条 Auto Layout 约束，标出未生效的，以及它们的另一端。 [约束](https://nothingsh.github.io/Cutaway/guide/constraints)
-- **试试深色模式和更大的文字。** 改写 App 的外观、文字大小、布局方向和尺寸类别。 [环境](https://nothingsh.github.io/Cutaway/guide/environment)
-- **跳到你的代码。** 在 Xcode 中打开类，看到 asset 和 String Catalog 里的名字，拷贝 LLDB 命令。 [源码](https://nothingsh.github.io/Cutaway/guide/source)
-- **保留你的发现。** 存档一次检查，在任何一台 Mac 上无需设备即可打开；把图层导出为 PNG。 [存档与导出](https://nothingsh.github.io/Cutaway/guide/archives)
+- **看清界面是如何构建的。** 每个窗口的图层树，标出视图控制器，以及持有各个视图的成员变量。 [图层列表](https://nothingsh.github.io/Cutaway/zh-Hans/guide/hierarchy)
+- **在 3D 中拆开来看。** 每个图层的截图，平铺为 2D 或在 3D 中分开展示；可以旋转、缩放、改变层间距。 [预览](https://nothingsh.github.io/Cutaway/zh-Hans/guide/preview)
+- **测距。** 按住 ⌥ 并指向另一个图层（在预览或列表中），就能看到以点为单位的距离。 [测距](https://nothingsh.github.io/Cutaway/zh-Hans/guide/measuring)
+- **在运行中修改。** 编辑属性，修改会立即应用到正在运行的 App；⌘Z 可以撤销。 [属性](https://nothingsh.github.io/Cutaway/zh-Hans/guide/attributes)
+- **跟随约束。** 视图的每一条 Auto Layout 约束，标出未生效的，以及它们的另一端。 [约束](https://nothingsh.github.io/Cutaway/zh-Hans/guide/constraints)
+- **试试深色模式和更大的文字。** 改写 App 的外观、文字大小、布局方向和尺寸类别。 [环境](https://nothingsh.github.io/Cutaway/zh-Hans/guide/environment)
+- **跳到你的代码。** 在 Xcode 中打开类，看到 asset 和 String Catalog 里的名字，拷贝 LLDB 命令。 [源码](https://nothingsh.github.io/Cutaway/zh-Hans/guide/source)
+- **保留你的发现。** 存档一次检查，在任何一台 Mac 上无需设备即可打开；把图层导出为 PNG。 [存档与导出](https://nothingsh.github.io/Cutaway/zh-Hans/guide/archives)
 
 Cutaway 只与这台 Mac 上和通过 USB 线缆连接的 App 通信：没有统计分析，也没有崩溃报告。
 界面提供英文、简体中文、繁体中文、日文和韩文。
@@ -69,23 +69,23 @@ xattr -dr com.apple.quarantine /Applications/Cutaway.app
 2. 在模拟器中运行你的 App，或在用线缆连接到 Mac 的设备上运行。
 3. 打开 Cutaway。几秒钟内你的 App 就会出现在列表中。选中它。
 
-[入门指南](https://nothingsh.github.io/Cutaway/guide/getting-started)给出了每一步、UIKit 和 SwiftUI 的代码，以及 App 没有出现时要检查什么。
+[入门指南](https://nothingsh.github.io/Cutaway/zh-Hans/guide/getting-started)给出了每一步、UIKit 和 SwiftUI 的代码，以及 App 没有出现时要检查什么。
 
 <a id="documentation"></a>
 ## 文档
 
-其余内容都在 [Cutaway 网站](https://nothingsh.github.io/Cutaway/)上（目前只有英文）：
+其余内容都在 [Cutaway 网站](https://nothingsh.github.io/Cutaway/zh-Hans/)上：
 
-- [指南](https://nothingsh.github.io/Cutaway/guide/getting-started)：按任务讲解 Cutaway 的用法，以及所有[键盘快捷键](https://nothingsh.github.io/Cutaway/guide/shortcuts)。
-- [集成](https://nothingsh.github.io/Cutaway/integrate/)：把 CutawayServer 添加到你的 App、Debug 与 Release 构建，以及显示 App 自己的信息。
-- [协议](https://nothingsh.github.io/Cutaway/protocol/)：Cutaway 与 CutawayServer 如何通信，以及哪些版本可以搭配使用。
-- [常见问题与排障](https://nothingsh.github.io/Cutaway/resources/faq)、[隐私与安全](https://nothingsh.github.io/Cutaway/resources/privacy)、[性能](https://nothingsh.github.io/Cutaway/resources/performance)、[版本记录](https://nothingsh.github.io/Cutaway/resources/releases)、[路线图](https://nothingsh.github.io/Cutaway/resources/roadmap)。
+- [指南](https://nothingsh.github.io/Cutaway/zh-Hans/guide/getting-started)：按任务讲解 Cutaway 的用法，以及所有[键盘快捷键](https://nothingsh.github.io/Cutaway/zh-Hans/guide/shortcuts)。
+- [集成](https://nothingsh.github.io/Cutaway/zh-Hans/integrate/)：把 CutawayServer 添加到你的 App、Debug 与 Release 构建，以及显示 App 自己的信息。
+- [协议](https://nothingsh.github.io/Cutaway/zh-Hans/protocol/)：Cutaway 与 CutawayServer 如何通信，以及哪些版本可以搭配使用。
+- [常见问题与排障](https://nothingsh.github.io/Cutaway/zh-Hans/resources/faq)、[隐私与安全](https://nothingsh.github.io/Cutaway/zh-Hans/resources/privacy)、[性能](https://nothingsh.github.io/Cutaway/zh-Hans/resources/performance)、[版本记录](https://nothingsh.github.io/Cutaway/zh-Hans/resources/releases)、[路线图](https://nothingsh.github.io/Cutaway/zh-Hans/resources/roadmap)。
 
 <a id="development"></a>
 ## 开发
 
 如何构建和测试 Cutaway、修改如何审阅，见 [CONTRIBUTING.md](../../CONTRIBUTING.md)。
-网站的 [Contributing](https://nothingsh.github.io/Cutaway/resources/contributing) 一页说明三个仓库如何配合。
+网站的[参与贡献](https://nothingsh.github.io/Cutaway/zh-Hans/resources/contributing)一页说明三个仓库如何配合。
 
 ## 许可证
 

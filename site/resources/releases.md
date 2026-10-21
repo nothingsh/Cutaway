@@ -53,7 +53,7 @@ Cutaway 1.1.0 speaks protocol 1.1. It works with apps that include CutawayServer
 - A value outside the limits the app reports is never sent: the field stays open and says why.
 - A filter for the attributes, section headers that stay in view, and a row of the layer’s ancestors.
 - The other end of a constraint is a chip. Point at a constraint to mark its other end in the preview, or turn on **Show Constraint Ends** (<kbd>⇧⌘K</kbd>).
-- **Hierarchy:** each layer has an icon for its kind, filled for the app’s own classes; guides show nesting; the ancestors of the top row stay pinned; **Select Parent** (<kbd>⌘↑</kbd>) and **Select First Child** (<kbd>⌘↓</kbd>).
+- **Hierarchy:** each layer has an icon for its kind, filled for the app’s own classes; guides show nesting; the ancestors of the top row stay pinned; **Select Parent Layer** (<kbd>⌘↑</kbd>) and **Select First Child Layer** (<kbd>⌘↓</kbd>).
 - **Preview:** a tag beside the selected layer; borders off, plain or by kind, optionally only for the app’s own classes.
 - The app list groups simulators and USB devices and takes the arrow keys and Return.
 - An appearance setting: system, light or dark.
@@ -72,4 +72,5 @@ The first public release, speaking protocol 1.0.
 - Search, focus on a subtree, expand to a depth, refresh a subtree alone.
 - `.cutaway` archives that open on any Mac without the device, and PNG export of a layer’s screenshot.
 - Finds apps in simulators and on USB devices by itself, reconnects when an app comes back, and follows the app into the background and back.
-- In English, Simplified Chinese, Traditional Chinese, Japanese and Korean, with **Check for Updates…**.
+- In English, Simplified Chinese, Traditional Chinese, Japanese and Korean.
+- **Check for Updates…** asks GitHub whether a newer release is out.

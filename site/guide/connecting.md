@@ -37,7 +37,7 @@ Cutaway says so above the preview (“… is not active. Loading continues when 
 
 ## When the connection is lost
 
-The window keeps the last picture and says **Lost the connection to …. Waiting for it to come back…**. When the same app is found again, for example after you run it again from Xcode, Cutaway reconnects in the same window and loads the tree again, keeping your view.
+The window keeps the last picture and says **Lost the connection to *YourApp*. Waiting for it to come back…**. When the same app is found again, for example after you run it again from Xcode, Cutaway reconnects in the same window and loads the tree again, keeping your view.
 
 A request that gets no answer for 10 seconds is given up. If the app sends something the protocol forbids, Cutaway closes the connection.
 

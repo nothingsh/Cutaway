@@ -49,7 +49,7 @@ If your FlatBuffers runtime’s verifier has a limit on the number of tables, ra
 - **Work at the lower minor version.** Never send a message, enum value or union member the negotiated minor version doesn’t have; new table fields are fine (P-HELLO-04).
 - **Every frame the client sends takes its own `request_id`**, including `Cancel`, increasing from 1. Match responses by `request_id`, not by order alone (P-REQ-01).
 - **`Cancel` can arrive late.** A stream may end normally before the server reads your `Cancel`; then the `Cancel` is ignored. Keep fewer than 64 requests outstanding so the server never pauses reading and `Cancel` takes effect promptly (P-REQ-04, 09).
-- **Branch on error codes, never on messages.** `Error.message` is English text for people (Error codes in the [specification](/protocol/spec#error-codes)).
+- **Branch on error codes, never on messages.** `Error.message` is English text for people; the codes are listed under [Error codes](/protocol/spec#error-codes) in the specification.
 - **A server waits 5 seconds for `Hello`**, then closes the connection (P-HELLO-06).
 
 ## Check the protocol repository itself
