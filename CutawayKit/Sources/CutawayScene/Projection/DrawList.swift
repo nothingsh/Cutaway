@@ -66,11 +66,15 @@ public struct DrawItem: Equatable, Sendable {
     /// A layer that cannot be seen, drawn because hidden layers are shown (C-PREV-08). Its
     /// opacity is the one it would have if it were shown.
     public var isGhost: Bool
+    /// Where its look comes from: its image, its parent's (a virtual node, outlined with
+    /// dashes) or nowhere (excluded, hatched) (C-REND-11).
+    public var content: SceneLayer.Content
 
     public init(
         layerID: UInt64, corners: Corners<ClipPoint>, points: Corners<ScenePoint>,
         texture: TextureKey?,
-        opacity: Double, highlight: Highlight, isGhost: Bool = false
+        opacity: Double, highlight: Highlight, isGhost: Bool = false,
+        content: SceneLayer.Content = .captured
     ) {
         self.layerID = layerID
         self.corners = corners
@@ -79,6 +83,7 @@ public struct DrawItem: Equatable, Sendable {
         self.opacity = opacity
         self.highlight = highlight
         self.isGhost = isGhost
+        self.content = content
     }
 
     /// The middle of the four corners in viewport points.

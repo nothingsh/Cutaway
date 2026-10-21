@@ -205,7 +205,7 @@ public final class AttributesStore: ObservableObject {
         publish()
     }
 
-    /// Asks for the selected layer's attributes and constraints when it has no answer in this
+    /// Asks for the selected layer's attributes and constraints (none for a virtual node) when it has no answer in this
     /// round, its last request did not fail, nothing is under way, the inspection is open and
     /// no hierarchy is on its way, nor while one of its attributes is being changed
     /// (C-LAYOUT-01). A failure is cleared by `retry()`, a new selection or a
@@ -221,7 +221,7 @@ public final class AttributesStore: ObservableObject {
         let request = GetLayerDetails(
             requests: [LayerDetailRequest(
                 layerID: id, wantSolo: false, wantGroup: false, wantAttributes: true,
-                wantConstraints: true)],
+                wantConstraints: delegate?.attributesStore(self, asksConstraintsOf: id) ?? true)],
             maxTextureDimension: 0)
         let previous = lastTask
         let task = Task { [weak self, source] in
@@ -416,4 +416,6 @@ protocol AttributesStoreDelegate: AnyObject {
     func attributesStore(_ store: AttributesStore, didChangeLayer id: UInt64)
     /// A `SetAttribute` failed.
     func attributesStoreDidFailToChange(_ store: AttributesStore)
+    /// Whether the layer can have constraints: a virtual node has none (P-DET-09, C-DET-11).
+    func attributesStore(_ store: AttributesStore, asksConstraintsOf id: UInt64) -> Bool
 }

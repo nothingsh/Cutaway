@@ -51,9 +51,12 @@ public struct MockResponder: Sendable {
     /// Instead of answering the nth `SetEnvironment` of a connection (from 1), fail.
     public var failSetEnvironment: (Int, Failure)?
 
-    /// A request an archive's capture makes: every part of every layer (C-ARCH-02).
+    /// A request an archive's capture makes: every part of every layer that has it (C-ARCH-02).
     public static let isArchiveBatch: @Sendable (GetLayerDetails) -> Bool = { request in
-        request.requests.allSatisfy { $0.wantSolo && $0.wantGroup && $0.wantAttributes }
+        // The selection's attributes come with no images; an archive asks for both of every
+        // layer that has them, which a virtual or excluded node has not (C-DET-11).
+        request.requests.allSatisfy(\.wantAttributes)
+            && request.requests.contains { $0.wantSolo && $0.wantGroup }
     }
 
     public init(icon: AppIcon, hierarchy: Hierarchy, details: [UInt64: LayerDetail]) {

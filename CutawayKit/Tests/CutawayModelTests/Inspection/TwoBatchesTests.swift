@@ -60,7 +60,7 @@ final class TwoBatchesTests: XCTestCase {
         let both = await Wait.until { await Self.asked(server).count == 2 }
         XCTAssertTrue(both, "the second goes out before the first is answered")
         let asked = await Self.asked(server)
-        XCTAssertEqual(asked, [[1, 2, 3, 4], [10, 11, 12, 6]])
+        XCTAssertEqual(asked, [[1, 2, 3, 4], [6, 7, 8]])
         try await Task.sleep(for: .milliseconds(100))
         let still = await Self.asked(server).count
         XCTAssertEqual(still, 2, "no third while two are under way")

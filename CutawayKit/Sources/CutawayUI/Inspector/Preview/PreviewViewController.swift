@@ -29,6 +29,12 @@ final class PreviewViewController: NSViewController {
     /// Whether a transition is under way.
     var isInTransition: Bool { projector?.isInTransition ?? false }
 
+    /// Whether the pointer is on a row of the hierarchy list: ⌥ there measures the row's
+    /// layer, the hovered one (C-PREV-10).
+    func pointerIsOnList(_ isOn: Bool) {
+        preview?.isPointerOnList = isOn
+    }
+
     init(store: InspectionStore, motion: PreviewMotion = .system) {
         self.store = store
         self.motion = motion

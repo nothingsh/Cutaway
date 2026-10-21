@@ -35,8 +35,13 @@ struct HierarchyRow: Equatable {
     }
 
     /// What a row says after its title (C-HIER-07): the view controller it is the root view
-    /// of, and the nearest member that holds it, with how many more there are.
+    /// of, and the nearest member that holds it, with how many more there are. A virtual node
+    /// titled by its name has neither: its type (C-HIER-16).
     private static func detail(_ tree: LayerTree, _ id: UInt64) -> String? {
+        if tree.isVirtual(id), let node = tree.node(id), node.name != nil {
+            return [node.displayClassName, node.className].lazy.compactMap { $0 }
+                .first { !$0.isEmpty }
+        }
         var parts: [String] = []
         if let controller = tree.viewControllerTitle(of: id) { parts.append(controller) }
         let members = tree.memberTitles(of: id)

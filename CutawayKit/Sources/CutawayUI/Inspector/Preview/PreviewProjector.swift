@@ -229,10 +229,11 @@ final class PreviewProjector {
         project()
     }
 
-    /// The layer under the pointer is the hovered one; it is measured against the selected
-    /// one in 2D and 3D, but not while the view turns over to the other mode (C-PREV-10,
-    /// C-PREV-11, C-PREV-14). A still picture that differs from the last one only in the
-    /// selection or the hover, with nothing measured, is the last one highlighted again.
+    /// The layer under the pointer, in the preview or the list, is the hovered one; it is
+    /// measured against the selected one in 2D and 3D when the preview draws it, but not
+    /// while the view turns over to the other mode (C-PREV-10, C-PREV-11, C-PREV-14). A still
+    /// picture that differs from the last one only in the selection or the hover, with nothing
+    /// measured, is the last one highlighted again.
     func project() {
         if imagesWaiting {
             imagesShownAt = .now
@@ -241,7 +242,9 @@ final class PreviewProjector {
         }
         let lens = lens
         let marks = constraintEnds.map(\.mark)
-        let measured = measuring && lensTransition == nil ? hovered : nil
+        // Only a layer the preview draws: the list can point at one it does not.
+        let measured = measuring && lensTransition == nil
+            ? hovered.flatMap { layout.isDisplayed($0) ? $0 : nil } : nil
         let basis = StillBasis(
             layoutRevision: layoutRevision, lens: lens, viewport: viewport, marks: marks,
             measured: measured)

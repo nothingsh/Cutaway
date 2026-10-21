@@ -54,6 +54,14 @@ public final class Renderer {
         var closed: UInt32
     }
 
+    /// An excluded layer's stripes; matches `HatchSettings` in Preview.metal.
+    private struct HatchSettings {
+        var color: SIMD4<Float>
+        var alternate: SIMD4<Float>
+        var width: Float
+        var opacity: Float
+    }
+
     /// Per item and per mark: four corners as a triangle strip, then eight ends of the four
     /// border lines.
     private static let verticesPerItem = 12
@@ -65,6 +73,7 @@ public final class Renderer {
     private let linePipeline: any MTLRenderPipelineState
     private let dashPipeline: any MTLRenderPipelineState
     private let dotPipeline: any MTLRenderPipelineState
+    private let hatchPipeline: any MTLRenderPipelineState
     private let sampler: any MTLSamplerState
 
     public init(device: any MTLDevice) throws {
@@ -80,6 +89,7 @@ public final class Renderer {
             device, library, vertex: "lineVertex", fragment: "dashFragment")
         dotPipeline = try Self.pipeline(
             device, library, vertex: "lineVertex", fragment: "dotFragment")
+        hatchPipeline = try Self.pipeline(device, library, fragment: "hatchFragment")
 
         let samplerDescriptor = MTLSamplerDescriptor()
         samplerDescriptor.minFilter = .linear
@@ -145,7 +155,10 @@ public final class Renderer {
         var vertices = VertexWriter(
             buffer.contents().bindMemory(to: Vertex.self, capacity: count))
         for item in list.items {
-            Self.appendVertices(item.corners, points: nil, to: &vertices)
+            // A virtual node's border is dashed: its ends carry their distances.
+            Self.appendVertices(
+                item.corners, points: item.content == .drawnByParent ? item.points : nil,
+                to: &vertices)
         }
         for mark in list.marks {
             Self.appendVertices(mark.corners, points: mark.points, to: &vertices)
@@ -169,7 +182,8 @@ public final class Renderer {
         // The borders step back while something is pointed out (C-PREV-17).
         let receding = !list.marks.isEmpty || list.measurement != nil
         encodeItems(
-            list.items, textures: textures, style: style, receding: receding, into: encoder)
+            list.items, textures: textures, style: style, receding: receding,
+            pixelsPerPoint: pixelsPerPoint, into: encoder)
         let marksStart = list.items.count * Self.verticesPerItem
         var markLines = lines
         markLines.halfWidth = style.markLineWidth * pixelsPerPoint / 2
@@ -202,10 +216,12 @@ public final class Renderer {
         }
     }
 
-    /// The layers' images, fills and borders, whose vertices come first.
+    /// The layers' images (or an excluded layer's stripes), fills and borders, whose vertices
+    /// come first. A virtual node has no image and a dashed border unless highlighted
+    /// (C-REND-11).
     private func encodeItems(
         _ items: [DrawItem], textures: TextureCache, style: RenderStyle, receding: Bool,
-        into encoder: any MTLRenderCommandEncoder
+        pixelsPerPoint: Float, into encoder: any MTLRenderCommandEncoder
     ) {
         // The state is set only when it changes: with thousands of layers, setting it for
         // each one costs more than drawing them.
@@ -223,6 +239,13 @@ public final class Renderer {
                 var opacity = style.imageOpacity(for: item)
                 encoder.setFragmentBytes(&opacity, length: MemoryLayout<Float>.size, index: 0)
                 encoder.drawPrimitives(type: .triangleStrip, vertexStart: first, vertexCount: 4)
+            } else if item.content == .excluded {
+                use(hatchPipeline)
+                var hatch = HatchSettings(
+                    color: style.hatch, alternate: style.hatchAlternate,
+                    width: style.hatchWidth * pixelsPerPoint, opacity: style.imageOpacity(for: item))
+                encoder.setFragmentBytes(&hatch, length: MemoryLayout<HatchSettings>.stride, index: 0)
+                encoder.drawPrimitives(type: .triangleStrip, vertexStart: first, vertexCount: 4)
             }
             if var fill = style.fill(for: item) {
                 use(colorPipeline)
@@ -230,7 +253,7 @@ public final class Renderer {
                 encoder.drawPrimitives(type: .triangleStrip, vertexStart: first, vertexCount: 4)
             }
             if var border = style.border(for: item, receding: receding) {
-                use(linePipeline)
+                use(item.content == .drawnByParent && item.highlight == .none ? dashPipeline : linePipeline)
                 encoder.setFragmentBytes(
                     &border, length: MemoryLayout<SIMD4<Float>>.size, index: 0)
                 Self.drawLines(from: first + 4, count: 4, into: encoder)

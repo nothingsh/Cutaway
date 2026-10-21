@@ -101,10 +101,12 @@ public struct LayerTree: Equatable, Sendable {
     /// The view's readable class name; for a layer that backs no view, the layer's
     /// (C-HIER-01). Falls back to the raw names when the readable ones are missing. Nil when
     /// the layer has no name at all, or is not in the tree: the interface names it
-    /// (C-LOC-01).
+    /// (C-LOC-01). A virtual node's name, which only virtual nodes have, comes first
+    /// (C-HIER-16).
     public func title(of id: UInt64) -> String? {
         guard let node = entries[id]?.node else { return nil }
         // Name by name, without gathering them: the list asks for every row's title.
+        if let name = node.name { return name }
         if let name = node.viewDisplayClassName, !name.isEmpty { return name }
         if let name = node.viewClassName, !name.isEmpty { return name }
         if let name = node.displayClassName, !name.isEmpty { return name }
@@ -233,6 +235,23 @@ extension LayerTree {
             current = parent(of: ancestor)
         }
         return path.reversed()
+    }
+
+    /// Whether the node is a virtual node, a part of a layer's own content that the app
+    /// describes (P-HIER-19).
+    public func isVirtual(_ id: UInt64) -> Bool {
+        entries[id]?.node.kind == .virtual
+    }
+
+    /// The layer whose images show the node: the node itself, or for a virtual node its
+    /// nearest layer ancestor (P-DET-09). Nil for a node that is not in the tree.
+    public func imageHolder(of id: UInt64) -> UInt64? {
+        guard contains(id) else { return nil }
+        var current: UInt64? = id
+        while let node = current, isVirtual(node) {
+            current = parent(of: node)
+        }
+        return current
     }
 
     /// Whether the layer is `root` or inside it.

@@ -37,11 +37,9 @@ final class InspectionStoreDetailsTests: XCTestCase {
     }
 
     /// The `hierarchy` fixture fully expanded, in tree order (SceneLayoutTests). The virtual
-    /// nodes 10 to 12 are asked for as layers until a later change; 13 and 14 are excluded from
-    /// images (C-DET-11).
+    /// nodes 10 to 12 have no images, and 13 and 14 are excluded from them (C-DET-11).
     static let fixtureRequests: [LayerDetailRequest] = [
         request(1, .solo), request(2, .solo), request(3, .group), request(4, .solo),
-        request(10, .solo), request(11, .group), request(12, .group),
         request(6, .solo), request(7, .group), request(8, .group),
     ]
 
@@ -100,7 +98,7 @@ final class InspectionStoreDetailsTests: XCTestCase {
         let asked = await Wait.until { await Self.detailRequests(server).count == 1 }
         XCTAssertTrue(asked)
         let requests = await Self.detailRequests(server)
-        XCTAssertEqual(requests.first?.requests.map(\.layerID), [7, 8, 1, 2, 3, 4, 10, 11, 12, 6])
+        XCTAssertEqual(requests.first?.requests.map(\.layerID), [7, 8, 1, 2, 3, 4, 6])
 
         await session.close()
         await server.stop()
@@ -116,7 +114,7 @@ final class InspectionStoreDetailsTests: XCTestCase {
 
         model.enter()
         let settled = await Wait.until {
-            await model.detailProgress == DetailProgress(completed: 10, total: 10)
+            await model.detailProgress == DetailProgress(completed: 7, total: 7)
         }
         XCTAssertTrue(settled)
 
@@ -144,7 +142,7 @@ final class InspectionStoreDetailsTests: XCTestCase {
         try await Task.sleep(for: .milliseconds(200))
         let requests = await Self.detailRequests(server)
         XCTAssertEqual(requests, [])
-        XCTAssertEqual(model.detailProgress, DetailProgress(completed: 0, total: 10))
+        XCTAssertEqual(model.detailProgress, DetailProgress(completed: 0, total: 7))
 
         await session.close()
         await server.stop()
@@ -167,7 +165,7 @@ final class InspectionStoreDetailsTests: XCTestCase {
 
         model.enter()
         let settled = await Wait.until {
-            await model.detailProgress == DetailProgress(completed: 10, total: 10)
+            await model.detailProgress == DetailProgress(completed: 7, total: 7)
         }
         XCTAssertTrue(settled)
         XCTAssertNil(model.notice)
@@ -221,7 +219,7 @@ final class InspectionStoreDetailsTests: XCTestCase {
         let asked = await Wait.until { await Self.detailRequests(server).count == 1 }
         XCTAssertTrue(asked)
         let requests = await Self.detailRequests(server)
-        XCTAssertEqual(requests.first?.requests.map(\.layerID), [6, 7, 1, 2, 3, 4, 10, 11, 12, 8])
+        XCTAssertEqual(requests.first?.requests.map(\.layerID), [6, 7, 1, 2, 3, 4, 8])
 
         await session.close()
         await server.stop()
@@ -289,7 +287,7 @@ final class InspectionStoreDetailsTests: XCTestCase {
         XCTAssertTrue(loaded)
         model.setVisibleLayers([7])
         let settled = await Wait.until {
-            await model.detailProgress == DetailProgress(completed: 10, total: 10)
+            await model.detailProgress == DetailProgress(completed: 7, total: 7)
         }
         XCTAssertTrue(settled)
 
@@ -336,12 +334,12 @@ final class InspectionStoreDetailsTests: XCTestCase {
         model.enter()
         let first = await Wait.until { await model.images[3] != nil }
         XCTAssertTrue(first)
-        XCTAssertEqual(model.detailProgress, DetailProgress(completed: 1, total: 10))
+        XCTAssertEqual(model.detailProgress, DetailProgress(completed: 1, total: 7))
 
         await gate.open()
         // Chunk 1 brings layer 4; the stream completes and the rest of the batch is settled.
         let done = await Wait.until {
-            await model.detailProgress == DetailProgress(completed: 10, total: 10)
+            await model.detailProgress == DetailProgress(completed: 7, total: 7)
         }
         XCTAssertTrue(done)
 
@@ -362,7 +360,7 @@ final class InspectionStoreDetailsTests: XCTestCase {
 
         model.enter()
         let done = await Wait.until {
-            await model.detailProgress == DetailProgress(completed: 10, total: 10)
+            await model.detailProgress == DetailProgress(completed: 7, total: 7)
         }
         XCTAssertTrue(done)
         XCTAssertEqual(Set(model.images.keys), [3, 8])
@@ -510,7 +508,7 @@ final class InspectionStoreDetailsTests: XCTestCase {
 
         model.enter()
         let settled = await Wait.until {
-            await model.detailProgress == DetailProgress(completed: 10, total: 10)
+            await model.detailProgress == DetailProgress(completed: 7, total: 7)
         }
         XCTAssertTrue(settled)
 
@@ -555,7 +553,7 @@ final class InspectionStoreDetailsTests: XCTestCase {
         model.enter()
         let paused = await Wait.until { await model.notice == .appNotActive }
         XCTAssertTrue(paused)
-        XCTAssertEqual(model.detailProgress, DetailProgress(completed: 1, total: 10))
+        XCTAssertEqual(model.detailProgress, DetailProgress(completed: 1, total: 7))
 
         model.appStateDidChange(.active)
         let again = await Wait.until { await Self.detailRequests(server).count == 2 }
@@ -566,7 +564,7 @@ final class InspectionStoreDetailsTests: XCTestCase {
         let afterNotice = shown.drop { $0.notice != .appNotActive }
         XCTAssertFalse(
             afterNotice.contains {
-                $0.notice == nil && $0.progress == DetailProgress(completed: 1, total: 10)
+                $0.notice == nil && $0.progress == DetailProgress(completed: 1, total: 7)
             },
             "the earlier round's progress was shown again: \(afterNotice)")
 
@@ -802,7 +800,7 @@ final class InspectionStoreDetailsTests: XCTestCase {
         XCTAssertTrue(asked)
         subscription.cancel()
         let requests = await Self.detailRequests(server)
-        XCTAssertEqual(requests.first?.requests.map(\.layerID), [7, 1, 2, 3, 4, 10, 11, 12, 6])
+        XCTAssertEqual(requests.first?.requests.map(\.layerID), [7, 1, 2, 3, 4, 6])
 
         await session.close()
         await server.stop()
@@ -856,7 +854,7 @@ final class InspectionStoreDetailsTests: XCTestCase {
         XCTAssertTrue(cancelled)
         try await Task.sleep(for: .milliseconds(200))
         XCTAssertNil(model.images[4])
-        XCTAssertEqual(model.detailProgress, DetailProgress(completed: 0, total: 10))
+        XCTAssertEqual(model.detailProgress, DetailProgress(completed: 0, total: 7))
 
         await session.close()
         await server.stop()

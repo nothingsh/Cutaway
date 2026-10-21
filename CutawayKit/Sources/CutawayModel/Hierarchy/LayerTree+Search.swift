@@ -34,8 +34,8 @@ public struct HierarchyFilter: Equatable, Sendable {
 }
 
 extension LayerTree {
-    /// Whether the layer's title, one of its class names (the layer's, the view's and the view
-    /// controller's, raw and readable), or one of the members that hold it as the list shows
+    /// Whether the layer's title, a virtual node's name, one of its class names (the layer's,
+    /// the view's and the view controller's, raw and readable), or one of the members that hold it as the list shows
     /// them ("Owner.name") contains the text, ignoring case (C-HIER-04, C-HIER-07). A layer
     /// without a class name has the title `untitled`, the interface's name for it. The
     /// comparison does not depend on the language settings, so it reads the same on every Mac.
@@ -48,6 +48,8 @@ extension LayerTree {
             guard let name, !name.isEmpty else { return false }
             return name.range(of: text, options: .caseInsensitive) != nil
         }
+        // A virtual node's name, which only virtual nodes have (C-HIER-16).
+        if found(node.name) { return true }
         let a = node.viewDisplayClassName, b = node.viewClassName
         let c = node.displayClassName, d = node.className
         let e = node.viewControllerDisplayClassName, f = node.viewControllerClassName

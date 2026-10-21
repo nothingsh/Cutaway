@@ -278,6 +278,10 @@ extension InspectionStore: AttributesStoreDelegate {
         fetchNext()
     }
 
+    func attributesStore(_ store: AttributesStore, asksConstraintsOf id: UInt64) -> Bool {
+        !tree.isVirtual(id)
+    }
+
     /// A change that went out ended, one way or another: screenshots may go again.
     private func changeEnded() {
         if changesOnTheirWay > 0 { changesOnTheirWay -= 1 }

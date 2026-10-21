@@ -44,7 +44,7 @@ final class ConstraintsSectionTests: XCTestCase {
             await MainActor.run {
                 // Editing comes once the capabilities are known.
                 model.attributes.canEdit
-                    && model.detailProgress == DetailProgress(completed: 10, total: 10)
+                    && model.detailProgress == DetailProgress(completed: 7, total: 7)
             }
         }
         XCTAssertTrue(settled)
@@ -178,7 +178,7 @@ final class ConstraintsSectionTests: XCTestCase {
         let settled = await Wait.until {
             await MainActor.run {
                 model.attributes.canEdit
-                    && model.detailProgress == DetailProgress(completed: 10, total: 10)
+                    && model.detailProgress == DetailProgress(completed: 7, total: 7)
             }
         }
         XCTAssertTrue(settled)

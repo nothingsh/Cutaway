@@ -25,6 +25,12 @@ public struct RenderStyle: Equatable, Sendable {
     /// Measuring two layers (C-REND-08): the lines, their ticks, the boxes and, dashed, the
     /// extensions. Drawn whether or not borders are.
     public var measure: SIMD4<Float>
+    /// A layer the app does not let be captured (C-REND-11): where its image would be,
+    /// stripes at 45° of these two opaque colours in turn, each `hatchWidth` viewport points
+    /// across, fixed to the screen so that they are as wide at every zoom.
+    public var hatch = premultiplied(54 / 255, 54 / 255, 58 / 255, 1)
+    public var hatchAlternate = premultiplied(43 / 255, 43 / 255, 46 / 255, 1)
+    public var hatchWidth: Float = 4
     /// Whether layers that are not highlighted are outlined (C-PREV-09).
     public var drawsBorders: Bool
     /// The borders of single layers, by layer ID: their kind's colour, or a clear colour for
@@ -97,7 +103,8 @@ public struct RenderStyle: Equatable, Sendable {
     /// 60% in both: a light or a dark line shows only on a background unlike it, and the
     /// layers' own images are as often white as black (C-PREV-09). On the light background the
     /// ends of constraints are a darker purple, #9A3FD0, with the guide's tint at 10%, and measuring a darker red,
-    /// #E0234E.
+    /// #E0234E. Excluded layers are hatched in #36363A and #2B2B2E when dark, #D4D4D8 and
+    /// #C4C4C9 when light.
     public static func preview(dark: Bool) -> Self {
         var style = standard
         style.background = dark
@@ -110,6 +117,8 @@ public struct RenderStyle: Equatable, Sendable {
             style.guideFill = premultiplied(154 / 255, 63 / 255, 208 / 255, 0.1)
             style.guideBorder = premultiplied(154 / 255, 63 / 255, 208 / 255, 0.8)
             style.measure = premultiplied(224 / 255, 35 / 255, 78 / 255, 1)
+            style.hatch = premultiplied(212 / 255, 212 / 255, 216 / 255, 1)
+            style.hatchAlternate = premultiplied(196 / 255, 196 / 255, 201 / 255, 1)
         }
         return style
     }

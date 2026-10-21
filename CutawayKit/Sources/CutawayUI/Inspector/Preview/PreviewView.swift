@@ -83,8 +83,15 @@ public final class PreviewView: MTKView {
     /// Whether ⌥ is held, as the last event that told said.
     private var optionHeld = false
     /// Whether the layer under the pointer is measured against the selected one: ⌥ held over
-    /// the view with no button down, since a drag with ⌥ pans (C-PREV-10, C-PREV-06).
+    /// the view, or over a row of the hierarchy list, with no button down, since a drag with ⌥
+    /// pans (C-PREV-10, C-PREV-06).
     private(set) var isMeasuring = false
+    /// Whether the pointer is on a row of the hierarchy list, whose layer is then the hovered
+    /// one: ⌥ there measures it as over the view (C-PREV-10).
+    var isPointerOnList = false {
+        didSet { if isPointerOnList != oldValue { updateMeasuring() } }
+    }
+
     /// Tells the view about ⌥ when the keyboard focus is elsewhere in the window.
     private let flagsMonitor = EventMonitor()
 
@@ -336,13 +343,14 @@ public final class PreviewView: MTKView {
         updateMeasuring()
     }
 
-    /// Measures while ⌥ is held over the view and no button is down; tells when that changes.
-    /// A drag can end with the pointer outside the view, where nothing is measured.
+    /// Measures while ⌥ is held over the view or a row of the list and no button is down;
+    /// tells when that changes. A drag can end with the pointer outside the view, where
+    /// nothing is measured.
     private func updateMeasuring() {
         let over = pointer.map {
             (0...bounds.width).contains($0.x) && (0...bounds.height).contains($0.y)
         } ?? false
-        let measuring = optionHeld && over && pressedAt == nil
+        let measuring = optionHeld && (over || isPointerOnList) && pressedAt == nil
         guard measuring != isMeasuring else { return }
         isMeasuring = measuring
         placeTags()

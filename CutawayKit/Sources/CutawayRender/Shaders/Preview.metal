@@ -38,6 +38,25 @@ fragment float4 layerColorFragment(
     return color;
 }
 
+// Matches `HatchSettings` in Renderer.swift.
+struct HatchSettings {
+    float4 color;
+    float4 alternate;
+    // One stripe's width across, in pixels.
+    float width;
+    float opacity;
+};
+
+// Stripes at 45° of two colours in turn, placed by the pixel on the target so that they are
+// as wide at every zoom and every turn of the camera (C-REND-11).
+fragment float4 hatchFragment(
+    LayerVertexOut in [[stage_in]], constant HatchSettings &hatch [[buffer(0)]]
+) {
+    float across = (in.position.x + in.position.y) * M_SQRT1_2_F;
+    bool first = fmod(floor(across / max(hatch.width, 1.0)), 2.0) == 0.0;
+    return (first ? hatch.color : hatch.alternate) * clamp(hatch.opacity, 0.0, 1.0);
+}
+
 // A line: one instance for each pair of ends in the vertex buffer, drawn as a strip of four
 // corners around it on the screen. Each pixel takes as much of the line's colour as the line
 // covers of it, so that a line at any angle is smooth instead of stepping from pixel to pixel.

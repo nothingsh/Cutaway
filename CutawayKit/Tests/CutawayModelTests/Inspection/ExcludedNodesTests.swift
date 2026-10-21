@@ -69,7 +69,9 @@ final class ExcludedNodesTests: XCTestCase {
     func test_C_DET_11_progressLeavesExcludedNodesOut() async throws {
         let (model, server, session) = try await Self.inspect(try MockResponder.demo())
         // The same tree without the flags: 13 and 14 are drawn, so they would count.
-        let unmarked = try LayerTree(Fixtures.withoutProtocol12(Fixtures.hierarchy()))
+        var hierarchy = try Fixtures.hierarchy()
+        for index in hierarchy.nodes.indices { hierarchy.nodes[index].isCaptureExcluded = false }
+        let unmarked = try LayerTree(hierarchy)
         let all = SceneLayout(
             layers: unmarked.sceneLayers(), expanded: Set(unmarked.ids), focus: nil,
             showsHidden: false)
@@ -177,12 +179,14 @@ final class ExcludedNodesTests: XCTestCase {
             return request.requests
         }
         XCTAssertEqual(requests.count, 14)
+        // Virtual nodes 10 to 12 have no images either (C-ARCH-07).
         for request in requests {
-            let excluded = [13, 14].contains(request.layerID)
-            XCTAssertEqual(request.wantSolo, !excluded, "layer \(request.layerID)")
-            XCTAssertEqual(request.wantGroup, !excluded, "layer \(request.layerID)")
-            XCTAssertTrue(request.wantAttributes && request.wantConstraints, "layer \(request.layerID)")
+            let noImages = [10, 11, 12, 13, 14].contains(request.layerID)
+            XCTAssertEqual(request.wantSolo, !noImages, "layer \(request.layerID)")
+            XCTAssertEqual(request.wantGroup, !noImages, "layer \(request.layerID)")
+            XCTAssertTrue(request.wantAttributes, "layer \(request.layerID)")
         }
+        XCTAssertTrue(requests.filter { [13, 14].contains($0.layerID) }.allSatisfy(\.wantConstraints))
         await session.close()
         await server.stop()
     }
