@@ -32,50 +32,17 @@ App angewendet.
 <a id="features"></a>
 ## Funktionen
 
-**Sehen, wie die Oberfläche aufgebaut ist**
+- **Sehen, wie die Oberfläche aufgebaut ist.** Der Layer-Baum jedes Fensters, mit markierten View-Controllern und den Member-Variablen, die jede View halten. [Die Layer-Liste](https://nothingsh.github.io/Cutaway/guide/hierarchy)
+- **In 3D zerlegen.** Ein Screenshot jedes Layers, flach in 2D oder in 3D auseinandergezogen; drehen, zoomen, den Abstand ändern. [Die Vorschau](https://nothingsh.github.io/Cutaway/guide/preview)
+- **Messen.** Halten Sie ⌥ gedrückt und zeigen Sie auf einen anderen Layer, in der Vorschau oder in der Liste, um die Abstände in Punkten zu sehen. [Messen](https://nothingsh.github.io/Cutaway/guide/measuring)
+- **Im laufenden Betrieb ändern.** Bearbeitete Attribute wirken sofort in der laufenden App; ⌘Z macht sie rückgängig. [Attribute](https://nothingsh.github.io/Cutaway/guide/attributes)
+- **Den Constraints folgen.** Jeder Auto-Layout-Constraint einer View, die nicht wirksamen markiert, und ihre anderen Enden. [Constraints](https://nothingsh.github.io/Cutaway/guide/constraints)
+- **Dunkelmodus und größere Schrift ausprobieren.** Erscheinungsbild, Textgröße, Layoutrichtung und Größenklassen der App überschreiben. [Umgebung](https://nothingsh.github.io/Cutaway/guide/environment)
+- **Zum eigenen Code springen.** Eine Klasse in Xcode öffnen, Namen aus Asset- und String-Katalogen sehen, einen LLDB-Befehl kopieren. [Quellcode](https://nothingsh.github.io/Cutaway/guide/source)
+- **Festhalten, was Sie gefunden haben.** Eine Inspektion sichern und auf jedem Mac ohne das Gerät öffnen; einen Layer als PNG exportieren. [Archive und Export](https://nothingsh.github.io/Cutaway/guide/archives)
 
-- Der Layer-Baum jedes Fensters, mit Markierung der Root-Views von View-Controllern und der
-  Member-Variablen, die den jeweiligen Layer oder die jeweilige View halten, sodass sich ein Layer
-  bis zum Code zurückverfolgen lässt.
-- Ein Screenshot jedes Layers, flach in 2D oder in 3D auseinandergezogen. Drehen, zoomen und
-  verschieben Sie mit Maus oder Trackpad; ändern Sie den Abstand zwischen den Layern; blenden Sie
-  die ausgeblendeten Layer ein.
-- Jede Position, Größe, Drehung und Skalierung wie auf dem Bildschirm des Geräts, einschließlich
-  3D-Transformationen.
-- Messen: Halten Sie ⌥ gedrückt und zeigen Sie auf einen anderen Layer, um die Abstände zwischen
-  ihm und dem ausgewählten zu sehen, in 2D und in 3D.
-
-**Mit den Details arbeiten**
-
-- Die Attribute des ausgewählten Layers und der View, in fünf Abschnitten nach Zweck, wobei
-  zusammengehörige Attribute wie Breite und Farbe eines Rahmens in einer Zeile stehen. Bearbeitbare
-  Attribute haben Bedienelemente: Text, Zahlen, Checkboxen, Farbfelder, Pop-ups und segmentierte
-  Steuerelemente für Aufzählungen. Änderungen werden sofort in der laufenden App angewendet, und ⌘Z
-  macht sie rückgängig.
-- Die Auto-Layout-Constraints, die sich auf die ausgewählte View beziehen, mit Markierung
-  derjenigen, die nicht wirksam sind. Zeigen Sie auf einen Constraint, um sein anderes Ende in der
-  Vorschau zu markieren, oder markieren Sie alle. Klicken Sie auf das andere Ende, um dorthin zu
-  springen.
-- Den Baum durchsuchen, auf einen Teilbaum fokussieren, bis zu einer bestimmten Tiefe aufklappen,
-  einen Teilbaum allein aktualisieren.
-
-**Behalten, was Sie gefunden haben**
-
-- Sichern Sie eine Inspektion als `.cutaway`-Archiv und öffnen Sie sie später, auf jedem Mac, ohne
-  Gerät: Baum, Screenshots, Attribute und Constraints sind alle enthalten, zusammen mit der Ansicht,
-  die Sie hatten.
-- Exportieren Sie den Screenshot eines Layers, allein oder mit seinen Sublayern, als PNG.
-
-**Für den Alltag gebaut**
-
-- Findet Apps von selbst: in Simulatoren auf diesem Mac und auf per USB verbundenen Geräten.
-- Zeigt zuerst den Baum und dann die Screenshots, sobald sie eintreffen; große Bäume bleiben
-  reaktionsfähig.
-- Verbindet sich erneut, wenn eine App zurückkommt. Folgt dem Zustand der App: Geht sie in den
-  Hintergrund, sagt Cutaway das und macht weiter, wenn sie zurückkehrt.
-- Auf Englisch, vereinfachtem Chinesisch, traditionellem Chinesisch, Japanisch und Koreanisch.
-- Spricht nur mit Apps auf diesem Mac und über das USB-Kabel. Keine Analysen, keine
-  Absturzberichte.
+Cutaway spricht nur mit Apps auf diesem Mac und über das USB-Kabel: keine Analysen, keine Absturzberichte.
+Es ist auf Englisch, vereinfachtem Chinesisch, traditionellem Chinesisch, Japanisch und Koreanisch verfügbar.
 
 <a id="requirements"></a>
 ## Voraussetzungen
@@ -84,9 +51,6 @@ App angewendet.
   macOS 14 läuft).
 - Eine App, die [CutawayServer](https://github.com/nothingsh/CutawayServer) enthält und im iOS
   Simulator oder auf einem per USB mit dem Mac verbundenen iPhone oder iPad läuft.
-
-Cutaway läuft nicht in der Sandbox, weil der Socket, über den es Geräte per USB erreicht, außerhalb
-der Sandbox liegt. Aus demselben Grund wird es außerhalb des Mac App Store vertrieben.
 
 <a id="installation"></a>
 ## Installation
@@ -101,287 +65,33 @@ nicht von Apple notarisiert; beim ersten Öffnen meldet macOS daher, dass der En
 xattr -dr com.apple.quarantine /Applications/Cutaway.app
 ```
 
-**Cutaway › Check for Updates…** meldet, wenn eine neuere Version erschienen ist. Sie können
-Cutaway auch aus dem Quellcode bauen; siehe [Entwicklung](#development).
+**Cutaway › Check for Updates…** meldet, wenn eine neuere Version erschienen ist.
 
 ## Schnellstart
 
 1. Fügen Sie [CutawayServer](https://github.com/nothingsh/CutawayServer) Ihrer iOS-App hinzu und rufen Sie `CutawayServer.start()` einmal beim
-   Start auf. Das [README](https://github.com/nothingsh/CutawayServer#readme) des Servers enthält
-   die zwei Zeilen für UIKit und SwiftUI. Es wird nur in Debug-Builds kompiliert.
+   Start auf. Es wird nur in Debug-Builds kompiliert.
 2. Führen Sie Ihre App im Simulator aus oder auf einem per Kabel mit dem Mac verbundenen Gerät.
 3. Öffnen Sie Cutaway. Ihre App erscheint innerhalb weniger Sekunden in der Liste. Wählen Sie sie
    aus.
 
-## Cutaway verwenden
+Die [Anleitung für den Einstieg](https://nothingsh.github.io/Cutaway/guide/getting-started) enthält jeden Schritt, den Code für UIKit und SwiftUI und was zu prüfen ist, wenn Ihre App nicht erscheint.
 
-### Die Layer-Liste
+<a id="documentation"></a>
+## Dokumentation
 
-Die Seitenleiste listet die Layer jedes Fensters als Baum auf. Eine Zeile zeigt die Klasse des
-Layers, die View, die er trägt, den View-Controller, dessen Root-View er ist, und die
-Member-Variable, die ihn hält, etwa `HomeViewController.titleLabel`. Abgeblendete Zeilen sind
-ausgeblendet oder vollständig transparent. Das Symbol zeigt die Art des Layers, gefüllt für die
-eigenen Klassen der App und umrandet für die des Systems. Beim Scrollen bleiben die Vorfahren der
-obersten Zeile über ihr angeheftet.
+Alles Weitere steht auf der [Cutaway-Website](https://nothingsh.github.io/Cutaway/) (vorerst nur auf Englisch):
 
-- **Filtern** Sie den Baum mit dem Feld oben: Zeilen, deren Titel oder Klasse den Text enthält,
-  bleiben, zusammen mit ihren Vorfahren.
-- **Fokussieren** Sie auf einen Layer (⌥⌘↓), um nur seinen Teilbaum zu zeigen, in der Liste und in
-  der Vorschau; der Pfad über der Liste führt wieder hinaus.
-- **Aufklappen** bis zu einer gewählten Tiefe oder vollständig, über das Menü neben dem Filter
-  (⌥⌘→ und ⌥⌘← für alles). Wird eine App zum ersten Mal untersucht, öffnet sich der Baum bis zum
-  View-Controller auf dem Bildschirm.
-- **Doppelklicken** Sie auf eine Zeile, um sie auf- oder zuzuklappen. Ein Doppelklick auf einen
-  Layer in der Vorschau tut dasselbe.
-
-### Die Vorschau
-
-Die Vorschau zeichnet jeden sichtbaren Layer an seiner Stelle auf dem Bildschirm, mit seinem
-Screenshot, sobald der Baum eintrifft und dann, sobald jeder einzelne Screenshot eintrifft.
-
-- **2D oder 3D** (⌘1, ⌘2) über die Symbolleiste. In 3D werden die Layer entlang ihrer Tiefe
-  auseinandergezogen; das Zuklappen einer Zeile in der Liste faltet ihren Teilbaum wieder zu einem
-  zusammen.
-- **Drehen** durch Ziehen in 3D; **verschieben** durch Scrollen oder, in 2D, durch Ziehen;
-  **zoomen** durch Auf- und Zuziehen oder mit ⌘ und dem Scrollrad, um den Zeiger herum.
-  **Reset View** (Ansicht zurücksetzen, ⌘0) kehrt zum Ausgangszustand zurück.
-- **Layer-Abstand** in 3D ist der Schieberegler unter der Vorschau, von 0 bis 200 Punkten.
-- **Show Hidden Layers** (ausgeblendete Layer einblenden, ⇧⌘H) zeichnet auch die Layer, die
-  ausgeblendet oder transparent sind, in einem eigenen Stil. **Borders** (Rahmen) umranden die
-  Layer in einer Farbe oder nach Art, in den Farben der Symbole der Liste, und lassen sich auf die
-  eigenen Klassen der App beschränken; **Show Borders** (Rahmen anzeigen, ⇧⌘B) schaltet sie aus und
-  wieder ein. **Show Constraint Ends** (Constraint-Enden anzeigen, ⇧⌘K) markiert alle anderen Enden
-  der Constraints der ausgewählten View. Auch diese finden sich unter der Vorschau.
-- **Messen**: Halten Sie bei ausgewähltem Layer ⌥ gedrückt und zeigen Sie auf einen anderen Layer.
-  Die Abstände zwischen den beiden werden mit ihren Werten in Punkten gezeichnet, in 2D und in 3D.
-- Klicken Sie auf einen Layer, um ihn auszuwählen; Liste und Attribute folgen. Der Layer unter dem
-  Zeiger wird hervorgehoben. Ein Etikett neben dem ausgewählten Layer zeigt seinen Namen und seine
-  Größe.
-
-### Attribute
-
-Der Inspektor rechts zeigt den ausgewählten Layer und seine View. Unter dem Namen des Layers
-führen seine nächsten Vorfahren den Baum hinauf; **Select Parent Layer** (übergeordneten Layer
-auswählen, ⌘↑) und **Select First Child Layer** (ersten untergeordneten Layer auswählen, ⌘↓)
-bewegen sich an ihm entlang. Die Attribute folgen in fünf Abschnitten nach Zweck: Content
-(Inhalt), Appearance (Erscheinungsbild), Layout, Behavior (Verhalten) und Object (Objekt).
-Zusammengehörige Attribute teilen sich eine Zeile, etwa Frame, Border, Shadow und Corners. Cutaway
-hat keine eigene Liste: Was erscheint, ist das, was [CutawayServer](https://github.com/nothingsh/CutawayServer) sendet; es zeigt also, was die Server-Version der App kennt.
-
-- **Filtern** Sie die Attribute nach Titel oder ID mit dem Feld über der Liste. Abschnitte lassen
-  sich zuklappen; die Überschrift des obersten bleibt beim Scrollen sichtbar, und ein ⌥-Klick auf
-  eine Überschrift klappt alle zu oder auf.
-- Attribute, die die App als bearbeitbar markiert, haben Bedienelemente: ein Textfeld, ein
-  Zahlenfeld, eine Checkbox, ein Farbfeld mit Hex-Wert und Deckkraft, ein Pop-up oder ein
-  segmentiertes Steuerelement für Aufzählungen und Felder pro Komponente für Punkte, Größen,
-  Rechtecke, Insets und Transformationen. Längen sind in Punkten angegeben; Anteile wie die
-  Deckkraft werden als Prozentwerte angezeigt und eingegeben, und für die Deckkraft gibt es
-  zusätzlich einen Schieberegler.
-- Eine Änderung wird gesendet, sobald Sie sie bestätigen, oder fortlaufend, während Sie den
-  Schieberegler der Deckkraft ziehen oder den Farbwähler benutzen. Ein Wert außerhalb des Bereichs,
-  den die App akzeptiert, wird nicht gesendet, und das Feld nennt den Grund. Die App antwortet mit
-  den Attributen des Layers, sodass ein Attribut, das sich mit einem anderen ändert (etwa die
-  Opacity eines Layers mit dem Alpha seiner View), ebenfalls aktualisiert wird.
-- ⌘Z macht die letzte Änderung rückgängig und ⇧⌘Z stellt sie wieder her, solange die Inspektion
-  dauert.
-- Eine Änderung, die die App ablehnt, wird in der Zeile erklärt, und der vorherige Wert kehrt
-  zurück.
-
-Nach einer Änderung aktualisiert Cutaway die Screenshots der Layer, die davon betroffen sein
-könnten.
-
-### Constraints
-
-Im Abschnitt Layout werden die Auto-Layout-Constraints einer View so aufgeführt, wie die App sie
-meldet: `self.leading = Safe Area of UIView.leading + 16`, mit der Priorität, wenn sie unter 1000
-liegt, und dem Identifier, wenn es einen gibt. Constraints, die nicht wirksam sind, sind
-abgeblendet und markiert; die von UIKit erzeugten sind zu einer Zeile zusammengefaltet. Klicken
-Sie auf das andere Ende eines Constraints, um diese View auszuwählen. Zeigen Sie auf einen
-Constraint, um sein anderes Ende in der Vorschau zu markieren; **Show Constraint Ends**
-(Constraint-Enden anzeigen, ⇧⌘K) markiert alle anderen Enden auf einmal.
-
-### Aktualisieren
-
-Cutaway zeigt, wie die App aussah, als sie gefragt wurde. **Refresh** (Aktualisieren, ⌘R) fragt
-erneut nach dem ganzen Baum und jedem Screenshot und behält dabei Ihre Auswahl, die aufgeklappten
-Zeilen und die Kamera. **Refresh Selected Subtree** (ausgewählten Teilbaum aktualisieren, ⇧⌘R,
-auch im Kontextmenü der Zeile) fragt nur nach dem Teilbaum dieses Layers. Geht die App in den
-Hintergrund, wartet Cutaway; geht die Verbindung verloren, bleibt das letzte Bild stehen, und
-Cutaway verbindet sich erneut, sobald dieselbe App wieder gefunden wird.
-
-### Archive
-
-**Save Archive…** (Archiv sichern, ⌘S) sammelt den Baum, das Icon sowie die Screenshots,
-Attribute und Constraints jedes Layers, ausgeblendete eingeschlossen, in einer einzigen
-`.cutaway`-Datei, zusammen mit dem Aussehen des Fensters. Die Datei öffnet sich mit **Open…**
-(Öffnen, ⌘O), aus dem Finder oder durch Ablegen auf dem Icon von Cutaway, in einem eigenen
-Fenster, und alles funktioniert wie online, außer dem Bearbeiten. Mehrere Archive können
-gleichzeitig geöffnet sein, neben einer Live-Inspektion.
-
-**Export Layer Screenshot…** (Layer-Screenshot exportieren, ⇧⌘E) und **Export Screenshot with
-Sublayers…** (Screenshot mit Sublayern exportieren, ⌥⇧⌘E) schreiben das Bild des ausgewählten
-Layers als PNG im Maßstab des Geräts, mit Transparenz und ohne die eigene Transformation oder
-Opacity des Layers.
-
-### Einstellungen
-
-**Settings…** (Einstellungen, ⌘,) hat zwei Seiten. **General** (Allgemein) wählt die Sprache, die
-des Systems oder eine der fünf, und das Erscheinungsbild: das des Systems, hell oder dunkel.
-**Preview** (Vorschau) legt fest, wie eine neue Inspektion beginnt: 2D oder 3D, der Layer-Abstand,
-ob ausgeblendete Layer angezeigt werden, der Stil der Rahmen und ob alle Constraint-Enden markiert
-werden. Bereits geöffnete Fenster behalten ihr Aussehen.
-
-### Tastaturkurzbefehle
-
-| Aktion | Tasten |
-|---|---|
-| Ein Archiv öffnen | ⌘O |
-| Ein Archiv sichern | ⌘S |
-| Den Screenshot des ausgewählten Layers exportieren, allein / mit Sublayern | ⇧⌘E / ⌥⇧⌘E |
-| Eine Änderung rückgängig machen / wiederherstellen | ⌘Z / ⇧⌘Z |
-| Die Layer-Liste filtern | ⌘F |
-| Alles / den ausgewählten Teilbaum aktualisieren | ⌘R / ⇧⌘R |
-| 2D / 3D | ⌘1 / ⌘2 |
-| Vergrößern / verkleinern / Ansicht zurücksetzen | ⌘= / ⌘- / ⌘0 |
-| Ausgeblendete Layer einblenden / Rahmen anzeigen / Constraint-Enden anzeigen | ⇧⌘H / ⇧⌘B / ⇧⌘K |
-| Den übergeordneten Layer / den ersten untergeordneten Layer auswählen | ⌘↑ / ⌘↓ |
-| Auf den ausgewählten Layer fokussieren / alle Layer zeigen | ⌥⌘↓ / ⌥⌘↑ |
-| Alles aufklappen / alles zuklappen | ⌥⌘→ / ⌥⌘← |
-| Seitenleiste / Inspektor ein- oder ausblenden | ⌃⌘S / ⌥⌘I |
-| Die App-Liste anzeigen | ⇧⌘0 |
-| Einstellungen | ⌘, |
-
-## Performance
-
-Eine große Oberfläche sollte sich weiterhin unmittelbar anfühlen. Cutaway ist darauf ausgelegt,
-und seine Testsuite hält es bei jedem Lauf an die folgenden Werte. Sie werden an einem
-generierten, app-förmigen Baum mit 10.000 Layern gemessen (Fenster, Container, eine
-Navigationsleiste und eine lange Liste von Zellen, jede mit Icon, Labels und Trennlinie), in
-einem Debug-Build:
-
-| Vorgang | Grenze |
-|---|---|
-| Der Baum trifft ein → die Liste ist auf dem Bildschirm | 2 s |
-| Die Szene anordnen | 1 s |
-| Ein neues Frame, nachdem sich die Kamera bewegt hat | 16 ms |
-| Ein Frame zeichnen | 16 ms |
-| Eine Zeile auswählen → Vorschau und Inspektor folgen | 100 ms |
-| Die Liste durchsuchen | 200 ms |
-| Alles aufklappen / alles zuklappen | 1 s |
-| Ein Archiv des Baums öffnen → die Liste ist auf dem Bildschirm | 2 s |
-
-Wie es das erreicht:
-
-- **Screenshots bleiben komprimiert.** Das Modell behält nur die komprimierten Bytes, die es
-  empfangen hat. Sie werden abseits des Main-Threads dekomprimiert, auf die GPU geladen, und die
-  Pixel werden freigegeben.
-- **Die Vorschau zeichnet nur bei Änderungen.** Solange sich nichts bewegt, wird kein Frame
-  eingereicht.
-- **Das Lesen hält Schritt mit dem Zeichnen.** Treffen Screenshots schneller ein, als sie
-  verwendet werden, hört Cutaway auf, von der Verbindung zu lesen, und TCP weist die App an zu
-  warten. Nichts staut sich im Speicher.
-- **Nichts sammelt sich an.** Die Suite wiederholt jeden Vorgang zehnmal über 5.000 Layer und
-  prüft, dass kein Screenshot, keine Textur, keine Anfrage und kein Fenster zurückbleibt; ein
-  längerer Dauerlauf (`scripts/soak.sh`) gibt die Speicherkurve über hundert Runden aus.
-- **Ungültige Daten bringen es nicht zum Absturz.** Jeder Frame wird geprüft, bevor er dekodiert
-  wird, und die Parser werden bei jedem Lauf mit mutierten, gekürzten und zusammengefügten Frames
-  gefuzzt.
-
-## Verhalten auf dem Mac
-
-- Alle zwei Sekunden probiert Cutaway die Ports 48160 bis 48167 auf `127.0.0.1`, wo [CutawayServer](https://github.com/nothingsh/CutawayServer)
-  in Simulatoren lauscht, sowie dieselben Ports auf jedem per USB verbundenen Gerät, über das
-  `usbmuxd` des Systems. Eine App, die den Handshake beantwortet, wird aufgelistet.
-- Eine Verbindung pro App, gehalten, solange die App aufgelistet ist. Eine App, die bereits einen
-  Client hat, wird in Ruhe gelassen.
-- Eine Anfrage, die 10 Sekunden lang kein Byte erhält, wird aufgegeben; die Verbindung wird
-  geschlossen, wenn die App etwas sendet, das das [Protokoll](https://github.com/nothingsh/CutawayProtocol) verbietet.
-- Cutaway stellt keine weitere Netzwerkverbindung her, außer wenn Sie **Check for Updates…**
-  wählen: Dann fragt es GitHub nach der Liste der Releases dieses Repositorys und sendet nichts über
-  Ihren Mac.
-- Einstellungen liegen in `UserDefaults`; zuletzt verwendete Archive stehen in der Liste der
-  zuletzt benutzten Dokumente des Systems.
-
-## Roadmap
-
-Dies sind die für die Zeit nach 1.0 geplanten Richtungen, gemeinsam mit [CutawayServer](https://github.com/nothingsh/CutawayServer).
-Reihenfolge und Umfang können sich ändern.
-
-- **Interaktionsanalyse.** Gesture-Recognizer und Target-Action-Paare anzeigen; Gesten aktivieren
-  und deaktivieren; Methoden auf Objekten aufrufen.
-- **Erweiterungs-API für Host-Apps.** Benutzerdefinierte Attribute, virtuelle Kindknoten und
-  Konfiguration wie standardmäßig eingeklappte Klassen, Farbaliasse und von Bildern ausgeschlossene
-  Views.
-- **Große Hierarchien.** Ein schneller Modus, der nur sichtbare Layer erfasst; aufgeteilte
-  Übertragung für sehr große Bilder.
-- **Mehr Verbindungen und Plattformen.** WLAN-Verbindungen, authentifiziert und verschlüsselt;
-  tvOS und visionOS.
-- **SwiftUI.** Eine semantische Hierarchie der SwiftUI-Views neben dem Layer-Baum.
-
-## FAQ
-
-**Meine App erscheint nicht in der Liste.**
-Prüfen Sie, ob der Build [CutawayServer](https://github.com/nothingsh/CutawayServer) enthält (es wird nur in Debug-Builds kompiliert) und
-`CutawayServer.start()` aufruft, ob die App im Vordergrund ist und, auf einem Gerät, ob das Gerät
-per Kabel verbunden ist und diesem Mac vertraut. Der Server nimmt den ersten freien Port von 48160
-bis 48167; eine App, deren Protokollversion Cutaway nicht spricht, zeigt die Liste mit beiden
-Versionen an.
-
-**Braucht Cutaway das Netzwerk?**
-Nein. Es spricht mit Simulatoren über die Loopback-Adresse und mit Geräten über USB. Es
-kontaktiert nie einen eigenen Server.
-
-**Warum ist eine Blur-, Video- oder Metal-View leer?**
-Diese Inhalte werden vom Render-Server des Systems außerhalb des App-Prozesses zusammengesetzt,
-sodass [CutawayServer](https://github.com/nothingsh/CutawayServer) sie nicht aus dem Layer-Baum rendern kann.
-
-**Kann ich mir eine App ohne das Gerät ansehen?**
-Sichern Sie ein Archiv, während das Gerät verbunden ist, und öffnen Sie es überall. Für die
-Entwicklung kann die Testunterstützungsbibliothek ein Archiv auch so abspielen, als wäre es eine
-App in einem Simulator (`scripts/replay.sh`).
-
-**Verändert die Inspektion meine App?**
-Nur die Bearbeitungen, die Sie vornehmen. Die Erfassung stellt alles, was sie berührt, wieder
-her, und das Lesen von Attributen löst kein Layout aus; siehe das README von [CutawayServer](https://github.com/nothingsh/CutawayServer).
+- [Anleitung](https://nothingsh.github.io/Cutaway/guide/getting-started): Cutaway Aufgabe für Aufgabe, und alle [Tastaturkurzbefehle](https://nothingsh.github.io/Cutaway/guide/shortcuts).
+- [Integration](https://nothingsh.github.io/Cutaway/integrate/): CutawayServer zur App hinzufügen, Debug- und Release-Builds, und die eigenen Angaben Ihrer App anzeigen.
+- [Protokoll](https://nothingsh.github.io/Cutaway/protocol/): wie Cutaway und CutawayServer miteinander sprechen, und welche Versionen zusammenpassen.
+- [FAQ und Fehlerbehebung](https://nothingsh.github.io/Cutaway/resources/faq), [Datenschutz und Sicherheit](https://nothingsh.github.io/Cutaway/resources/privacy), [Performance](https://nothingsh.github.io/Cutaway/resources/performance), [Versionshinweise](https://nothingsh.github.io/Cutaway/resources/releases), [Roadmap](https://nothingsh.github.io/Cutaway/resources/roadmap).
 
 <a id="development"></a>
 ## Entwicklung
 
-Cutaway ist in Swift 6 mit AppKit und Metal geschrieben. Der Code ist ein lokales Swift-Paket,
-`CutawayKit`; das App-Target tut nichts weiter, als es zusammenzusetzen:
-
-| Target | Inhalt |
-|---|---|
-| `CutawayWire` | Frames, die Nachrichten des Protokolls als Werttypen und das Archivformat |
-| `CutawayTransport` | Apps finden, `usbmuxd`, Sitzungen und Anfragen |
-| `CutawayModel` | Der Layer-Baum, Screenshots und Attribute sowie der Zustand, den die Fenster teilen |
-| `CutawayScene` | Wo jeder Layer gezeichnet wird, in welcher Reihenfolge, und Hit-Testing; reines Swift |
-| `CutawayRender` | Das Zeichnen der Szene mit Metal |
-| `CutawayUI` | Fenster, die Liste, die Vorschau, der Inspektor, Einstellungen |
-| `CutawayTestSupport` | Ein Mock-Server, der die Fixtures des Protokolls abspielt, synthetische Bäume, ein nachgebildetes `usbmuxd` |
-
-Das Wire-Format ist in [CutawayProtocol](https://github.com/nothingsh/CutawayProtocol) definiert,
-als Submodul unter `Protocol/` ausgecheckt; der Swift-Code dafür wird aus dem Schema generiert und
-ist eingecheckt. Mit [CutawayServer](https://github.com/nothingsh/CutawayServer) wird nichts geteilt außer dem Protokoll.
-
-Führen Sie nach dem Klonen einmal `./setup.sh` aus. Es checkt das Protokoll-Submodul aus, prüft,
-ob Xcode, XcodeGen und jq vorhanden sind, installiert die versionsfixierten Werkzeuge in `.tools/`,
-richtet die Git-Hooks ein und generiert `Cutaway.xcodeproj` aus `project.yml`. Ein erneutes
-Ausführen schadet nicht.
-
-| Aufgabe | Befehl |
-|---|---|
-| Wie die CI bauen und testen (braucht nur den Code) | `scripts/check.sh` |
-| Nur das Paket testen | `cd CutawayKit && DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild test -scheme CutawayKit-Package -destination 'platform=macOS' -testLanguage en` |
-| Formatieren, dann linten | `scripts/format.sh` |
-| Ein Archiv als App in einem Simulator bereitstellen, für ein laufendes Cutaway | `scripts/replay.sh <file.cutaway>` |
-| Jeden Vorgang hundert Runden lang wiederholen und die Speicherkurve ausgeben | `scripts/soak.sh` |
-
-- Nichts wird nach Augenmaß beurteilt. Die Szenenschicht ist durch Unit-Tests abgedeckt; die
-  Zeichenschicht rendert abseits des Bildschirms und wird mit den Referenzbildern in `Baselines/`
-  verglichen.
-- Tests brauchen nie ein Gerät. Verbindungen werden gegen den Mock-Server getestet, der die
-  Fixtures des Protokolls abspielt, auf diesem Mac.
+Wie Sie Cutaway bauen und testen und wie Änderungen geprüft werden, steht in [CONTRIBUTING.md](../../CONTRIBUTING.md).
+Die Seite [Contributing](https://nothingsh.github.io/Cutaway/resources/contributing) der Website erklärt, wie die drei Repositories zusammenhängen.
 
 ## Lizenz
 

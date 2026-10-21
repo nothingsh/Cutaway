@@ -1,0 +1,66 @@
+# Builds the website in site/ on every pull request and push that touches it, with dead links
+# and the size budgets checked by scripts/site.sh, and publishes it to GitHub Pages from main.
+name: site
+
+on:
+  push:
+    branches: [main, "dev-*"]
+    paths:
+      - "site/**"
+      - "Protocol"
+      - "scripts/site.sh"
+      - "scripts/node-version.txt"
+      - ".github/workflows/site.yml"
+  pull_request:
+    paths:
+      - "site/**"
+      - "Protocol"
+      - "scripts/site.sh"
+      - "scripts/node-version.txt"
+      - ".github/workflows/site.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: site-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # The protocol's specification page includes Protocol/PROTOCOL.md.
+          submodules: recursive
+      - name: Read the pinned Node version
+        id: node
+        run: echo "version=$(awk '$1 == "version" { print $2 }' scripts/node-version.txt)" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ steps.node.outputs.version }}
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+      - name: Build and check
+        run: scripts/site.sh check
+      - uses: actions/upload-pages-artifact@v4
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        with:
+          path: site/.vitepress/dist
+
+  deploy:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

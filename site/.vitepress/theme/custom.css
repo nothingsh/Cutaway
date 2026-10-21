@@ -1,0 +1,125 @@
+/* Cutaway's colors: the blue of the app icon. Brand text passes 4.5:1 on both backgrounds. */
+:root {
+  --vp-font-family-base: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', 'Helvetica Neue', Arial,
+    'PingFang SC', 'Hiragino Sans', 'Apple SD Gothic Neo', sans-serif;
+  --vp-font-family-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+
+  --vp-c-brand-1: #2f5bd8;
+  --vp-c-brand-2: #2449b8;
+  --vp-c-brand-3: #2f5bd8;
+  --vp-c-brand-soft: rgba(47, 91, 216, 0.1);
+  --vp-button-brand-bg: #2f5bd8;
+  --vp-button-brand-hover-bg: #2449b8;
+  --vp-button-brand-active-bg: #1f3f9e;
+
+  --cw-soft: #f6f6f8;
+  --cw-line: #e2e2e7;
+  --cw-shadow: 0 18px 50px rgba(20, 24, 40, 0.16), 0 0 0 1px rgba(0, 0, 0, 0.05);
+}
+
+.dark {
+  --vp-c-brand-1: #8aa6ff;
+  --vp-c-brand-2: #a6bcff;
+  --vp-c-brand-3: #3d5be0;
+  --vp-c-brand-soft: rgba(138, 166, 255, 0.14);
+  --vp-button-brand-bg: #3d5be0;
+  --vp-button-brand-hover-bg: #4a67e8;
+  --vp-button-brand-active-bg: #3450cc;
+
+  --cw-soft: #18181b;
+  --cw-line: #2c2c31;
+  --cw-shadow: 0 18px 50px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+/* Keys and menu paths in the guide. */
+.vp-doc kbd {
+  display: inline-block;
+  min-width: 1.5em;
+  padding: 0 5px;
+  border: 1px solid var(--vp-c-divider);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  background: var(--vp-c-bg);
+  font-family: var(--vp-font-family-base);
+  font-size: 0.85em;
+  line-height: 1.6;
+  text-align: center;
+  color: var(--vp-c-text-1);
+}
+
+/* Numbered steps: the h2s inside <div class="steps"> get a number in a circle. */
+.vp-doc .steps {
+  counter-reset: step;
+}
+
+.vp-doc .steps h2 {
+  counter-increment: step;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.vp-doc .steps h2::before {
+  content: counter(step);
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--vp-c-brand-3);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+/* Small facts under a page's title: time, versions. */
+.vp-doc .facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 16px 0 8px;
+}
+
+.vp-doc .facts .VPBadge {
+  margin: 0;
+  transform: none;
+}
+
+/* A lone call to action in the text. */
+.vp-doc .cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0 4px;
+  padding: 0 20px;
+  height: 44px;
+  border-radius: 10px;
+  background: var(--vp-button-brand-bg);
+  color: #fff;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.vp-doc .cta::after {
+  display: none !important;
+}
+
+.vp-doc .cta:hover {
+  background: var(--vp-button-brand-hover-bg);
+  color: #fff;
+}
+
+/* Tables of keys and values read better without stripes. */
+.vp-doc table code {
+  white-space: nowrap;
+}
+
+/* The "All releases" link that follows a download button. */
+.vp-doc .aside-link {
+  display: inline-block;
+  white-space: nowrap;
+  margin-left: 14px;
+  font-size: 14px;
+}
