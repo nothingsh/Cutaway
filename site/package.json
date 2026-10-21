@@ -1,0 +1,14 @@
+{
+  "name": "cutaway-site",
+  "private": true,
+  "description": "The Cutaway website, built with VitePress and published to GitHub Pages.",
+  "type": "module",
+  "scripts": {
+    "dev": "vitepress dev",
+    "build": "vitepress build",
+    "preview": "vitepress preview"
+  },
+  "devDependencies": {
+    "vitepress": "1.6.4"
+  }
+}

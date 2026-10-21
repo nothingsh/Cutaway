@@ -1,7 +1,44 @@
 # Contributing to Cutaway
 
-Thanks for helping. This page says where changes go and how they are reviewed. How to build and
-check the code is in [Development](README.md#development) in the README.
+Thanks for helping. This page says how to build and check the code, where changes go and how they
+are reviewed. How the three repositories fit together, and how to use Cutaway, is on the
+[website](https://nothingsh.github.io/Cutaway/resources/contributing); its source is in `site/`.
+
+## Development
+
+Cutaway is written in Swift 6 with AppKit and Metal. The code is a local Swift package,
+`CutawayKit`, with the app target doing nothing but assembling it:
+
+| Target | Content |
+|---|---|
+| `CutawayWire` | Frames, the protocol's messages as value types, and the archive format |
+| `CutawayTransport` | Finding apps, `usbmuxd`, sessions and requests |
+| `CutawayModel` | The layer tree, screenshots and attributes, and the state the windows share |
+| `CutawayScene` | Where every layer is drawn, in what order, and hit testing; pure Swift |
+| `CutawayRender` | Drawing the scene with Metal |
+| `CutawayUI` | Windows, the list, the preview, the inspector, settings |
+| `CutawayTestSupport` | A mock server that replays the protocol's fixtures, synthetic trees, a fake `usbmuxd` |
+
+The wire format is defined in [CutawayProtocol](https://github.com/nothingsh/CutawayProtocol),
+checked out at `Protocol/` as a submodule; the Swift code for it is generated from the schema and
+checked in. Nothing is shared with [CutawayServer](https://github.com/nothingsh/CutawayServer) but the protocol.
+
+After cloning, run `./setup.sh` once. It checks out the protocol submodule, checks for Xcode,
+XcodeGen and jq, installs the pinned tools into `.tools/`, sets up the git hooks and generates
+`Cutaway.xcodeproj` from `project.yml`. Running it again is harmless.
+
+| Task | Command |
+|---|---|
+| Build and test the way CI does (needs only the code) | `scripts/check.sh` |
+| Test the package alone | `cd CutawayKit && DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild test -scheme CutawayKit-Package -destination 'platform=macOS' -testLanguage en` |
+| Format, then lint | `scripts/format.sh` |
+| Serve an archive as an app in a simulator, for a running Cutaway | `scripts/replay.sh <file.cutaway>` |
+| Repeat every operation for a hundred rounds and print the memory curve | `scripts/soak.sh` |
+
+- Nothing is judged by eye. The scene layer is covered by unit tests; the drawing layer renders
+  off screen and is compared with the reference images in `Baselines/`.
+- Tests never need a device. Connections are tested against the mock server replaying the
+  protocol's fixtures, on this Mac.
 
 ## Branches
 
