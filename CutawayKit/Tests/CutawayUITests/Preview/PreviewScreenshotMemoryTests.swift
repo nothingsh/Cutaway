@@ -295,6 +295,8 @@ final class PreviewScreenshotMemoryTests: XCTestCase {
         let url = directory.appendingPathComponent("Demo.cutaway")
         try Fixtures.archive().write(to: url)
         let coordinator = WindowCoordinator(store: AppListStore(), discoversDevices: false)
+        // What is checked is Cutaway's own references (`ClosingWindow`).
+        coordinator.animatesWindows = false
         coordinator.presentOpenFailure = { _, error in XCTFail("\(error)") }
         defer { coordinator.launcher.close() }
 
@@ -323,9 +325,6 @@ final class PreviewScreenshotMemoryTests: XCTestCase {
             textures = opened.splitController.previewController.preview?.textures
             XCTAssertNotNil(textures)
             window = opened.window
-            // AppKit keeps a closing window, and all it holds, until its closing animation is
-            // over, and that animation has stalled for minutes (`ClosingWindow.closeAtOnce`).
-            ClosingWindow.closeAtOnce(opened.window)
             opened.close()
         }
 

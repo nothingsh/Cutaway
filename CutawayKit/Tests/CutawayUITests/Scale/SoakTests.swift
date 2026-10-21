@@ -67,6 +67,8 @@ final class SoakTests: XCTestCase {
             self.session = session
             apps = AppListStore(maxTextureDimension: 4096)
             coordinator = WindowCoordinator(store: apps, discoversDevices: false)
+            // What is checked is Cutaway's own references (`ClosingWindow`).
+            coordinator.animatesWindows = false
             location = .simulator(port: server.port)
         }
 
@@ -81,9 +83,6 @@ final class SoakTests: XCTestCase {
         func watchCurrent(_ when: String) {
             watch("session of \(when)", session)
             if let inspector = coordinator.inspector {
-                // Closed windows must go at once, not when AppKit's closing animation is over
-                // (see `ClosingWindow.closeAtOnce`).
-                ClosingWindow.closeAtOnce(inspector.window)
                 if let window = inspector.window { watch("window of \(when)", window) }
                 watch("inspector window controller of \(when)", inspector)
                 watch("inspection of \(when)", inspector.store)

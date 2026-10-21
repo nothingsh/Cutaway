@@ -28,6 +28,14 @@ public final class WindowCoordinator: NSObject {
     private(set) var inspector: InspectorWindowController?
     /// The archives' windows (C-ARCH-04, C-WIN-05).
     let archives: ArchiveOpener
+    /// Whether the inspector's and the archives' windows open and close with AppKit's
+    /// animation. Tests that check what a closed window lets go of turn it off before a window
+    /// opens: AppKit holds a window until its animation is over, and in test runs an animation
+    /// has not ended for minutes.
+    var animatesWindows = true {
+        didSet { archives.animatesWindows = animatesWindows }
+    }
+
     /// Opens a page on the web (C-MENU-04). The default browser; tests record the address.
     public var openURL: @MainActor (URL) -> Void = { url in
         NSWorkspace.shared.open(url)
@@ -239,6 +247,7 @@ public final class WindowCoordinator: NSObject {
         }
         controller.onArchiveSaved = { [weak self] url in self?.recents.note(url) }
         inspector = controller
+        if !animatesWindows { controller.window?.animationBehavior = .none }
         if returning != nil, let window = controller.window {
             window.animationBehavior = .none
             if let returningFrame { window.setFrame(returningFrame, display: false) }
@@ -249,7 +258,7 @@ public final class WindowCoordinator: NSObject {
             } else {
                 controller.showWindow(nil)
             }
-            window.animationBehavior = .default
+            window.animationBehavior = animatesWindows ? .default : .none
             // Come back on its own, it leaves the launcher as it is; chosen there, it does
             // what a choice does (C-WIN-01).
             if chosen { launcher.window?.orderOut(nil) }
