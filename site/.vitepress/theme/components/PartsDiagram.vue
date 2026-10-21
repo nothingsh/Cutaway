@@ -1,25 +1,45 @@
 <script setup lang="ts">
 // How the three parts fit together: Cutaway on the Mac, the protocol between, CutawayServer
 // inside the app. Laid out in a row, and in a column on a narrow screen.
+import { useLocale } from '../locale'
+
+const { t } = useLocale({
+  en: {
+    label:
+      'Cutaway on your Mac talks to CutawayServer inside your app over the Cutaway Protocol: TCP over the loopback address for the Simulator, or over USB through usbmuxd for a device.',
+    mac: 'on your Mac',
+    transport: ['TCP over the loopback address,', 'or USB through usbmuxd'],
+    app: 'Your app',
+    where: 'Simulator or USB device'
+  },
+  'zh-Hans': {
+    label:
+      'Mac 上的 Cutaway 经 Cutaway Protocol 与你的 App 里的 CutawayServer 通信：模拟器经回环地址上的 TCP，设备经 usbmuxd 走 USB。',
+    mac: '在你的 Mac 上',
+    transport: ['回环地址上的 TCP，', '或经 usbmuxd 走 USB'],
+    app: '你的 App',
+    where: '模拟器或 USB 连接的设备'
+  }
+})
 </script>
 
 <template>
-  <figure class="parts" role="img" aria-label="Cutaway on your Mac talks to CutawayServer inside your app over the Cutaway Protocol: TCP over the loopback address for the Simulator, or over USB through usbmuxd for a device.">
+  <figure class="parts" role="img" :aria-label="t.label">
     <div class="node">
       <svg width="34" height="26" viewBox="0 0 34 26" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="5" y="2" width="24" height="16" rx="2" /><path d="M1 22h32" /></svg>
       <b>Cutaway</b>
-      <span>on your Mac</span>
+      <span>{{ t.mac }}</span>
     </div>
     <div class="link">
       <span class="chip">Cutaway Protocol</span>
       <div class="line"></div>
-      <span class="note">TCP over the loopback address,<br />or USB through usbmuxd</span>
+      <span class="note">{{ t.transport[0] }}<br />{{ t.transport[1] }}</span>
     </div>
     <div class="node">
       <svg width="20" height="30" viewBox="0 0 20 30" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="2" y="1" width="16" height="28" rx="4" /><path d="M8 25h4" /></svg>
-      <b>Your app</b>
+      <b>{{ t.app }}</b>
       <span class="chip">CutawayServer</span>
-      <span>Simulator or USB device</span>
+      <span>{{ t.where }}</span>
     </div>
   </figure>
 </template>

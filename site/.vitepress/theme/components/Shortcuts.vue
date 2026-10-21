@@ -2,13 +2,15 @@
 // Every keyboard shortcut of Cutaway's menus, with a filter. Matches the menu bar of 1.2.
 import { computed, ref } from 'vue'
 
+import { useLocale } from '../locale'
+
 interface Shortcut {
   action: string
   menu: string
   keys: string
 }
 
-const shortcuts: Shortcut[] = [
+const en: Shortcut[] = [
   { action: 'Settings…', menu: 'Cutaway', keys: '⌘,' },
   { action: 'Hide Cutaway', menu: 'Cutaway', keys: '⌘H' },
   { action: 'Hide Others', menu: 'Cutaway', keys: '⌥⌘H' },
@@ -46,6 +48,62 @@ const shortcuts: Shortcut[] = [
   { action: 'Show App List', menu: 'Window', keys: '⇧⌘0' }
 ]
 
+// The menu titles as the app shows them in Simplified Chinese.
+const zh: Shortcut[] = [
+  { action: '设置…', menu: 'Cutaway', keys: '⌘,' },
+  { action: '隐藏 Cutaway', menu: 'Cutaway', keys: '⌘H' },
+  { action: '隐藏其他', menu: 'Cutaway', keys: '⌥⌘H' },
+  { action: '退出 Cutaway', menu: 'Cutaway', keys: '⌘Q' },
+  { action: '打开…（存档）', menu: '文件', keys: '⌘O' },
+  { action: '在 Xcode 中打开', menu: '文件', keys: '⌥⌘O' },
+  { action: '存储存档…', menu: '文件', keys: '⌘S' },
+  { action: '导出图层截图…', menu: '文件', keys: '⇧⌘E' },
+  { action: '导出含子图层的截图…', menu: '文件', keys: '⌥⇧⌘E' },
+  { action: '关闭窗口', menu: '文件', keys: '⌘W' },
+  { action: '撤销一项修改', menu: '编辑', keys: '⌘Z' },
+  { action: '重做一项修改', menu: '编辑', keys: '⇧⌘Z' },
+  { action: '查找…（过滤图层列表）', menu: '编辑', keys: '⌘F' },
+  { action: '刷新', menu: '显示', keys: '⌘R' },
+  { action: '刷新所选子树', menu: '显示', keys: '⇧⌘R' },
+  { action: '环境 › 在浅色与深色之间切换', menu: '显示', keys: '⇧⌘A' },
+  { action: '显示边栏', menu: '显示', keys: '⌃⌘S' },
+  { action: '显示检查器', menu: '显示', keys: '⌥⌘I' },
+  { action: '进入全屏幕', menu: '显示', keys: '⌃⌘F' },
+  { action: '2D', menu: '显示', keys: '⌘1' },
+  { action: '3D', menu: '显示', keys: '⌘2' },
+  { action: '放大', menu: '显示', keys: '⌘=' },
+  { action: '缩小', menu: '显示', keys: '⌘-' },
+  { action: '重置视图', menu: '显示', keys: '⌘0' },
+  { action: '显示隐藏的图层', menu: '显示', keys: '⇧⌘H' },
+  { action: '边框 › 显示边框', menu: '显示', keys: '⇧⌘B' },
+  { action: '显示约束的另一端', menu: '显示', keys: '⇧⌘K' },
+  { action: '选择父图层', menu: '显示', keys: '⌘↑' },
+  { action: '选择第一个子图层', menu: '显示', keys: '⌘↓' },
+  { action: '聚焦于所选图层', menu: '显示', keys: '⌥⌘↓' },
+  { action: '显示全部图层', menu: '显示', keys: '⌥⌘↑' },
+  { action: '全部展开', menu: '显示', keys: '⌥⌘→' },
+  { action: '全部折叠', menu: '显示', keys: '⌥⌘←' },
+  { action: '最小化', menu: '窗口', keys: '⌘M' },
+  { action: '显示 App 列表', menu: '窗口', keys: '⇧⌘0' }
+]
+
+const { t } = useLocale({
+  en: {
+    shortcuts: en,
+    filter: 'Filter the shortcuts',
+    placeholder: 'Filter by action, menu or keys (e.g. “shift cmd e”)',
+    columns: ['Action', 'Menu', 'Keys'],
+    none: (query: string) => `No shortcut matches “${query}”.`
+  },
+  'zh-Hans': {
+    shortcuts: zh,
+    filter: '过滤快捷键',
+    placeholder: '按操作、菜单或按键过滤（例如“shift cmd e”）',
+    columns: ['操作', '菜单', '按键'],
+    none: (query: string) => `没有与“${query}”相符的快捷键。`
+  }
+})
+
 const query = ref('')
 
 // Matches the action, the menu, or the keys as typed: "cmd shift e" or "⇧⌘E".
@@ -58,6 +116,7 @@ const words: [RegExp, string][] = [
 
 const shown = computed(() => {
   const text = query.value.trim().toLowerCase()
+  const shortcuts = t.value.shortcuts
   if (!text) return shortcuts
   let symbols = text
   for (const [pattern, symbol] of words) symbols = symbols.replace(pattern, symbol)
@@ -73,12 +132,12 @@ const shown = computed(() => {
 <template>
   <div class="shortcuts">
     <label class="filter">
-      <span class="visually-hidden">Filter the shortcuts</span>
-      <input v-model="query" type="search" placeholder="Filter by action, menu or keys (e.g. “shift cmd e”)" />
+      <span class="visually-hidden">{{ t.filter }}</span>
+      <input v-model="query" type="search" :placeholder="t.placeholder" />
     </label>
     <table>
       <thead>
-        <tr><th>Action</th><th>Menu</th><th>Keys</th></tr>
+        <tr><th v-for="column in t.columns" :key="column">{{ column }}</th></tr>
       </thead>
       <tbody>
         <tr v-for="s in shown" :key="s.action">
@@ -87,7 +146,7 @@ const shown = computed(() => {
           <td><kbd>{{ s.keys }}</kbd></td>
         </tr>
         <tr v-if="shown.length === 0">
-          <td colspan="3">No shortcut matches “{{ query }}”.</td>
+          <td colspan="3">{{ t.none(query) }}</td>
         </tr>
       </tbody>
     </table>

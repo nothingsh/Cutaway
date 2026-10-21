@@ -5,12 +5,14 @@
 import { computed, onMounted, ref } from 'vue'
 import { withBase } from 'vitepress'
 import { data } from '../media.data'
+import { useLocale } from '../locale'
 
 const props = defineProps<{ name: string; alt: string }>()
 
 const ready = computed(() => data.files.includes(`${props.name}.mp4`))
 const poster = computed(() => (data.files.includes(`${props.name}.jpg`) ? withBase(`/media/${props.name}.jpg`) : undefined))
 const moves = ref(false)
+const { t } = useLocale({ en: 'Video', 'zh-Hans': '视频' })
 
 onMounted(() => {
   moves.value = !window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -32,7 +34,7 @@ onMounted(() => {
       preload="metadata"
     ></video>
     <div v-else class="placeholder" role="img" :aria-label="alt">
-      <b>Video · {{ name }}</b>
+      <b>{{ t }} · {{ name }}</b>
       <span>{{ alt }}</span>
     </div>
   </div>

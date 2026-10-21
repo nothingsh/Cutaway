@@ -79,7 +79,7 @@ Le [guide de démarrage](https://nothingsh.github.io/Cutaway/guide/getting-start
 <a id="documentation"></a>
 ## Documentation
 
-Tout le reste est sur le [site de Cutaway](https://nothingsh.github.io/Cutaway/) (pour l’instant en anglais seulement) :
+Tout le reste est sur le [site de Cutaway](https://nothingsh.github.io/Cutaway/) (pour l’instant en anglais et en chinois simplifié seulement) :
 
 - [Guide](https://nothingsh.github.io/Cutaway/guide/getting-started) : utiliser Cutaway, tâche par tâche, et tous les [raccourcis clavier](https://nothingsh.github.io/Cutaway/guide/shortcuts).
 - [Intégration](https://nothingsh.github.io/Cutaway/integrate/) : ajouter CutawayServer à votre app, les builds Debug et Release, et afficher les informations propres à votre app.

@@ -80,7 +80,7 @@ Die [Anleitung für den Einstieg](https://nothingsh.github.io/Cutaway/guide/gett
 <a id="documentation"></a>
 ## Dokumentation
 
-Alles Weitere steht auf der [Cutaway-Website](https://nothingsh.github.io/Cutaway/) (vorerst nur auf Englisch):
+Alles Weitere steht auf der [Cutaway-Website](https://nothingsh.github.io/Cutaway/) (vorerst nur auf Englisch und in vereinfachtem Chinesisch):
 
 - [Anleitung](https://nothingsh.github.io/Cutaway/guide/getting-started): Cutaway Aufgabe für Aufgabe, und alle [Tastaturkurzbefehle](https://nothingsh.github.io/Cutaway/guide/shortcuts).
 - [Integration](https://nothingsh.github.io/Cutaway/integrate/): CutawayServer zur App hinzufügen, Debug- und Release-Builds, und die eigenen Angaben Ihrer App anzeigen.
