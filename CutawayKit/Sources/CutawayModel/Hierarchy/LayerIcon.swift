@@ -8,6 +8,8 @@ public struct LayerIcon: Equatable, Hashable, Sendable {
     /// The kind, which the icon's colour shows.
     public enum Category: String, CaseIterable, Sendable {
         case window, controller, text, control, image, scroll, bar, content, container, layer
+        /// A virtual node: a part of a layer's content that the app describes (C-HIER-16).
+        case virtual
     }
 
     /// The class, which the icon's glyph shows. The raw value names its image.
@@ -15,7 +17,7 @@ public struct LayerIcon: Equatable, Hashable, Sendable {
         case window, view, label, textField, textView, button, toggle, slider, segmented
         case stepper, pageControl, picker, image, collection, table, scroll, cell
         case navigationBar, tabBar, searchBar, web, map, swiftUI, activity, progress, stack
-        case effect, layer, shapeLayer, gradientLayer, textLayer
+        case effect, layer, shapeLayer, gradientLayer, textLayer, diamond
     }
 
     public var category: Category
@@ -94,14 +96,20 @@ public struct LayerIcon: Equatable, Hashable, Sendable {
     /// Modules of the system's Swift classes.
     static let systemModules: Set<Substring> = ["SwiftUI", "UIKit"]
 
-    /// The icon of a layer: a window's root layer, a layer that backs no view, a controller's
-    /// root view, or a view by the end of its readable class name.
+    /// The icon of a layer: a virtual node, a window's root layer, a layer that backs no view,
+    /// a controller's root view, or a view by the end of its readable class name.
     public init(_ node: LayerNode?) {
         guard let node else {
             self.init(.layer, .layer, isAppClass: false)
             return
         }
         let layerName = Self.first(node.className, node.displayClassName)
+        if node.kind == .virtual {
+            // Its class is the app's (P-HIER-20), so it comes out filled.
+            self.init(
+                .virtual, .diamond, isAppClass: Self.isAppClass(node.layerClassOrigin, layerName))
+            return
+        }
         let viewRuntime = Self.first(node.viewClassName, node.viewDisplayClassName)
         let viewReadable = Self.first(node.viewDisplayClassName, node.viewClassName)
         if node.parentID == 0 {

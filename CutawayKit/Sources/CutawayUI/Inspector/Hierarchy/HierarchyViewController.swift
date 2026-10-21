@@ -88,6 +88,9 @@ final class HierarchyViewController: NSViewController {
     let viewModel: HierarchyViewModel
     /// What a row's context menu holds.
     let layerMenu: LayerContextMenu
+    /// Whether the pointer is on a row (a sticky one too), each time it moves: ⌥ there
+    /// measures the row's layer in the preview (C-PREV-10).
+    var onPointerOverRow: ((Bool) -> Void)?
     /// What the outline shows, as the store last published it. Inside a subscription the
     /// store may already hold newer values.
     private(set) var tree = LayerTree.empty

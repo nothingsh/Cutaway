@@ -31,8 +31,9 @@ final class SceneConversionTests: XCTestCase {
         XCTAssertEqual(byID[5]?.opacity, 0.5)
         XCTAssertEqual(byID[3]?.opacity, 1)
         XCTAssertTrue(layers.allSatisfy { $0.solo == nil && $0.group == nil })
-        // The app excludes 13 and 14 from images (C-DET-11).
-        XCTAssertEqual(layers.filter { !$0.capturesImage }.map(\.id), [13, 14])
+        // The app excludes 13 and 14 from images; 10 to 12 are drawn by 4 (C-DET-11).
+        XCTAssertEqual(layers.filter { $0.content == .excluded }.map(\.id), [13, 14])
+        XCTAssertEqual(layers.filter { $0.content == .drawnByParent }.map(\.id), [10, 11, 12])
     }
 
     func test_C_SCENE_01_absentGeometryTakesTheDefaults() throws {

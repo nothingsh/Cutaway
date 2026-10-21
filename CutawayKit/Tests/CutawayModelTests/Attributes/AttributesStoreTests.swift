@@ -715,7 +715,7 @@ final class AttributesStoreTests: XCTestCase {
 
         model.enter()
         let settled = await Wait.until {
-            await model.detailProgress == DetailProgress(completed: 10, total: 10)
+            await model.detailProgress == DetailProgress(completed: 7, total: 7)
         }
         XCTAssertTrue(settled)
         model.select(3)
@@ -769,7 +769,7 @@ final class AttributesStoreTests: XCTestCase {
 
         model.enter()
         let settled = await Wait.until {
-            await model.detailProgress == DetailProgress(completed: 10, total: 10)
+            await model.detailProgress == DetailProgress(completed: 7, total: 7)
         }
         XCTAssertTrue(settled)
         model.select(3)
@@ -818,7 +818,7 @@ final class AttributesStoreTests: XCTestCase {
         // The screenshots are settled too: a batch still under way would be cancelled by the
         // new round, and the script has no Cancel.
         let settled = await Wait.until {
-            await model.detailProgress == DetailProgress(completed: 10, total: 10)
+            await model.detailProgress == DetailProgress(completed: 7, total: 7)
         }
         XCTAssertTrue(settled)
 
@@ -855,7 +855,7 @@ final class AttributesStoreTests: XCTestCase {
 
         model.enter()
         let settled = await Wait.until {
-            await model.detailProgress == DetailProgress(completed: 10, total: 10)
+            await model.detailProgress == DetailProgress(completed: 7, total: 7)
         }
         XCTAssertTrue(settled)
         model.select(3)

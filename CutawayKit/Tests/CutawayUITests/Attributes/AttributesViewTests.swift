@@ -115,7 +115,7 @@ final class AttributesViewTests: XCTestCase {
         let model = InspectionStore(source: ReadOnlySource(session), newLayers: .expanded)
         model.enter()
         let settled = await Wait.until {
-            await model.detailProgress == DetailProgress(completed: 10, total: 10)
+            await model.detailProgress == DetailProgress(completed: 7, total: 7)
         }
         XCTAssertTrue(settled)
         return (model, session, server)

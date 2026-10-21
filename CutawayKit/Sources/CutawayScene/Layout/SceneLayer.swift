@@ -13,15 +13,14 @@ public struct SceneLayer: Equatable, Sendable {
     public var opacity: Double
     public var solo: TextureKey?
     public var group: TextureKey?
-    /// False for a layer the app does not let be captured (P-DET-10): no image is asked for
-    /// it (C-DET-11).
-    public var capturesImage: Bool
+    /// Where the layer's look comes from (C-DET-11, C-REND-11).
+    public var content: Content
 
     public init(
         id: UInt64, parentID: UInt64, bounds: SceneRect, position: ScenePoint,
         anchorPoint: ScenePoint = ScenePoint(x: 0.5, y: 0.5),
         transform: SceneTransform = .identity, isHidden: Bool = false, opacity: Double = 1,
-        solo: TextureKey? = nil, group: TextureKey? = nil, capturesImage: Bool = true
+        solo: TextureKey? = nil, group: TextureKey? = nil, content: Content = .captured
     ) {
         self.id = id
         self.parentID = parentID
@@ -33,7 +32,23 @@ public struct SceneLayer: Equatable, Sendable {
         self.opacity = opacity
         self.solo = solo
         self.group = group
-        self.capturesImage = capturesImage
+        self.content = content
+    }
+
+    /// Where a layer's look comes from.
+    public enum Content: Equatable, Sendable {
+        /// Its own images, asked of the app.
+        case captured
+        /// A virtual node: the app draws it as part of its nearest layer ancestor's content,
+        /// so it has no images of its own (P-DET-09). Only outlined.
+        case drawnByParent
+        /// The app does not let it be captured (P-DET-10). Hatched, never asked for.
+        case excluded
+    }
+
+    /// Whether images are asked for the layer (C-DET-11).
+    public var capturesImage: Bool {
+        content == .captured
     }
 }
 

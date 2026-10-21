@@ -77,7 +77,7 @@ final class SubtreeRefreshTests: XCTestCase {
         let session = try await Self.session(to: server)
         let model = await Self.model(session)
         let settled = await Wait.until {
-            await model.detailProgress == DetailProgress(completed: 10, total: 10)
+            await model.detailProgress == DetailProgress(completed: 7, total: 7)
         }
         XCTAssertTrue(settled)
 
@@ -88,17 +88,14 @@ final class SubtreeRefreshTests: XCTestCase {
         XCTAssertTrue(asked)
         let frames = await server.receivedFrames
         XCTAssertTrue(frames.contains { $0.body == .getSubtree(GetSubtree(rootID: 4)) })
-        // Layer 4 is expanded and draws its solo, as does its virtual node 10; 11 and 12 are
-        // leaves and draw their groups; 5 is hidden and needs nothing; the ancestors 1 and 2
-        // are expanded, so their group images are not drawn.
+        // Layer 4 is expanded and draws its solo; its virtual nodes 10 to 12 have no images
+        // (C-DET-11); 5 is hidden and needs nothing; the ancestors 1 and 2 are expanded, so
+        // their group images are not drawn.
         let requests = await InspectionStoreDetailsTests.detailRequests(server)
         XCTAssertEqual(
             requests.last?.requests,
-            [InspectionStoreDetailsTests.request(4, .solo),
-             InspectionStoreDetailsTests.request(10, .solo),
-             InspectionStoreDetailsTests.request(11, .group),
-             InspectionStoreDetailsTests.request(12, .group)])
-        XCTAssertEqual(model.detailProgress, DetailProgress(completed: 6, total: 10))
+            [InspectionStoreDetailsTests.request(4, .solo)])
+        XCTAssertEqual(model.detailProgress, DetailProgress(completed: 6, total: 7))
         let mismatches = await server.mismatches
         XCTAssertEqual(mismatches, [])
 
@@ -116,7 +113,7 @@ final class SubtreeRefreshTests: XCTestCase {
         let session = try await Self.session(to: server)
         let model = await Self.model(session)
         let settled = await Wait.until {
-            await model.detailProgress == DetailProgress(completed: 10, total: 10)
+            await model.detailProgress == DetailProgress(completed: 7, total: 7)
         }
         XCTAssertTrue(settled)
         model.setExpanded(2, false)
@@ -151,7 +148,7 @@ final class SubtreeRefreshTests: XCTestCase {
         model.setShowsHiddenLayers(true)
         model.enter()
         let settled = await Wait.until {
-            await model.detailProgress == DetailProgress(completed: 11, total: 11)
+            await model.detailProgress == DetailProgress(completed: 8, total: 8)
         }
         XCTAssertTrue(settled)
         let ready = await Wait.until { await model.canRefreshSubtrees }
@@ -166,9 +163,6 @@ final class SubtreeRefreshTests: XCTestCase {
         XCTAssertEqual(
             requests.last?.requests,
             [InspectionStoreDetailsTests.request(4, .solo),
-             InspectionStoreDetailsTests.request(10, .solo),
-             InspectionStoreDetailsTests.request(11, .group),
-             InspectionStoreDetailsTests.request(12, .group),
              InspectionStoreDetailsTests.request(5, .group)])
 
         await session.close()
@@ -260,7 +254,7 @@ final class SubtreeRefreshTests: XCTestCase {
         let session = try await Self.session(to: server)
         let model = await Self.model(session)
         let shown = await Wait.until {
-            await model.detailProgress == DetailProgress(completed: 10, total: 10)
+            await model.detailProgress == DetailProgress(completed: 7, total: 7)
         }
         XCTAssertTrue(shown)
         XCTAssertNotNil(model.images[3])

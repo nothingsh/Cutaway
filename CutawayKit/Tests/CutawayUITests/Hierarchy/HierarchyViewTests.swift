@@ -232,7 +232,7 @@ final class HierarchyViewTests: XCTestCase {
 
         model.enter()
         let settled = await Wait.until {
-            await model.detailProgress == DetailProgress(completed: 10, total: 10)
+            await model.detailProgress == DetailProgress(completed: 7, total: 7)
         }
         XCTAssertTrue(settled)
         model.select(3)

@@ -96,7 +96,9 @@ final class IdentityLinesView: NSView {
                 },
             ]))
         } else {
-            lines.append(line(localized("attributes.identity.layer"), entries: [
+            let title = summary.isVirtual
+                ? localized("attributes.identity.virtualNode") : localized("attributes.identity.layer")
+            lines.append(line(title, entries: [
                 Entry(
                     text: summary.className ?? "", identifier: Self.classIdentifier,
                     sources: summary.openable.layer),

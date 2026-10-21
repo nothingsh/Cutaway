@@ -39,7 +39,7 @@ final class RefreshAfterChangeTests: XCTestCase {
         XCTAssertTrue(ready)
         if screenshots {
             let settled = await Wait.until {
-                await model.detailProgress == DetailProgress(completed: 10, total: 10)
+                await model.detailProgress == DetailProgress(completed: 7, total: 7)
             }
             XCTAssertTrue(settled)
         }

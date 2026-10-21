@@ -152,6 +152,7 @@ enum LayerIconImage {
         case .content: .systemBrown
         case .container: .systemGray
         case .layer: .tertiaryLabelColor
+        case .virtual: .systemMint
         }
     }
 
