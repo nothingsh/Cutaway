@@ -116,7 +116,7 @@ final class AttributesViewController: NSViewController {
     }
 
     private(set) lazy var countLabel = NSTextField(labelWithString: "")
-    private(set) lazy var noMatchLabel = NSTextField(wrappingLabelWithString: "")
+    private(set) lazy var noMatchLabel = NSTextField(wrappingLabelWithString: "").isSelectable(false)
     private(set) lazy var stickyHeader: SectionHeader = .init().configure {
         $0.target = self
         $0.action = #selector(toggleSticky(_:))
@@ -216,7 +216,6 @@ final class AttributesViewController: NSViewController {
                         .font(Theme.Font.bodyEmphasized)
                         .lineBreakMode(.byTruncatingTail)
                         .compressionResistancePriority(Theme.textGivesWay, for: .horizontal)
-                        .isSelectable(true)
                         .accessibilityIdentifier(Self.headerTitleIdentifier)
                         .bind(\.stringValue, to: layer.map { $0?.title ?? "" })
                     // What holds the layer (C-HIER-07) and its size (C-ATTR-18). Cut short in
@@ -226,7 +225,6 @@ final class AttributesViewController: NSViewController {
                         .textColor(.secondaryLabelColor)
                         .lineBreakMode(.byTruncatingMiddle)
                         .compressionResistancePriority(Theme.textGivesWay, for: .horizontal)
-                        .isSelectable(true)
                         .accessibilityIdentifier(Self.headerSubtitleIdentifier)
                         .bind(\.stringValue, to: layer.map { $0?.headerLine ?? "" })
                         .bind(\.isHidden, to: layer.map { $0?.headerLine == nil })
@@ -332,12 +330,14 @@ final class AttributesViewController: NSViewController {
             NSTextField(wrappingLabelWithString: "")
                 .font(Theme.Font.bodyEmphasized)
                 .alignment(.center)
+                .isSelectable(false)
                 .accessibilityIdentifier(Self.messageIdentifier)
                 .bind(\.stringValue, to: message.map { $0?.title ?? "" })
             NSTextField(wrappingLabelWithString: "")
                 .font(Theme.Font.caption)
                 .textColor(.secondaryLabelColor)
                 .alignment(.center)
+                .isSelectable(false)
                 .accessibilityIdentifier(Self.detailIdentifier)
                 .bind(\.stringValue, to: message.map { $0?.detail ?? "" })
                 .bind(\.isHidden, to: message.map { $0?.detail == nil })
@@ -408,10 +408,11 @@ final class AttributesViewController: NSViewController {
             .store(in: &cancellables)
 
         // The names of colours and texts follow the project folder's index (C-SRC-04,
-        // C-SRC-05): rows change in place once it is built.
+        // C-SRC-05): rows change in place once it is built. Each index that comes is a new
+        // one; comparing two would hold the main thread (C-SRC-02).
         projectIndex
             .sink { [weak self] index in
-                guard let self, index != self.viewModel.projectIndex else { return }
+                guard let self else { return }
                 self.viewModel.projectIndex = index
                 self.showRowStates()
             }
