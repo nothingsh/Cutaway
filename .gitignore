@@ -21,3 +21,8 @@ xcuserdata/
 /.claude/
 /Baselines/README.md
 /scripts/verify.sh
+
+# The website in site/.
+/site/node_modules/
+/site/.vitepress/dist/
+/site/.vitepress/cache/
