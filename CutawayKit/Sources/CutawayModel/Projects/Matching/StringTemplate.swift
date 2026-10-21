@@ -84,7 +84,7 @@ struct StringTemplate: Equatable, Sendable {
         let first = literals[0]
         let last = literals[literals.count - 1]
         guard value.hasPrefix(first), value.hasSuffix(last),
-              value.count >= literals.reduce(0) { $0 + $1.count } + placeholderCount
+              value.count >= literals.reduce(0, { $0 + $1.count }) + placeholderCount
         else { return false }
         // Where the last literal starts; the placeholder before it needs a character.
         let end = value.index(value.endIndex, offsetBy: -last.count)

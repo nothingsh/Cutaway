@@ -163,16 +163,20 @@ final class ProjectSourcesTests: XCTestCase {
 
     func test_C_SRC_02_askedAgainWhileBuildingBuildsOnceMore() async throws {
         let (sources, builder) = try await linkedSample()
+        let files = try XCTUnwrap(sources.reports["com.example.shop"]).read
         try builder.write("Shop/First.swift", "class First {}")
         sources.update(bundleID: "com.example.shop")
         try builder.write("Shop/Second.swift", "class Second {}")
         sources.update(bundleID: "com.example.shop")
         sources.update(bundleID: "com.example.shop")
-        var builds = 0
-        let counting = sources.$indexes.dropFirst().sink { _ in builds += 1 }
+        var published = 0
+        let counting = sources.$indexes.dropFirst().sink { _ in published += 1 }
         await sources.waitForIndex(bundleID: "com.example.shop")
         counting.cancel()
-        XCTAssertEqual(builds, 2)
+        // The first build read both files; the one more found nothing new, and published
+        // nothing.
+        XCTAssertEqual(sources.reports["com.example.shop"], ProjectIndexReport(read: 0, reused: files + 2))
+        XCTAssertEqual(published, 1)
         XCTAssertNotNil(sources.indexes["com.example.shop"]?.declarations["Second"])
     }
 

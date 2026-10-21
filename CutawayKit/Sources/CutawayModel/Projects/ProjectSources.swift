@@ -23,6 +23,10 @@ public final class ProjectSources: ObservableObject {
     @Published public private(set) var indexes: [String: ProjectIndex] = [:]
     /// What the latest build of each app's index did.
     public private(set) var reports: [String: ProjectIndexReport] = [:]
+    /// Counts the indexes each app was given, so that what follows an app's index tells a new
+    /// one by its number: comparing two indexes reads every declaration and string of both,
+    /// which for a large app holds the main thread for a second (C-SRC-02).
+    private var indexNumbers: [String: Int] = [:]
 
     private struct Indexing {
         let indexer: ProjectIndexer
@@ -40,7 +44,12 @@ public final class ProjectSources: ObservableObject {
 
     /// The app's index as it changes; nil while there is none.
     public func index(for bundleID: String) -> AnyPublisher<ProjectIndex?, Never> {
-        $indexes.map { $0[bundleID] }.removeDuplicates().eraseToAnyPublisher()
+        // Published before it is set: the number is set first.
+        $indexes
+            .map { [weak self] in (number: self?.indexNumbers[bundleID], index: $0[bundleID]) }
+            .removeDuplicates { $0.number == $1.number }
+            .map(\.index)
+            .eraseToAnyPublisher()
     }
 
     /// Links a folder to the app and builds its index.
@@ -97,8 +106,12 @@ public final class ProjectSources: ObservableObject {
             let (index, report) = await indexer.build()
             // Forgotten, or another folder linked, meanwhile.
             guard let self, self.indexings[bundleID]?.indexer === indexer else { return }
+            let last = self.reports[bundleID]
             self.reports[bundleID] = report
-            self.indexes[bundleID] = index
+            // No file read, and as many kept as there were: the same files as last time, so
+            // the same index, and nothing new to follow.
+            let isUnchanged = last.map { report.read == 0 && report.reused == $0.read + $0.reused } ?? false
+            if !isUnchanged || self.indexes[bundleID] == nil { self.setIndex(index, for: bundleID) }
             self.indexings[bundleID]?.build = nil
             if self.indexings[bundleID]?.isAskedAgain == true {
                 self.indexings[bundleID]?.isAskedAgain = false
@@ -110,6 +123,11 @@ public final class ProjectSources: ObservableObject {
     private func forget(_ bundleID: String) {
         indexings[bundleID] = nil
         reports[bundleID] = nil
-        if indexes[bundleID] != nil { indexes[bundleID] = nil }
+        if indexes[bundleID] != nil { setIndex(nil, for: bundleID) }
+    }
+
+    private func setIndex(_ index: ProjectIndex?, for bundleID: String) {
+        indexNumbers[bundleID, default: 0] += 1
+        indexes[bundleID] = index
     }
 }
