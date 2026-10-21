@@ -404,6 +404,8 @@ final class PreviewViewTests: XCTestCase {
             screenSize: Size(width: 393, height: 852), screenScale: 3, serverVersion: "0.1.0")
         model.apply(.found(location, demo, Session(channel: InertChannel(), client: Self.client)))
         let coordinator = WindowCoordinator(store: model, discoversDevices: false)
+        // What is checked is Cutaway's own references (`ClosingWindow`).
+        coordinator.animatesWindows = false
 
         weak var inspector: InspectorWindowController?
         weak var previewController: PreviewViewController?
@@ -420,10 +422,7 @@ final class PreviewViewTests: XCTestCase {
             preview = shown
             textures = shown.textures
             window = shownInspector.window
-            // Closing the window leaves the inspection. AppKit keeps a closing window until
-            // its closing animation is over, which has stalled for minutes
-            // (see `ClosingWindow.closeAtOnce`).
-            ClosingWindow.closeAtOnce(shownInspector.window)
+            // Closing the window leaves the inspection.
             shownInspector.close()
         }
         let deadline = Date().addingTimeInterval(8)
