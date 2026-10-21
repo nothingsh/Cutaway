@@ -1,3 +1,4 @@
+import Combine
 import CutawayTestSupport
 import Foundation
 import XCTest
@@ -171,6 +172,66 @@ final class ProjectIndexScaleTests: XCTestCase {
             GeneratedProject.catalogCount * GeneratedProject.keysPerCatalog * GeneratedProject.languages.count)
         XCTAssertEqual(sources.reports["com.example.generated"]?.skipped, 0)
         XCTAssertLessThanOrEqual(elapsed, .seconds(2))
+        XCTAssertLessThanOrEqual(pause, 0.05)
+    }
+
+    /// ⌘R builds the index again: what follows it, as an inspector window does twice, is not
+    /// held up by the new index, whether anything changed or not. String tables in 40
+    /// languages, 200,000 values, as a large app has: comparing two such indexes takes the
+    /// main thread far longer than a frame.
+    func test_C_SRC_02_buildingAgainDoesNotStallWhatFollowsTheIndex() async throws {
+        try XCTSkipIf(TestRunner.isCI, TestRunner.timedOnTheDevelopersMac)
+        let builder = try ProjectBuilder()
+        defer { builder.remove() }
+        try GeneratedProject.write(into: builder)
+        func writeTable(_ language: Int, last: String? = nil) throws {
+            var lines = (0..<5000).map { #""key\#($0)" = "Value \#($0) in language \#(language)";"# }
+            if let last { lines[4999] = #""key4999" = "\#(last)";"# }
+            try builder.write(
+                "App/l\(language).lproj/Localizable.strings", lines.joined(separator: "\n"))
+        }
+        for language in 0..<40 {
+            try writeTable(language)
+        }
+        let suite = "ProjectIndexScaleTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let sources = ProjectSources(folders: ProjectFolders(defaults: defaults))
+        let bundleID = "com.example.generated"
+        sources.link(builder.root, bundleID: bundleID, appName: "Generated")
+        await sources.waitForIndex(bundleID: bundleID)
+
+        var received: [[ProjectIndex?]] = [[], []]
+        let followers = (0..<2).map { follower in
+            sources.index(for: bundleID).sink { received[follower].append($0) }
+        }
+        defer { followers.forEach { $0.cancel() } }
+        var published = 0
+        let publishing = sources.$indexes.dropFirst().sink { _ in published += 1 }
+        defer { publishing.cancel() }
+        XCTAssertEqual(received.map(\.count), [1, 1])
+
+        // Nothing changed: nothing new to follow.
+        let meter = MainThreadStallMeter()
+        meter.start()
+        sources.update(bundleID: bundleID)
+        await sources.waitForIndex(bundleID: bundleID)
+        var pause = meter.stop()
+        print("C-SRC-02 built again unchanged, longest main thread pause \(Int(pause * 1000)) ms")
+        XCTAssertEqual(published, 0)
+        XCTAssertEqual(received.map(\.count), [1, 1])
+        XCTAssertLessThanOrEqual(pause, 0.05)
+
+        // One value changed, deep in the tables.
+        try writeTable(39, last: "Changed")
+        meter.start()
+        sources.update(bundleID: bundleID)
+        await sources.waitForIndex(bundleID: bundleID)
+        pause = meter.stop()
+        print("C-SRC-02 built again with one value changed, longest main thread pause \(Int(pause * 1000)) ms")
+        XCTAssertEqual(published, 1)
+        XCTAssertEqual(received.map(\.count), [2, 2])
+        XCTAssertEqual(received[0].last??.keys.matches("Changed").map(\.key), ["key4999"])
         XCTAssertLessThanOrEqual(pause, 0.05)
     }
 }

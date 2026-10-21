@@ -710,6 +710,65 @@ final class PreviewViewTests: XCTestCase {
         withExtendedLifetime(window) {}
     }
 
+    // MARK: - The band under the toolbar (C-WIN-06)
+
+    /// The preview filling a window whose content runs up under its title bar, as the
+    /// inspector's does, with a point in that band.
+    @MainActor
+    private func previewUnderTitleBar(
+        _ model: InspectionStore
+    ) throws -> (PreviewView, NSWindow, band: NSPoint) {
+        let controller = PreviewViewController(store: model)
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 480, height: 900),
+            styleMask: [.titled, .fullSizeContentView], backing: .buffered, defer: false)
+        window.contentViewController = controller
+        window.setContentSize(NSSize(width: 480, height: 900))
+        window.layoutIfNeeded()
+        try Wait.running { await controller.texturesSettled() }
+        let preview = try XCTUnwrap(controller.preview)
+        let bandHeight = preview.bounds.height - window.contentLayoutRect.height
+        XCTAssertGreaterThan(bandHeight, 10)
+        let y = preview.isFlipped ? bandHeight / 2 : preview.bounds.height - bandHeight / 2
+        return (preview, window, NSPoint(x: preview.bounds.midX, y: y))
+    }
+
+    @MainActor
+    func test_C_PREV_04_draggingUnderTheToolbarLeavesTheCamera() throws {
+        let model = try model()
+        model.setPreviewMode(.threeD)
+        let (preview, window, band) = try previewUnderTitleBar(model)
+        let camera = model.camera
+        // The window moves under the pointer while it drags: the points jump about.
+        Self.drag(from: band, to: NSPoint(x: band.x + 60, y: band.y), in: preview)
+        Self.drag(from: band, to: NSPoint(x: band.x - 40, y: band.y), in: preview)
+        XCTAssertEqual(model.camera, camera)
+        XCTAssertNil(model.selectedLayerID)
+        withExtendedLifetime(window) {}
+    }
+
+    @MainActor
+    func test_C_PREV_03_theBandUnderTheToolbarIsNotPointedAt() throws {
+        let model = try model()
+        let (preview, window, band) = try previewUnderTitleBar(model)
+        // Panned down until a layer is under the band.
+        preview.scroll(dx: 0, dy: -600, command: false, at: band)
+        Self.settle()
+        let under = preview.drawList.layer(at: ScenePoint(
+            x: band.x, y: preview.isFlipped ? band.y : preview.bounds.height - band.y))
+        XCTAssertNotNil(under)
+        // Just below the band the same layer is pointed at.
+        let below = NSPoint(x: band.x, y: band.y + (preview.isFlipped ? 40 : -40))
+        preview.mouseMoved(with: Self.mouse(.mouseMoved, at: below, in: preview))
+        XCTAssertEqual(model.hoveredLayerID, under)
+        preview.mouseMoved(with: Self.mouse(.mouseMoved, at: band, in: preview))
+        XCTAssertNil(model.hoveredLayerID)
+        Self.click(at: band, in: preview)
+        XCTAssertNil(model.selectedLayerID)
+        XCTAssertNil(Self.contextMenu(at: band, in: preview))
+        withExtendedLifetime(window) {}
+    }
+
     // MARK: - Resizing and dragging
 
     @MainActor

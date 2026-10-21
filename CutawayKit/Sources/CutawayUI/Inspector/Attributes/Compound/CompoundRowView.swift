@@ -374,7 +374,8 @@ final class CompoundRowView: NSView, AttributeListRow {
             .font(role.isPrimary ? .systemFont(ofSize: 12) : Theme.Font.caption)
             .textColor(role == .truncated ? .systemOrange : role.isPrimary ? .labelColor : .secondaryLabelColor)
             .lineBreakMode(.byTruncatingTail)
-            .isSelectable(true)
+            // Only an image's name is worth copying: it is looked up in the project.
+            .isSelectable(role == .imageName)
             .accessibilityIdentifier(Self.textIdentifier)
             .compressionResistancePriority(Theme.textGivesWay, for: .horizontal)
         hugs.insert(ObjectIdentifier(label))

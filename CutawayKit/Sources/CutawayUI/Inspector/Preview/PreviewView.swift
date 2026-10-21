@@ -325,7 +325,21 @@ public final class PreviewView: MTKView {
         ScenePoint(x: point.x, y: isFlipped ? point.y : bounds.height - point.y)
     }
 
+    /// Whether an event is in the band of the title bar and the toolbar, which the preview runs
+    /// up under (C-WIN-06). A press there moves the window, as on any title bar: the preview
+    /// takes no press, drag or right click there, and points at nothing.
+    private func isUnderToolbar(_ event: NSEvent) -> Bool {
+        guard let window = event.window ?? window,
+              window.styleMask.contains(.fullSizeContentView)
+        else { return false }
+        return event.locationInWindow.y > window.contentLayoutRect.maxY
+    }
+
     override public func mouseMoved(with event: NSEvent) {
+        guard !isUnderToolbar(event) else {
+            forgetPointer()
+            return
+        }
         let point = listPoint(event)
         pointer = point
         reportHover(drawList.layer(at: point))
@@ -436,6 +450,10 @@ public final class PreviewView: MTKView {
             if let menu = menu(for: event) { NSMenu.popUpContextMenu(menu, with: event, for: self) }
             return
         }
+        guard !isUnderToolbar(event) else {
+            forgetPointer()
+            return
+        }
         pressedAt = listPoint(event)
         draggedTo = nil
         updateMeasuring()
@@ -484,7 +502,8 @@ public final class PreviewView: MTKView {
     }
 
     override public func menu(for event: NSEvent) -> NSMenu? {
-        onContextMenu?(drawList.layer(at: listPoint(event)))
+        guard !isUnderToolbar(event) else { return nil }
+        return onContextMenu?(drawList.layer(at: listPoint(event)))
     }
 
     /// A click selects where the button comes up; a drag selects nothing (C-PREV-04). The
