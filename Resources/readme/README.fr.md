@@ -25,7 +25,7 @@ d'exécution.
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="overview-dark.png">
-    <img src="overview-light.png" alt="Cutaway inspectant une app en 3D : l'arbre des calques, les calques écartés avec des mesures et les attributs du calque sélectionné." width="850">
+    <img src="overview-light.png" alt="Cutaway inspectant une app en 3D : l'arbre des calques, les calques écartés et les attributs du calque sélectionné." width="850">
   </picture>
 </p>
 

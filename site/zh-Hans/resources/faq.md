@@ -49,7 +49,7 @@ App 进入后台时，Cutaway 会说明，等它回来后继续。如果连接�
 
 ### 预览显示的是旧画面。 {#the-preview-shows-an-old-picture}
 
-Cutaway 显示的是请求时 App 的样子。按 <kbd>⌘R</kbd> 重新请求整棵树和每一张截图，或按 <kbd>⇧⌘R</kbd> 只请求所选的子树。见[预览](/zh-Hans/guide/preview)。
+Cutaway 显示的是请求时 App 的样子。按 <kbd>⌘R</kbd> 重新请求整棵树和每一张截图，或按 <kbd>⇧⌘R</kbd> 只请求所选的子树。见[刷新](/zh-Hans/guide/preview#refresh)。
 
 ### 我改了环境，但有些图层还是原来的样子。 {#i-changed-the-environment-but-some-layers-still-look-the-old-way}
 
@@ -85,7 +85,7 @@ xattr -dr com.apple.quarantine /Applications/Cutaway.app
 
 ### 不连设备能看 App 吗？ {#can-i-look-at-an-app-without-the-device}
 
-能。在 App 连着时存储一份存档（<kbd>⌘S</kbd>），在任何地方、任何一台 Mac 上打开：图层树、截图、属性和约束都在。除了编辑，一切照常可用。见[存档与导出](/zh-Hans/guide/archives)。
+能。在 App 连着时存储一份存档（<kbd>⌘S</kbd>），在任何地方、任何一台 Mac 上打开：图层树、截图、属性和约束都在。除了需要 App 的操作（修改属性或环境、刷新、存储），一切照常可用。见[存档与导出](/zh-Hans/guide/archives)。
 
 ### 能把存档当作运行中的 App 来回放吗？ {#can-i-replay-an-archive-as-if-it-were-a-running-app}
 

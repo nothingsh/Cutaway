@@ -53,7 +53,7 @@ Every field of `Description` is optional:
 Register once, for example at launch next to `CutawayServer.start()`. A description takes effect from Cutaway’s next request; a later call for the same class replaces it.
 
 ::: warning The closures only read
-`attributes` and `virtualChildren` are called on the main thread, once in each request that needs them, and what they return is dropped when the request is answered. They must only read: change the app in an attribute’s `set` closure, nowhere else.
+`attributes` and `virtualChildren` are called on the main thread each time Cutaway reads what they give: for the hierarchy, for a node’s attributes, and once more after an edit, so that the answer shows the change. Within one request for details, a layer’s virtual children are asked for once, however many of its nodes the request names. What they return is dropped once the request is answered, except the identities of virtual nodes. They must only read: change the app in an attribute’s `set` closure, nowhere else.
 :::
 
 When several descriptions apply to one layer (its class, its view’s class, and their superclasses):
@@ -112,10 +112,12 @@ Each function takes the attribute’s name and value first, then options that al
 | `section` | Where the attribute belongs: `.general`, `.identity`, `.layout`, `.content`, `.appearance`, `.behavior` or `.accessibility` |
 | `unit` | For numbers: `.none`, `.points` (lengths in points) or `.fraction` (a proportion where 1 is the whole, shown as a percentage) |
 | `limits` | The values a number may be set to: `.atLeast`, `.greaterThan`, `.atMost`, `.lessThan`, `.between`, or `.free`. One limit applies to every component; otherwise give one per component, in the order of its fields |
-| `cluster` | A compound row the attribute may be shown in, and its part in it, by the names in Cutaway’s protocol |
+| `cluster` | A compound row the attribute may be shown in, and its part in it: `.font.size`, `.shadow.color`, `.sizing.huggingHorizontal` and so on, one constant for each cluster and part in Cutaway’s protocol; `.init(_:slot:)` takes the names as strings |
 | `inactiveBecauseOf` | Another attribute of the same object, as `"group.name"`, whose value now makes this one have no effect; Cutaway fades it |
 | `acceptsNil` | Whether `set` may be given `nil` |
 | `set` | Makes the attribute editable |
+
+The types of these options are nested in `CutawayServer.Attribute`: `CutawayServer.Attribute.Section`, `.Unit`, `.Limit` and `.Cluster`. With the leading-dot forms above you never need to write them out.
 
 Cutaway 1.2 shows every group your app adds in its App section, in the order you return them, whatever each attribute’s `section`. The section still travels with the attribute, as a hint for any client that sorts by purpose.
 
@@ -171,14 +173,14 @@ CutawayServer.Description<SalesChartView>(
 
 | Parameter | Meaning |
 |---|---|
-| `id` | What the node stands for, the same value every time: a model’s identifier rather than an index. Among the nodes of one layer an identity appears once; a node that repeats one is left out with its children |
+| `id` | What the node stands for, the same value every time: a model’s identifier rather than an index. Among the nodes of one layer an identity appears once; a node that repeats one is left out with its children. Cutaway keeps every identity until the connection ends or the layer is released, so use a value such as a `String`, an `Int` or a `UUID`, not an object |
 | `type` | The type of what the node stands for; Cutaway shows its name. Use `typeName:` with a string for a node that stands for no Swift type |
 | `name` | A short label, for example the bar’s category |
 | `frame` | In the coordinate space of the parent: the layer’s bounds, or the parent node’s frame with its origin at zero |
 | `transform` | Applied about the center of `frame` |
 | `isHidden`, `opacity` | As for a layer |
 | `isCollapsedByDefault` | Shows the node collapsed at first |
-| `attributes` | Shown when the node is selected; they may be edited like any other |
+| `attributes` | Shown when the node is selected; they may be edited like any other. The expression is evaluated only when Cutaway reads the node’s attributes, not for the hierarchy |
 | `children` | Nodes drawn inside this one |
 
 In Cutaway, a virtual node:
@@ -209,7 +211,7 @@ CutawayServer.describe(CardNumberView.self, CutawayServer.Description(isExcluded
 CutawayServer.registerColor(UIColor(red: 0.2, green: 0.4, blue: 0.8, alpha: 1), named: "brandBlue")
 ```
 
-Wherever an attribute’s color is equal to a registered one, Cutaway shows your name for it; the tooltip still gives the hex value and any other name the color has. When several registered colors are equal, the first registered is used. Registering a name again replaces its color and keeps its place.
+Wherever an attribute’s color is equal to a registered one, Cutaway shows your name for it; the tooltip still gives the hex value and any other name the color has. When several registered colors are equal, the first registered is used. Registering a name again replaces its color and keeps its place. A dynamic color is resolved with the traits of the view it is compared with, once for each set of traits within a request, and again in every later request.
 
 ## A complete example
 

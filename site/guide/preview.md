@@ -57,6 +57,15 @@ Virtual nodes are outlined with a dashed line, and views the app leaves out of i
 
 Some content is blank in the preview: blurs, video and Metal are drawn by the system outside the app, so they are not in the screenshots. See [Limitations](/integrate/limitations).
 
+## Refresh
+
+The preview shows the app as it was when Cutaway asked. To ask again:
+
+- **View › Refresh** (<kbd>⌘R</kbd>), or **Refresh** in the toolbar, loads the whole tree, every screenshot and the selected layer’s attributes again. Expanded rows, the selection and the camera stay as they were.
+- **View › Refresh Selected Subtree** (<kbd>⇧⌘R</kbd>), or **Refresh Subtree** in a row’s context menu, loads only that layer and its descendants, with their screenshots.
+
+An archive can’t be refreshed: it keeps what the app looked like when it was saved.
+
 ## Next
 
 <NextSteps :items="[

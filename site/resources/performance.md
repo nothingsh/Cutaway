@@ -4,7 +4,7 @@ description: The limits the test suites hold Cutaway and CutawayServer to, and h
 
 # Performance
 
-A large interface should still feel immediate, and inspecting an app shouldn’t change how it behaves. Both sides are designed around that, and their test suites hold them to the numbers on this page on every run.
+A large interface should still feel immediate, and inspecting an app shouldn’t change how it behaves. Both sides are designed around that, and their test suites hold them to the numbers on this page.
 
 ## Cutaway, on the Mac
 
@@ -27,6 +27,8 @@ Two more limits cover layers with many attributes:
 |---|---|
 | Selecting a layer with 1,000 attributes → the inspector shows them | 0.5 s |
 | Filtering those attributes by one more character | 0.1 s |
+
+Every full test run on the development Mac checks these limits, along with the memory tests below. The CI runners are slower virtual Macs and skip those tests.
 
 ### How it gets there
 

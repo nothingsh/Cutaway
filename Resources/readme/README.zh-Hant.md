@@ -23,7 +23,7 @@ Cutaway 是一個用來查看正在執行的 iOS App 介面內部的 macOS App�
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="overview-dark.png">
-    <img src="overview-light.png" alt="Cutaway 以 3D 檢視一個 App：圖層樹、分層展開並帶測量的預覽，以及所選圖層的屬性。" width="850">
+    <img src="overview-light.png" alt="Cutaway 以 3D 檢視一個 App：圖層樹、分層展開的圖層，以及所選圖層的屬性。" width="850">
   </picture>
 </p>
 

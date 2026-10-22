@@ -29,12 +29,13 @@ Cutaway 用 Swift 6、AppKit 和 Metal 编写。代码是一个本地的 Swift �
 | `CutawayWire` | 帧、作为值类型的协议消息，以及存档格式 |
 | `CutawayTransport` | 发现 App、`usbmuxd`、会话和请求 |
 | `CutawayModel` | 图层树、截图和属性，以及各窗口共享的状态 |
+| `CutawayProjects` | 关联的项目文件夹及其索引：类型声明、颜色集、字符串 |
 | `CutawayScene` | 每个图层画在哪里、按什么顺序，以及点选；纯 Swift |
 | `CutawayRender` | 用 Metal 绘制场景 |
 | `CutawayUI` | 窗口、列表、预览、检查器、设置 |
 | `CutawayTestSupport` | 回放协议夹具的模拟服务端、合成的图层树、一个假的 `usbmuxd` |
 
-克隆之后运行一次 `./setup.sh`。它检出协议的 submodule，检查 Xcode、XcodeGen 和 jq，把钉住版本的工具装进 `.tools/`，设好 git 钩子，并从 `project.yml` 生成 `Cutaway.xcodeproj`。再运行一次也无妨。
+克隆之后运行一次 `./setup.sh`。它检查 Xcode、XcodeGen 和 jq，缺少 Xcode 的 Metal 工具链时下载它，检出协议的 submodule，把钉住版本的工具（flatc、SwiftFormat、SwiftLint）装进 `.tools/`，设好 git 钩子，解析 CutawayKit 的 Swift 包，并从 `project.yml` 生成 `Cutaway.xcodeproj`。再运行一次也无妨。
 
 | 任务 | 命令 |
 |---|---|

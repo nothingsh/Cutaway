@@ -14,7 +14,7 @@ Cutaway 启动时打开 App 列表；也可以用**窗口 › 显示 App 列表*
 
 <Shot name="guide-applist" alt="App 列表里有一个在模拟器中运行的 App，可以选中。" />
 
-列表是空的时，它写着**还没有可检查的 App**，并链接到[怎样加入 CutawayServer](/zh-Hans/integrate/)。
+列表是空的时，它写着**还没有可检查的 App**，并链接到[如何集成 CutawayServer](/zh-Hans/integrate/)。
 
 ## Cutaway 在哪里找 {#where-cutaway-looks}
 

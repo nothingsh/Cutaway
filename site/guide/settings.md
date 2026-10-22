@@ -4,7 +4,7 @@ description: Choose Cutaway’s language and appearance, how a new inspection st
 
 # Settings
 
-Open **Cutaway › Settings…** (<kbd>⌘,</kbd>). Changes are saved as you make them; each page has **Restore Defaults**.
+Open **Cutaway › Settings…** (<kbd>⌘,</kbd>). Changes are saved as you make them; the General and Preview pages have **Restore Defaults**.
 
 ## General
 

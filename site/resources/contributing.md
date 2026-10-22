@@ -29,12 +29,13 @@ Cutaway is written in Swift 6 with AppKit and Metal. The code is a local Swift p
 | `CutawayWire` | Frames, the protocol’s messages as value types, and the archive format |
 | `CutawayTransport` | Finding apps, `usbmuxd`, sessions and requests |
 | `CutawayModel` | The layer tree, screenshots and attributes, and the state the windows share |
+| `CutawayProjects` | Linked project folders and their index: declarations, color sets, strings |
 | `CutawayScene` | Where every layer is drawn, in what order, and hit testing; pure Swift |
 | `CutawayRender` | Drawing the scene with Metal |
 | `CutawayUI` | Windows, the list, the preview, the inspector, settings |
 | `CutawayTestSupport` | A mock server that replays the protocol’s fixtures, synthetic trees, a fake `usbmuxd` |
 
-After cloning, run `./setup.sh` once. It checks out the protocol submodule, checks for Xcode, XcodeGen and jq, installs the pinned tools into `.tools/`, sets up the git hooks and generates `Cutaway.xcodeproj` from `project.yml`. Running it again is harmless.
+After cloning, run `./setup.sh` once. It checks for Xcode, XcodeGen and jq, downloads Xcode’s Metal toolchain if it is missing, checks out the protocol submodule, installs the pinned tools (flatc, SwiftFormat, SwiftLint) into `.tools/`, sets up the git hooks, resolves CutawayKit’s Swift packages and generates `Cutaway.xcodeproj` from `project.yml`. Running it again is harmless.
 
 | Task | Command |
 |---|---|
