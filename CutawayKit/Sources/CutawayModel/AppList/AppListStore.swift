@@ -16,8 +16,11 @@ public final class AppListStore: ObservableObject {
     /// The app whose inspection was lost, while its window waits for it to come back
     /// (C-WIN-04). Nil when nothing waits.
     @Published public private(set) var awaitingReconnection: AppIdentity?
-    /// What the lost inspection showed, for the one that takes its place.
+    /// What the lost inspection showed when it was lost, for the one that takes its place.
     private var settingsToRestore: InspectionSettings?
+    /// The lost inspection, while a view still holds it: what it shows when the app comes back
+    /// is what carries over. Search text typed before the loss may reach it only after.
+    private weak var inspectionToRestore: InspectionStore?
 
     private var sessions: [AppLocation: Session] = [:]
     /// The request for each app's icon over its current connection; an inspection's first
@@ -62,8 +65,10 @@ public final class AppListStore: ObservableObject {
         case .found(let location, let info, let session):
             sessions[location] = session
             // A new connection: layer IDs of the old one mean nothing on it (P-HIER-03). An
-            // inspection of the old one has lost its app (C-WIN-03).
+            // inspection of the old one has lost its app (C-WIN-03); a view may still hold it,
+            // and closed, it asks for nothing more over the old connection.
             inspections[location]?.connectionLost(waiting: awaitingReconnection != nil)
+            inspections[location]?.leave()
             inspections[location] = nil
             if inspectedApp == location { inspectedApp = nil }
             upsert(AppEntry(id: location, info: info, status: .ready(.active), icon: nil))
@@ -127,7 +132,7 @@ public final class AppListStore: ObservableObject {
         let entry = entries.first { $0.id == location }
         let returning = awaitingReconnection != nil
             && entry?.info.flatMap(AppIdentity.init) == awaitingReconnection
-        let restore = returning ? settingsToRestore : nil
+        let restore = returning ? inspectionToRestore?.settings ?? settingsToRestore : nil
         stopAwaitingReconnection()
         let inspection: InspectionStore
         if let existing = inspections[location] {
@@ -166,11 +171,13 @@ public final class AppListStore: ObservableObject {
               let identity = AppIdentity(info)
         else { return }
         settingsToRestore = inspections[location]?.settings
+        inspectionToRestore = inspections[location]
         awaitingReconnection = identity
     }
 
     private func stopAwaitingReconnection() {
         settingsToRestore = nil
+        inspectionToRestore = nil
         if awaitingReconnection != nil { awaitingReconnection = nil }
     }
 

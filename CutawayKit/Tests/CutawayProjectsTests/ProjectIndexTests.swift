@@ -1,6 +1,7 @@
 import Combine
 import CutawayTestSupport
 import Foundation
+import os
 import XCTest
 @testable import CutawayProjects
 
@@ -83,6 +84,74 @@ final class ProjectIndexTests: XCTestCase {
         let (again, second) = try await indexer.build()
         XCTAssertEqual(again.generation, index.generation)
         XCTAssertEqual(second, ProjectIndexReport(reused: report.read, tooLarge: 1, unreadable: 3))
+    }
+
+    /// One file more than four for each processor: the reading shares them out with the last
+    /// ones included.
+    func test_C_SRC_02_oneFileMoreThanFourPerProcessorIsRead() async throws {
+        let builder = try ProjectBuilder()
+        self.builder = builder
+        let count = ProcessInfo.processInfo.activeProcessorCount * 4 + 1
+        for number in 0..<count {
+            try builder.write("App/F\(number).swift", "class F\(number) {}")
+        }
+        let (index, report) = try await ProjectIndexer(root: builder.root).build()
+        XCTAssertEqual(report, ProjectIndexReport(read: count))
+        XCTAssertEqual(index.declarations.count, count)
+    }
+
+    /// However many files and processors, the shares cover every file once, in order, none is
+    /// empty, and there are at most four for each processor.
+    func test_C_SRC_02_theSharesCoverEveryFileOnceAndNoneIsEmpty() {
+        XCTAssertEqual(ProjectIndexer.shares(of: 0, processors: 8), [])
+        for processors in [0, 1, 2, 3, 4, 6, 8, 10, 12, 14, 16, 20, 24, 28, 32, 64] {
+            for count in 1...5000 {
+                let shares = ProjectIndexer.shares(of: count, processors: processors)
+                var next = 0
+                for share in shares {
+                    guard share.lowerBound == next, !share.isEmpty else {
+                        XCTFail("\(count) files, \(processors) processors: \(share) after \(next)")
+                        return
+                    }
+                    next = share.upperBound
+                }
+                XCTAssertEqual(next, count, "\(count) files, \(processors) processors")
+                XCTAssertLessThanOrEqual(shares.count, max(processors, 1) * 4)
+            }
+        }
+    }
+
+    /// Large files are read at most two at a time, whatever the processors; every file is
+    /// read, into its own place.
+    func test_C_SRC_02_largeFilesAreReadAtMostTwoAtATime() {
+        let reading = OSAllocatedUnfairLock(initialState: (now: 0, most: 0))
+        let items = Array(0..<64)
+        let read = { (item: Int) -> Int? in
+            guard item.isMultiple(of: 2) else { return item }
+            reading.withLock { $0.now += 1; $0.most = max($0.most, $0.now) }
+            Thread.sleep(forTimeInterval: 0.005)
+            reading.withLock { $0.now -= 1 }
+            return item
+        }
+        let contents = ProjectIndexer.read(
+            items, processors: 16, isLarge: { $0.isMultiple(of: 2) }, ProjectIndexer.Cancellation(), content: read)
+        XCTAssertEqual(contents, items)
+        XCTAssertLessThanOrEqual(reading.withLock { $0.most }, 2)
+    }
+
+    /// A folder that cannot be listed any more is not an empty project: the build says so,
+    /// and gives no index.
+    func test_C_SRC_02_aFolderThatCannotBeListedIsNotIndexedAsEmpty() async throws {
+        let builder = try sample()
+        let indexer = ProjectIndexer(root: builder.root)
+        _ = try await indexer.build()
+        try FileManager.default.removeItem(at: builder.root)
+        do {
+            let (index, _) = try await indexer.build()
+            XCTFail("built an index of \(index.declarations.count) declarations")
+        } catch {
+            XCTAssertTrue(error is ProjectIndexer.FolderUnreadable, "\(error)")
+        }
     }
 
     func test_C_SRC_02_nodeModulesFrameworksAndBundlesAreLeftOut() async throws {

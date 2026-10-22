@@ -107,10 +107,33 @@ struct StringTemplate: Equatable, Sendable {
                 position = from
                 continue
             }
-            guard from <= end, let found = value.range(of: literal, options: .literal, range: from..<end)
-            else { return false }
-            position = found.upperBound
+            guard from <= end, let found = Self.end(ofLeftmost: literal, in: value[from..<end]) else { return false }
+            position = found
         }
         return position < end
+    }
+
+    /// Where the leftmost place `literal` is in `text` ends, compared character by character,
+    /// as the look-up's parts of a text are: never inside a character, and the same written
+    /// composed or decomposed.
+    private static func end(ofLeftmost literal: String, in text: Substring) -> String.Index? {
+        // swiftlint:disable:next force_unwrapping
+        let head = literal.first!
+        var start = text.startIndex
+        while start < text.endIndex {
+            if text[start] == head, let end = end(of: literal, at: start, in: text) { return end }
+            start = text.index(after: start)
+        }
+        return nil
+    }
+
+    /// Where `literal` ends when `text` holds it at `start`.
+    private static func end(of literal: String, at start: String.Index, in text: Substring) -> String.Index? {
+        var index = start
+        for character in literal {
+            guard index < text.endIndex, text[index] == character else { return nil }
+            index = text.index(after: index)
+        }
+        return index
     }
 }

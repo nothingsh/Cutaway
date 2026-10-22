@@ -34,7 +34,7 @@ extension InspectorWindowController {
 
     private func copyCommand(_ text: String?) {
         guard let text else { return }
-        AttributesViewController.copy(text, to: pasteboard)
+        TextPasteboard.copy(text, to: pasteboard)
     }
 }
 

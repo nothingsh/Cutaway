@@ -113,20 +113,4 @@ enum Theme {
         return NSImage(systemSymbolName: name, accessibilityDescription: description)?
             .withSymbolConfiguration(configuration)
     }
-
-    /// An SF Symbol drawn at its own aspect ratio, centred in a square of `side` points. A path
-    /// control draws its items' images into squares and stretches one that is not square.
-    static func squareSymbol(_ name: String, size: CGFloat, side: CGFloat) -> NSImage? {
-        guard let symbol = self.symbol(name, size: size) else { return nil }
-        let image = NSImage(size: NSSize(width: side, height: side), flipped: false) { _ in
-            let scale = min(side / symbol.size.width, side / symbol.size.height, 1)
-            let width = symbol.size.width * scale
-            let height = symbol.size.height * scale
-            symbol.draw(in: NSRect(
-                x: (side - width) / 2, y: (side - height) / 2, width: width, height: height))
-            return true
-        }
-        image.isTemplate = true
-        return image
-    }
 }

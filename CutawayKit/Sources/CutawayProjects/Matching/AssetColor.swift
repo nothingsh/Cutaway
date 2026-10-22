@@ -9,20 +9,20 @@ public enum AssetAppearance: Equatable, Hashable, Sendable {
 
 /// A colour as it is compared (C-SRC-04): its four sRGB components, each clamped to 0 to 1
 /// (P-ATTR-04) and rounded to 8 bits.
-public struct RoundedColor: Equatable, Hashable, Sendable {
-    public var red: UInt8
-    public var green: UInt8
-    public var blue: UInt8
-    public var alpha: UInt8
+struct RoundedColor: Equatable, Hashable, Sendable {
+    var red: UInt8
+    var green: UInt8
+    var blue: UInt8
+    var alpha: UInt8
 
-    public init(red: Double, green: Double, blue: Double, alpha: Double) {
+    init(red: Double, green: Double, blue: Double, alpha: Double) {
         self.red = Self.rounded(red)
         self.green = Self.rounded(green)
         self.blue = Self.rounded(blue)
         self.alpha = Self.rounded(alpha)
     }
 
-    public init(_ color: Color) {
+    init(_ color: Color) {
         self.init(
             red: Double(color.red), green: Double(color.green), blue: Double(color.blue),
             alpha: Double(color.alpha))

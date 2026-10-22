@@ -12,10 +12,11 @@ final class LayerContextMenu: NSObject {
 
     private let store: InspectionStore
     /// The way to the app's project folder, or nil for none.
-    weak var project: ProjectLookup?
+    private weak var project: ProjectLookup?
 
-    init(store: InspectionStore) {
+    init(store: InspectionStore, project: ProjectLookup?) {
         self.store = store
+        self.project = project
     }
 
     /// Fills `menu` for `id`, or for no layer.

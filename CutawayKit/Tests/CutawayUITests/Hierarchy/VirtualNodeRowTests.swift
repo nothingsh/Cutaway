@@ -107,11 +107,11 @@ final class VirtualNodeRowTests: XCTestCase {
         }
 
         let menu = NSMenu()
-        LayerContextMenu(store: model).fill(menu, for: 10)
+        LayerContextMenu(store: model, project: nil).fill(menu, for: 10)
         XCTAssertFalse(menu.items.contains { $0.identifier == LLDBMenu.identifier }, "no address")
         XCTAssertFalse(menu.items.isEmpty)
         let layerMenu = NSMenu()
-        LayerContextMenu(store: model).fill(layerMenu, for: 4)
+        LayerContextMenu(store: model, project: nil).fill(layerMenu, for: 4)
         XCTAssertTrue(layerMenu.items.contains { $0.identifier == LLDBMenu.identifier })
     }
 }

@@ -7,6 +7,7 @@ import CutawayWire
 import XCTest
 
 @testable import CutawayModel
+@testable import CutawayProjects
 @testable import CutawayUI
 
 /// C-SRC-01: linking a folder from an inspector or archive window, a folder that is gone,

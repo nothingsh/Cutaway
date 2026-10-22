@@ -12,7 +12,6 @@ let package = Package(
     products: [
         .library(name: "CutawayUI", targets: ["CutawayUI"]),
         .library(name: "CutawayModel", targets: ["CutawayModel"]),
-        .library(name: "CutawayProjects", targets: ["CutawayProjects"]),
         .library(name: "CutawayRender", targets: ["CutawayRender"]),
         .library(name: "CutawayTransport", targets: ["CutawayTransport"]),
         .library(name: "CutawayWire", targets: ["CutawayWire"]),
@@ -91,7 +90,6 @@ let package = Package(
                 "CutawayTransport",
                 "CutawayWire",
                 "CutawayTestSupport",
-                .product(name: "DeclarativeAppKit", package: "DeclarativeAppKit"),
             ]
         ),
         .testTarget(

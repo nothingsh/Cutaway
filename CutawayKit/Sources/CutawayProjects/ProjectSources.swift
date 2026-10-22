@@ -5,7 +5,9 @@ import Foundation
 /// whole of Cutaway, shared by the windows of an app, its archives and the settings.
 ///
 /// An index is built when asked: after a folder is linked, when a window of the app opens and
-/// on ⌘R. One build of a folder at a time; asked again meanwhile, it builds once more after.
+/// on ⌘R. One build of a folder at a time; asked again meanwhile, it looks for the folder
+/// again after, and builds once more. A folder found gone, or that cannot be listed, while it
+/// is built has no index, as one found missing when asked.
 /// Indexes are kept in memory only, and not for ever: once no window follows an app's index,
 /// it is one of the apps put aside, and past the most of those kept, the one put aside
 /// longest ago is forgotten, its index and what its indexer read. Asked again, it is built
@@ -28,7 +30,7 @@ public final class ProjectSources: ObservableObject {
     /// The latest index of each linked app, by bundle ID.
     @Published public private(set) var indexes: [String: ProjectIndex] = [:]
     /// What the latest build of each app's index did.
-    public private(set) var reports: [String: ProjectIndexReport] = [:]
+    private(set) var reports: [String: ProjectIndexReport] = [:]
 
     private struct Indexing {
         let indexer: ProjectIndexer
@@ -58,9 +60,10 @@ public final class ProjectSources: ObservableObject {
             .map { $0[bundleID] }
             .removeDuplicates { $0?.generation == $1?.generation }
             .handleEvents(
+                // Subscribed on the main thread only, as what it reads is the main actor's:
+                // followed there at once, so that a cancel, from whichever thread, comes after.
                 receiveSubscription: { @Sendable [weak self] _ in
-                    guard let self else { return }
-                    Self.onMain { self.follow(bundleID) }
+                    MainActor.assumeIsolated { self?.follow(bundleID) }
                 },
                 receiveCancel: { @Sendable [weak self] in
                     guard let self else { return }
@@ -119,7 +122,7 @@ public final class ProjectSources: ObservableObject {
     }
 
     /// Returns once no build of the app's index is under way or asked for.
-    public func waitForIndex(bundleID: String) async {
+    func waitForIndex(bundleID: String) async {
         while let build = indexings[bundleID]?.build {
             await build.value
         }
@@ -129,18 +132,31 @@ public final class ProjectSources: ObservableObject {
         guard let indexer = indexings[bundleID]?.indexer else { return }
         // Below the interface's work, whoever asked for it.
         indexings[bundleID]?.build = Task(priority: .utility) { [weak self] in
-            let built = try? await indexer.build()
+            let built: Result<(ProjectIndex, ProjectIndexReport), any Error>
+            do {
+                built = try await .success(indexer.build())
+            } catch {
+                built = .failure(error)
+            }
             // Forgotten, or another folder linked, meanwhile.
             guard let self, self.indexings[bundleID]?.indexer === indexer else { return }
-            if let (index, report) = built {
+            let isAskedAgain = self.indexings[bundleID]?.isAskedAgain == true
+            self.indexings[bundleID]?.build = nil
+            self.indexings[bundleID]?.isAskedAgain = false
+            switch built {
+            case .success(let (index, report)):
                 self.reports[bundleID] = report
                 // The same generation when no file changed: nothing new to follow.
                 if self.indexes[bundleID]?.generation != index.generation { self.indexes[bundleID] = index }
+            case .failure(let error) where error is ProjectIndexer.FolderUnreadable:
+                // Gone, or no longer readable: no index, as for a folder found missing.
+                self.forget(bundleID)
+            case .failure:
+                break
             }
-            self.indexings[bundleID]?.build = nil
-            if self.indexings[bundleID]?.isAskedAgain == true {
-                self.indexings[bundleID]?.isAskedAgain = false
-                self.build(bundleID)
+            if isAskedAgain {
+                // The folder is looked for again: it may have moved, or gone, meanwhile.
+                self.update(bundleID: bundleID)
             } else if self.followers[bundleID, default: 0] == 0 {
                 self.putAside(bundleID)
             }
@@ -159,7 +175,8 @@ public final class ProjectSources: ObservableObject {
     // MARK: - Followers
 
     /// Runs `work` on the main thread: at once when called there, as Combine does for the
-    /// windows, and after when not.
+    /// windows, and after when not, as a following released on another thread is cancelled.
+    /// Following always starts on the main thread, so a cancel never comes before its follow.
     private nonisolated static func onMain(_ work: @escaping @MainActor @Sendable () -> Void) {
         if Thread.isMainThread {
             MainActor.assumeIsolated(work)

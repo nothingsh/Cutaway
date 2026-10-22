@@ -141,9 +141,4 @@ final class ConstraintRowView: NSView {
                        label: localized("constraints.status.unknown"))
         }
     }
-
-    /// The symbols of the statuses' marks.
-    static let symbols = [ConstraintStatus.satisfied, .unsatisfied, .unknown].map {
-        status($0).symbol
-    }
 }

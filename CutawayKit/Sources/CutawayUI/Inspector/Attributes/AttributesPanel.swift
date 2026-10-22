@@ -30,7 +30,7 @@ struct AttributesPanelActions {
     /// Marks the other ends of the constraints the pointer is on, or stops (C-LAYOUT-07).
     var pointConstraints: (ConstraintPointer) -> Void = { _ in }
     /// Puts a text on the pasteboard.
-    var copy: @MainActor (String) -> Void = AttributesViewController.copyToPasteboard
+    var copy: @MainActor (String) -> Void = TextPasteboard.copyToGeneral
     /// Opens where classes are declared, from the button that asked (C-SRC-03).
     var openInXcode: @MainActor ([SourceLocation], NSView) -> Void = { _, _ in }
 }

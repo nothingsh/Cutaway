@@ -239,4 +239,31 @@ final class ConstraintEndsStoreTests: XCTestCase {
         await session.close()
         await server.stop()
     }
+
+    @MainActor
+    func test_C_WIN_03_whatThePanelPointedAtIsNoLongerStressedOnceDisconnected() async throws {
+        let (inspection, session, server) = try await openInspection()
+        inspection.select(3)
+        let loaded = await Wait.until {
+            if case .loaded = await inspection.attributes.state { return true }
+            return false
+        }
+        XCTAssertTrue(loaded)
+        inspection.pointConstraints([1], stresses: true)
+        inspection.hoverConstraintEnd(.layer(4), layerID: 4)
+        XCTAssertFalse(inspection.emphasizedConstraintEnds.isEmpty)
+
+        inspection.connectionLost()
+        XCTAssertEqual(inspection.constraintEnds, [])
+        XCTAssertEqual(inspection.emphasizedConstraintEnds, [])
+        // The switch still marks every end, none of them stressed.
+        inspection.showsAllConstraintEnds = true
+        inspection.showConstraintEnds()
+        let three = ConstraintEnd.ends(of: try Fixtures.constraints(of: 3), selected: 3)
+        XCTAssertEqual(inspection.constraintEnds, three)
+        XCTAssertEqual(inspection.emphasizedConstraintEnds, [])
+
+        await session.close()
+        await server.stop()
+    }
 }
