@@ -21,11 +21,11 @@ Layers the app leaves out of its images, and virtual nodes, have no screenshots 
 
 Open a `.cutaway` file with **File › Open…** (<kbd>⌘O</kbd>), **File › Open Recent**, from Finder, or by dropping it on Cutaway’s icon. You don’t need the device or the app.
 
-The archive opens in its own window, marked **Archive** in the toolbar, with the date it was saved. Everything works as in a live inspection except changing attributes and refreshing: the layer list, the preview in 2D and 3D, measuring, the attributes and constraints, export, Open in Xcode with a linked project. An archive saved with [environment overrides](/guide/environment) names them in the toolbar, for example “Dark · AX3”.
+The archive opens in its own window, marked **Archive** in the toolbar. The line under the window’s title gives the app, its device and the date the archive was saved. Everything works as in a live inspection except what needs the app (changing attributes or the environment, refreshing, saving): the layer list, the preview in 2D and 3D, measuring, the attributes and constraints, export, Open in Xcode with a linked project. An archive saved with [environment overrides](/guide/environment) names them at the end of that line, for example “Dark · AX3”.
 
 Several archives can be open at once, next to live inspections.
 
-<Shot name="guide-archives-window" alt="An archive window, marked Archive in the toolbar with the date it was saved, next to the File menu." />
+<Shot name="guide-archives-window" alt="An archive window, marked Archive in the toolbar, with the date it was saved under its title, next to the File menu." />
 
 If an archive can’t be opened, Cutaway says why: the file is damaged or incomplete, isn’t a Cutaway archive, or was saved by a newer version of Cutaway. Update Cutaway to open the last kind.
 

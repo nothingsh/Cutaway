@@ -19,7 +19,7 @@ Cutaway は、実行中の iOS アプリのインターフェースの内部を�
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="overview-dark.png">
-    <img src="overview-light.png" alt="Cutaway がアプリを 3D で検査している様子：レイヤーツリー、離して表示したレイヤーと計測値、選択したレイヤーの属性。" width="850">
+    <img src="overview-light.png" alt="Cutaway がアプリを 3D で検査している様子：レイヤーツリー、離して表示したレイヤー、選択したレイヤーの属性。" width="850">
   </picture>
 </p>
 

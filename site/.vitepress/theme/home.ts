@@ -82,7 +82,7 @@ const en = {
   ] as { kicker: string; badge?: string; title: string; text: string; link: string; more: string; video: string; alt: string }[],
   extras: [
     { title: 'Open in Xcode', text: 'Jump from a class to its declaration in your project.', link: '/guide/source' },
-    { title: 'Copy as LLDB', text: 'Paste a command that reaches the same object in the debugger.', link: '/guide/source#copy-an-lldb-command' },
+    { title: 'Copy LLDB Command', text: 'Paste a command that reaches the same object in the debugger.', link: '/guide/source#copy-an-lldb-command' },
     { title: 'Filter and focus', text: 'Find a layer by name, then show only its subtree.', link: '/guide/hierarchy' },
     { title: 'Your app’s own details', text: 'Attribute groups, color names and virtual nodes from your code.', link: '/integrate/customizing' },
     { title: 'Export as PNG', text: 'A layer’s image, alone or with its sublayers, at the device’s scale.', link: '/guide/archives#export-a-screenshot' },
@@ -90,7 +90,7 @@ const en = {
   ],
   speed: {
     title: 'Fast with ten thousand layers',
-    text: 'Every build is held to these limits by the test suite, on a generated tree of 10,000 layers shaped like a real app.',
+    text: 'Every full test run on the development Mac holds Cutaway to these limits, on a generated tree of 10,000 layers shaped like a real app.',
     stats: [
       { value: '2 s', text: 'from the tree arriving to the list on screen' },
       { value: '16 ms', text: 'for a new frame while you turn the camera' },
@@ -237,7 +237,7 @@ const zh: HomeText = {
   ],
   speed: {
     title: '一万个图层也很快',
-    text: '每次构建都由测试守住这些指标，测试用的是一棵按真实 App 的形状生成的 10,000 个图层的树。',
+    text: '在开发用的 Mac 上，每次完整测试都守住这些指标，测试用的是一棵按真实 App 的形状生成的 10,000 个图层的树。',
     stats: [
       { value: '2 秒', text: '从图层树到达到列表显示出来' },
       { value: '16 毫秒', text: '转动相机时画出新的一帧' },

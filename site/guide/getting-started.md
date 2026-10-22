@@ -104,7 +104,7 @@ Run the app in the Simulator, or on an iPhone or iPad connected to your Mac with
 
 <Shot name="guide-applist" alt="The app list with one app in the Simulator, ready to be chosen." />
 
-The layer tree arrives first, then a screenshot of every layer. Drag in the preview to turn it in 3D, or press <kbd>⌘1</kbd> for 2D.
+The layer tree arrives first, then a screenshot of every layer. The preview starts in 2D, where dragging pans it: press <kbd>⌘2</kbd> for 3D, then drag in the preview to turn the layers.
 
 </div>
 

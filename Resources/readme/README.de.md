@@ -25,7 +25,7 @@ App angewendet.
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="overview-dark.png">
-    <img src="overview-light.png" alt="Cutaway beim Inspizieren einer App in 3D: der Layer-Baum, die auseinandergezogenen Layer mit Messungen und die Attribute des ausgewählten Layers." width="850">
+    <img src="overview-light.png" alt="Cutaway beim Inspizieren einer App in 3D: der Layer-Baum, die auseinandergezogenen Layer und die Attribute des ausgewählten Layers." width="850">
   </picture>
 </p>
 

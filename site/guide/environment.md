@@ -43,7 +43,7 @@ If the app can’t make a change, the popover says why, for example “The app c
 
 - The app’s server undoes the overrides when the connection closes, so the app doesn’t keep them after you stop inspecting it.
 - After Cutaway reconnects, the settings show what the app has; Cutaway doesn’t apply your overrides again by itself.
-- An archive saved with overrides keeps them: the archive window’s toolbar names them, for example “Dark · AX3”. See [Archives and export](/guide/archives).
+- An archive saved with overrides keeps them: the line under the archive window’s title names them, for example “Dark · AX3”. See [Archives and export](/guide/archives).
 
 ## Next
 

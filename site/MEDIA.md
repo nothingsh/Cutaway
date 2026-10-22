@@ -19,7 +19,9 @@ translates only the alt text.
   Space, then ⌥-click the window. Crop to what the alt text describes when the whole window is
   not needed.
 - **Put it in place:** `scripts/site-media.sh shot <name> <light.png> <dark.png>` scales both to
-  at most 1600 pixels wide and writes `public/media/<name>-light.png` and `-dark.png`.
+  at most 1600 pixels wide, converts them to the generic Display P3 profile (a screenshot carries
+  the profile of its display, which names the display) and writes `public/media/<name>-light.png`
+  and `-dark.png`.
 
 Videos are 5 to 10 seconds, recorded with ⌘⇧5 (Record Selected Portion) in Light, of the region
 that shows the movement, without the pointer jumping. Put each in place with

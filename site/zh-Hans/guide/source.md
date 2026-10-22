@@ -19,7 +19,7 @@ description: 关联你的项目文件夹，在 Xcode 中打开类，看到颜色
 
 Cutaway 按 App 的 bundle ID 记住这个文件夹，实时检查和这个 App 的存档都用它。在**设置 › 项目**里更换或移除它（见[设置](/zh-Hans/guide/settings)）。
 
-Cutaway 只读取这个文件夹：Swift 和 Objective-C 源文件、资源目录和 String Catalog。它从不往里写，也不把它发到任何地方。它在后台读取，跳过隐藏的文件夹和构建产物（`DerivedData`、`build`、`.build`、`SourcePackages`、`Pods`、`Carthage`）。打开检查器或用 <kbd>⌘R</kbd> 刷新时，它重新读取改过的文件。
+Cutaway 只读取这个文件夹：Swift 和 Objective-C 源文件、资源目录和 String Catalog。它从不往里写，也不把它发到任何地方。它在后台读取，跳过隐藏的文件夹、构建产物和第三方代码（`DerivedData`、`build`、`.build`、`SourcePackages`、`Pods`、`Carthage`、`node_modules`），以及 `.framework`、`.xcframework` 和 `.bundle` 文件夹；大于 4 MB 的源文件和大于 64 MB 的字符串表也会跳过，读到 20 万个文件为止。打开检查器或用 <kbd>⌘R</kbd> 刷新时，它重新读取改过的文件。
 
 如果文件夹被移走了，或者它所在的磁盘没有连接，Cutaway 会去找它；找不到时，在第一次用到它时询问：**重新选择…**、**以后再说**。
 
