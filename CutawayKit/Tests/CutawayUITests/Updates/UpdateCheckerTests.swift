@@ -82,7 +82,7 @@ final class UpdateCheckerTests: XCTestCase {
         XCTAssertEqual(result, .upToDate(version: "1.1.0"))
     }
 
-    func test_C_DIST_02_anAnswerThatIsNotTheListFails() async {
+    func test_C_DIST_02_anAnswerThatIsNotTheListOrNoAnswerFails() async {
         let cases: [(String, Int, String, UpdateCheckFailure)] = [
             ("not found", 404, #"{"message": "Not Found"}"#, .status(404)),
             ("server error", 500, "", .status(500)),
@@ -94,12 +94,10 @@ final class UpdateCheckerTests: XCTestCase {
             let result = await checker.check()
             XCTAssertEqual(result, .failed(failure), name)
         }
-    }
-
-    func test_C_DIST_02_aNetworkErrorFails() async {
-        let (checker, _) = checker("1.0.0") { _ in throw URLError(.notConnectedToInternet) }
-        let result = await checker.check()
-        XCTAssertEqual(result, .failed(.network(URLError(.notConnectedToInternet).localizedDescription)))
+        let (offline, _) = checker("1.0.0") { _ in throw URLError(.notConnectedToInternet) }
+        let result = await offline.check()
+        XCTAssertEqual(
+            result, .failed(.network(URLError(.notConnectedToInternet).localizedDescription)), "network")
     }
 
     func test_C_DIST_02_anUnknownRunningVersionFailsWithoutAsking() async {

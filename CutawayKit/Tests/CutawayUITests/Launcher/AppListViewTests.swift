@@ -153,19 +153,4 @@ final class AppListViewTests: XCTestCase {
         controller.choose(row: row)
         XCTAssertNil(model.inspectedApp)
     }
-
-    // MARK: - C-LIST-04: groups, rows and the keyboard
-
-    private static let phone: AppInfo = {
-        var phone = demo
-        phone.deviceName = "Wynn's iPhone"
-        phone.isSimulator = false
-        phone.osVersion = "17.6"
-        return phone
-    }()
-
-    @MainActor
-    private func header(_ row: Int, _ controller: AppListViewController) throws -> AppGroupHeaderView {
-        try XCTUnwrap(controller.tableView(controller.tableView, viewFor: nil, row: row) as? AppGroupHeaderView)
-    }
 }

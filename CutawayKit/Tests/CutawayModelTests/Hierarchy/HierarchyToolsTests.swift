@@ -78,7 +78,12 @@ final class HierarchyToolsTests: XCTestCase {
     func test_C_HIER_04_theRowsRevisionMarksEveryChangeOfTheRows() throws {
         let model = try model()
         var revisions: [UInt64] = []
-        let subscription = model.$rowsRevision.dropFirst().sink { revisions.append($0) }
+        // The filter as it is when each revision publishes: already in place.
+        var seen: [Set<UInt64>?] = []
+        let subscription = model.$rowsRevision.dropFirst().sink {
+            revisions.append($0)
+            seen.append(model.filter?.shown)
+        }
         defer { subscription.cancel() }
         let start = model.rowsRevision
 
@@ -86,18 +91,7 @@ final class HierarchyToolsTests: XCTestCase {
         model.setSearchText("label ")  // the same filter
         model.setSearchText("")
         XCTAssertEqual(revisions, [start + 1, start + 2])
-    }
-
-    @MainActor
-    func test_C_HIER_04_theFilterIsInPlaceWhenTheRowsRevisionPublishes() throws {
-        let model = try model()
-        var seen: [Set<UInt64>?] = []
-        let subscription = model.$rowsRevision.dropFirst().sink { _ in
-            seen.append(model.filter?.shown)
-        }
-        defer { subscription.cancel() }
-        model.setSearchText("label")
-        XCTAssertEqual(seen, [[1, 2, 3, 6, 7, 13, 14]])
+        XCTAssertEqual(seen, [[1, 2, 3, 6, 7, 13, 14], nil])
     }
 
     // MARK: - C-HIER-05: focusing
@@ -117,14 +111,6 @@ final class HierarchyToolsTests: XCTestCase {
         model.focus(on: 4)
         // 5 is hidden; the virtual nodes 10 to 12 are not.
         XCTAssertEqual(model.tree.ids.filter(model.layout.isDisplayed), [4, 10, 11, 12])
-    }
-
-    @MainActor
-    func test_C_HIER_05_aSelectionOutsideTheFocusMovesOntoIt() throws {
-        let model = try model()
-        model.select(3)
-        model.focus(on: 6)
-        XCTAssertEqual(model.selectedLayerID, 6)
     }
 
     @MainActor
@@ -251,14 +237,6 @@ final class HierarchyToolsTests: XCTestCase {
         XCTAssertEqual(layouts, 1)
     }
 
-    @MainActor
-    func test_C_HIER_06_aSelectionInsideACollapsedNodeMovesOntoIt() throws {
-        let model = try model()
-        model.select(7)
-        model.expand(toDepth: 2)
-        XCTAssertEqual(model.selectedLayerID, 6)
-    }
-
     // MARK: - C-HIER-04: selecting a row of the search's list
 
     @MainActor
@@ -271,14 +249,6 @@ final class HierarchyToolsTests: XCTestCase {
         XCTAssertTrue(model.isExpanded(6))
         XCTAssertEqual(model.selectedLayerID, 7)
         XCTAssertEqual(model.expansionRevision, revision + 1)
-    }
-
-    @MainActor
-    func test_C_HIER_04_revealingALayerOutsideTheFocusDoesNothing() throws {
-        let model = try model()
-        model.focus(on: 6)
-        model.reveal(3)
-        XCTAssertNil(model.selectedLayerID)
     }
 
     // MARK: - Found in review

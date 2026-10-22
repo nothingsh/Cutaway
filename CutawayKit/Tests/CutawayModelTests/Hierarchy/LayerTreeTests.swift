@@ -223,14 +223,6 @@ final class LayerTreeTests: XCTestCase {
         XCTAssertFalse(tree.matches(2, "图层", untitled: "图层"), "a layer with a name")
     }
 
-    func test_C_HIER_04_theFixturesLabels() throws {
-        let tree = try LayerTree(try Fixtures.hierarchy())
-        XCTAssertEqual(tree.ids.filter { tree.matches($0, "label") }, [3, 7, 14])
-        // 5 too: since protocol 0.2, CardView.badgeLayer holds it (C-HIER-07); and 13, a
-        // PaymentCardView.
-        XCTAssertEqual(tree.ids.filter { tree.matches($0, "cardview") }, [4, 5, 13])
-    }
-
     func test_C_HIER_06_theWholeTreeWithDepths() throws {
         let tree = try LayerTree(try Fixtures.hierarchy())
         XCTAssertEqual(

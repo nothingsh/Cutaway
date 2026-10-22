@@ -105,12 +105,6 @@ final class CompoundRowTests: XCTestCase {
         ], "an unknown slot, a value of another kind, a second width and an unknown cluster")
     }
 
-    // MARK: - Rows
-
-    private static func rect(_ x: Double, _ y: Double, _ w: Double, _ h: Double) -> AttributeValue {
-        .rect(Rect(origin: Point(x: x, y: y), size: Size(width: w, height: h)))
-    }
-
     // MARK: - Transform
 
     func test_C_ATTR_19_aTransformSaysWhatItDoes() {

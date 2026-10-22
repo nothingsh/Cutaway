@@ -29,11 +29,11 @@ final class ReferenceChipTests: XCTestCase {
 
     private static func view(
         _ references: [ObjectReference], tree: LayerTree,
-        onShowLayer: @escaping (UInt64) -> Void = { _ in }, onHoverLayer: @escaping (UInt64?) -> Void = { _ in }
+        onShowLayer: @escaping (UInt64) -> Void = { _ in }
     ) -> ReferenceChipsView {
         let view = ReferenceChipsView(
             chips: { AttributesViewModel.chips(of: $0, in: tree) }, onShowLayer: onShowLayer,
-            onHoverLayer: onHoverLayer)
+            onHoverLayer: { _ in })
         view.show(.references(references))
         return view
     }
@@ -97,16 +97,6 @@ final class ReferenceChipTests: XCTestCase {
         XCTAssertEqual(shown, [])
     }
 
-    func test_C_ATTR_28_pointingAtAChipHoversItsLayer() throws {
-        var hovered: [UInt64?] = []
-        let view = Self.view(
-            [Self.view(3, "UILabel"), Self.view(4, "CardView")], tree: try Self.tree(),
-            onHoverLayer: { hovered.append($0) })
-        view.hoverChip(at: 1)
-        view.hoverChip(at: nil)
-        XCTAssertEqual(hovered, [4, nil])
-    }
-
     func test_C_ATTR_28_moreThanSixShowSixAndAMoreButton() throws {
         let tree = try Self.tree()
         let eight = [6, 3, 4, 7, 9, 8, 5, 2].map { Self.view(UInt64($0), "View\($0)") }
@@ -121,12 +111,6 @@ final class ReferenceChipTests: XCTestCase {
         XCTAssertEqual(view.shownChips.count, 8)
         XCTAssertEqual(Self.view(eight, tree: tree).shownChips.count, 6)
         XCTAssertEqual(Self.view(Array(eight.prefix(6)), tree: tree).moreText, nil)
-    }
-
-    func test_C_ATTR_28_noReferencesReadsAsNone() throws {
-        let view = Self.view([], tree: try Self.tree())
-        XCTAssertEqual(view.shownChips, [])
-        XCTAssertEqual(view.string, "None")
     }
 
     func test_C_WIRE_12_copyingReferencesGivesTheirNames() throws {

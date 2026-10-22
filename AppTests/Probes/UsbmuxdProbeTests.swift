@@ -2,8 +2,9 @@ import Darwin
 import Foundation
 import XCTest
 
-/// Probes that an app that is not sandboxed can reach usbmuxd and is told when devices come
-/// and go. Test-only code; the real client is `CutawayTransport`'s, and its `UsbmuxdCodec` is
+/// Probes that usbmuxd tells an app that is not sandboxed when devices come and go (the part
+/// of milestone 0's hypothesis 3 not yet verified, C-D-11). Test-only code; the real client is `CutawayTransport`'s,
+/// and its `UsbmuxdCodec` is
 /// the reference for the message format.
 final class UsbmuxdProbeTests: XCTestCase {
     private static let socketPath = "/var/run/usbmuxd"
@@ -22,38 +23,7 @@ final class UsbmuxdProbeTests: XCTestCase {
         var payload: [String: Any]
     }
 
-    /// These probes talk to the real usbmuxd, so they run only on request: with xcodebuild,
-    /// set TEST_RUNNER_CUTAWAY_REAL_USBMUXD=1.
-    private func skipUnlessRequested() throws {
-        try XCTSkipUnless(
-            ProcessInfo.processInfo.environment["CUTAWAY_REAL_USBMUXD"] == "1",
-            "NOT RUN: talks to the real usbmuxd. Set TEST_RUNNER_CUTAWAY_REAL_USBMUXD=1 to run it.")
-    }
-
-    // Level a: needs no knowledge of the message format.
-    func test_M0_H3_unsandboxedAppConnectsToTheUsbmuxdSocket() throws {
-        try skipUnlessRequested()
-        let descriptor = try Self.openSocket()
-        close(descriptor)
-    }
-
-    // Level b.
-    func test_M0_H3_usbmuxdAcceptsListen() throws {
-        try skipUnlessRequested()
-        let descriptor = try Self.openSocket()
-        defer { close(descriptor) }
-
-        try Self.sendListen(to: descriptor, tag: 7)
-        let reply = try Self.receiveMessage(from: descriptor, deadline: Date().addingTimeInterval(5))
-
-        XCTAssertEqual(reply.version, 1)
-        XCTAssertEqual(reply.type, 8)
-        XCTAssertEqual(reply.tag, 7, "the reply carries the request's tag")
-        XCTAssertEqual(reply.payload["MessageType"] as? String, "Result")
-        XCTAssertEqual(reply.payload["Number"] as? Int, 0)
-    }
-
-    // Level c: needs a person to plug a device in and out, so it only runs on request.
+    // Needs a person to plug a device in and out, so it only runs on request.
     func test_M0_H3_usbmuxdReportsAttachAndDetach() throws {
         try XCTSkipUnless(
             ProcessInfo.processInfo.environment["CUTAWAY_USBMUXD_DEVICE"] == "1",

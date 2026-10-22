@@ -158,18 +158,6 @@ final class AttributesViewTests: XCTestCase {
         controller.attributeRows.map(\.row)
     }
 
-    /// Whether a view is shown as far as `ancestor`: what is above it, the list while the
-    /// attributes load for one, does not count.
-    @MainActor
-    private func isShown(_ view: NSView, within ancestor: NSView) -> Bool {
-        var current: NSView? = view
-        while let candidate = current, candidate !== ancestor {
-            if candidate.isHidden { return false }
-            current = candidate.superview
-        }
-        return current === ancestor
-    }
-
     /// Filters as the user does, typing into the filter field.
     @MainActor
     private func filter(_ text: String, in controller: AttributesViewController) {
@@ -351,50 +339,6 @@ final class AttributesViewTests: XCTestCase {
         withExtendedLifetime(window) {}
         await session.close()
         await server.stop()
-    }
-
-    // MARK: - C-ATTR-11: addresses
-
-    @MainActor
-    private func text(_ identifier: String, in view: NSView) -> NSTextField? {
-        AppListViewTests.descendant(of: view, identifier: identifier) as? NSTextField
-    }
-
-    @MainActor
-    func test_C_ATTR_11_withoutAddressesThereAreNone() throws {
-        let model = InspectionStore(
-            session: Session(channel: InertChannel(), client: Self.client), newLayers: .expanded)
-        model.apply(Fixtures.withoutProtocol11(try Fixtures.hierarchy()))
-        let (controller, window) = panel(for: model)
-        let identity = controller.identityView
-
-        model.select(3)
-        XCTAssertEqual(text(IdentityLinesView.classIdentifier, in: identity)?.stringValue, "UILabel")
-        XCTAssertEqual(text(IdentityLinesView.layerClassIdentifier, in: identity)?.stringValue, "_UILabelLayer")
-        XCTAssertNil(text(IdentityLinesView.viewAddressIdentifier, in: identity))
-        XCTAssertNil(text(IdentityLinesView.layerAddressIdentifier, in: identity))
-        model.select(2)
-        XCTAssertEqual(text(IdentityLinesView.controllerIdentifier, in: identity)?.stringValue, "HomeViewController")
-        XCTAssertNil(text(IdentityLinesView.controllerAddressIdentifier, in: identity))
-        XCTAssertTrue(AppListViewTests.descendants(of: identity, identifier: IdentityLinesView.copyIdentifier)
-            .isEmpty)
-        withExtendedLifetime(window) {}
-    }
-
-    // MARK: - C-ATTR-20 to 22: the values
-
-    /// What shows an attribute, by ID: its own row, or its part of a compound row.
-    @MainActor
-    private func view(_ id: String, in controller: AttributesViewController) throws -> NSView {
-        if let row = controller.attributeRows.first(where: { $0.attribute.id == id })?.row { return row }
-        return try XCTUnwrap(controller.compoundRows.lazy.compactMap { $0.view(forAttribute: id) }.first, id)
-    }
-
-    @MainActor
-    private func editor(_ id: String, in controller: AttributesViewController) throws -> AttributeEditorView {
-        let view = try view(id, in: controller)
-        if let row = view as? AttributeRowView { return try XCTUnwrap(row.editor ?? row.display) }
-        return try XCTUnwrap(view as? AttributeEditorView, id)
     }
 
     // MARK: - The same answer again

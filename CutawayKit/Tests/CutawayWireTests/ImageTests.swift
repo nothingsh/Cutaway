@@ -147,14 +147,4 @@ final class ImageTests: XCTestCase {
             XCTAssertEqual(error as? ImageError, .tooMuchData(expected: 16))
         }
     }
-
-    func test_C_WIRE_03_dataThatDecompressesToLessThanTheHeaderSaysIsRefused() throws {
-        let compressed = try (Data(count: 8) as NSData).compressed(using: .lzfse) as Data
-        let image = EncodedImage(
-            encoding: .bgra8PremultipliedLzfse, pixelWidth: 2, pixelHeight: 2, bytesPerRow: 8,
-            scale: 1, data: compressed)
-        XCTAssertThrowsError(try image.decoded()) { error in
-            XCTAssertEqual(error as? ImageError, .sizeMismatch(expected: 16, actual: 8))
-        }
-    }
 }

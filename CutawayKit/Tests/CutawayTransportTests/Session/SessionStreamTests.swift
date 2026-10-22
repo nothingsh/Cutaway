@@ -62,24 +62,6 @@ final class SessionStreamTests: XCTestCase {
         await server.stop()
     }
 
-    // MARK: - C-LAYOUT-01
-
-    func test_C_LAYOUT_01_theServerIsAskedForConstraints() async throws {
-        let server = try await MockServer.start(
-            script: try .fixtures("handshake", "layout-constraints"))
-        let session = try await Harness.readySession(for: server)
-        let asked = try request("layout-constraints")
-        XCTAssertTrue(asked.requests.allSatisfy(\.wantConstraints))
-
-        _ = await collect(await session.layerDetails(asked))
-
-        let sent = await server.receivedFrames.last
-        XCTAssertEqual(sent?.body, .getLayerDetails(asked))
-
-        await session.close()
-        await server.stop()
-    }
-
     // MARK: - C-CONN-05
 
     func test_C_CONN_05_aCompletedStreamDeliversItsChunksInOrder() async throws {

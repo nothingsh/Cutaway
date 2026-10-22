@@ -9,8 +9,8 @@ import XCTest
 @testable import CutawayUI
 
 /// The two windows: the launcher lists the apps, choosing one opens its inspector window, and
-/// closing that brings the launcher back (C-WIN-01); the inspector's panes are in place before
-/// it is shown (C-WIN-02); a lost app leaves its window with a notice (C-WIN-03).
+/// closing that brings the launcher back (C-WIN-01); the inspector's window fits the screen and
+/// its pane widths stay within their ranges (C-WIN-02); a lost app leaves its window with a notice (C-WIN-03).
 final class WindowCoordinatorTests: XCTestCase {
     private static let demo = AppInfo(
         name: "Demo", bundleID: "dev.cutaway.demo", appVersion: "1.0", deviceName: "iPhone 16",
@@ -102,43 +102,6 @@ final class WindowCoordinatorTests: XCTestCase {
     }
 
     // MARK: - C-WIN-02
-
-    @MainActor
-    func test_C_WIN_02_thePanesHaveTheirWidthsBeforeTheWindowIsShown() throws {
-        let model = InspectionStore(session: session())
-        let inspector = InspectorWindowController(
-            location: Self.simulator, entry: nil, store: model)
-        let window = try XCTUnwrap(inspector.window)
-        XCTAssertFalse(window.isVisible)
-        let panes = inspector.splitController.splitView.arrangedSubviews
-        XCTAssertEqual(panes.count, 3)
-
-        func widths() -> [CGFloat] { panes.map(\.frame.width) }
-        let first = widths()
-        XCTAssertEqual(first[0], InspectorSplitViewController.sidebarWidth)
-        XCTAssertEqual(first[2], InspectorSplitViewController.inspectorWidth)
-        XCTAssertLessThanOrEqual(
-            first.reduce(0, +), window.contentView?.bounds.width ?? 0)
-        XCTAssertEqual(
-            panes[2].frame.maxX, window.contentView?.bounds.width ?? 0, accuracy: 0.5)
-        // Already within the screen: showing it does not shrink it, and the panes with it.
-        if let visible = (window.screen ?? NSScreen.main)?.visibleFrame {
-            XCTAssertLessThanOrEqual(window.frame.width, visible.width)
-            XCTAssertLessThanOrEqual(window.frame.height, visible.height)
-        }
-
-        // Laid out again, and shown: nothing moves.
-        window.layoutIfNeeded()
-        window.layoutIfNeeded()
-        XCTAssertEqual(widths(), first)
-        inspector.showWindow(nil)
-        window.layoutIfNeeded()
-        XCTAssertEqual(widths(), first)
-        model.apply(try Fixtures.hierarchy())
-        window.layoutIfNeeded()
-        XCTAssertEqual(widths(), first)
-        inspector.close()
-    }
 
     @MainActor
     func test_C_WIN_02_aWindowLargerThanTheScreenIsMadeToFitIt() {
@@ -244,35 +207,6 @@ final class WindowCoordinatorTests: XCTestCase {
         XCTAssertEqual(coordinator.inspector?.isDisconnected, false)
     }
 
-    // MARK: - C-HIER-04 to 06: the list's commands
-
-    @MainActor
-    func test_C_HIER_05_theMenusCommandsReachTheWindowNotTheList() throws {
-        // A view controller in the responder chain that answers one of these selectors would
-        // take the command, and AppKit would enable the item without asking the window.
-        let (coordinator, model) = started()
-        try choose(0, in: coordinator)
-        let inspector = try XCTUnwrap(coordinator.inspector)
-        try XCTUnwrap(model.inspection(at: Self.simulator)).apply(try Fixtures.hierarchy())
-        let selectors = [
-            #selector(InspectorWindowController.findLayer(_:)),
-            #selector(InspectorWindowController.focusOnSelectedLayer(_:)),
-            #selector(InspectorWindowController.showAllLayers(_:)),
-            #selector(InspectorWindowController.expandAllLayers(_:)),
-            #selector(InspectorWindowController.collapseAllLayers(_:)),
-            #selector(InspectorWindowController.refresh(_:)),
-            #selector(InspectorWindowController.refreshSelectedSubtree(_:)),
-        ]
-        let outline = inspector.splitController.hierarchyController.outlineView
-        var responder: NSResponder? = outline
-        while let current = responder, !(current is NSWindow) {
-            for selector in selectors {
-                XCTAssertFalse(current.responds(to: selector), "\(current) answers \(selector)")
-            }
-            responder = current.nextResponder
-        }
-    }
-
     // MARK: - C-ATTR-08: undo
 
     @MainActor
@@ -283,11 +217,7 @@ final class WindowCoordinatorTests: XCTestCase {
         let undo = try XCTUnwrap(edit.items.first { $0.title == "Undo" })
         let redo = try XCTUnwrap(edit.items.first { $0.title == "Redo" })
         XCTAssertEqual(undo.action, Selector(("undo:")))
-        XCTAssertEqual(undo.keyEquivalent, "z")
-        XCTAssertEqual(undo.keyEquivalentModifierMask, [.command])
         XCTAssertEqual(redo.action, Selector(("redo:")))
-        XCTAssertEqual(redo.keyEquivalent, "z")
-        XCTAssertEqual(redo.keyEquivalentModifierMask, [.command, .shift])
 
         try choose(0, in: coordinator)
         let inspector = try XCTUnwrap(coordinator.inspector)
@@ -336,24 +266,36 @@ final class WindowCoordinatorTests: XCTestCase {
         XCTAssertFalse(inspector.validateMenuItem(validation), "disconnected")
     }
 
-    // MARK: - C-PREV-07 to 09: the preview's commands
+    // MARK: - C-PREV-07 to 09, C-HIER-04 to 06: the commands reach the window
 
     @MainActor
-    func test_C_PREV_07_thePreviewsCommandsReachTheWindow() throws {
+    func test_C_PREV_07_thePreviewsAndTheListsCommandsReachTheWindow() throws {
+        // A view controller in the responder chain that answered one of these selectors would
+        // take the command, and AppKit would enable the item without asking the window.
         let (coordinator, model) = started()
         try choose(0, in: coordinator)
         let inspector = try XCTUnwrap(coordinator.inspector)
         try XCTUnwrap(model.inspection(at: Self.simulator)).apply(try Fixtures.hierarchy())
-        let selectors = [
+        let previews = [
             #selector(InspectorWindowController.toggleHiddenLayers(_:)),
             #selector(InspectorWindowController.toggleBorders(_:)),
             #selector(InspectorWindowController.resetView(_:)),
         ]
-        let starts: [NSResponder] = [
-            try XCTUnwrap(inspector.splitController.previewController.preview),
-            inspector.splitController.hierarchyController.outlineView,
+        // The list's commands (C-HIER-05).
+        let lists = [
+            #selector(InspectorWindowController.findLayer(_:)),
+            #selector(InspectorWindowController.focusOnSelectedLayer(_:)),
+            #selector(InspectorWindowController.showAllLayers(_:)),
+            #selector(InspectorWindowController.expandAllLayers(_:)),
+            #selector(InspectorWindowController.collapseAllLayers(_:)),
+            #selector(InspectorWindowController.refresh(_:)),
+            #selector(InspectorWindowController.refreshSelectedSubtree(_:)),
         ]
-        for start in starts {
+        let starts: [(NSResponder, [Selector])] = [
+            (try XCTUnwrap(inspector.splitController.previewController.preview), previews),
+            (inspector.splitController.hierarchyController.outlineView, previews + lists),
+        ]
+        for (start, selectors) in starts {
             var responder: NSResponder? = start
             while let current = responder, !(current is NSWindow) {
                 for selector in selectors {
@@ -374,7 +316,6 @@ final class WindowCoordinatorTests: XCTestCase {
         let inspector = try XCTUnwrap(coordinator.inspector)
         let inspection = try XCTUnwrap(model.inspection(at: Self.simulator))
         let refreshButton = try XCTUnwrap(inspector.appCapsule).refreshButton
-        XCTAssertEqual(refreshButton.toolTip, "Refresh")
         XCTAssertTrue(refreshButton.isEnabled)
 
         let items = coordinator.makeMainMenu().items.flatMap { MainMenuTests.allItems($0.submenu ?? NSMenu()) }

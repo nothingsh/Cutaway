@@ -255,7 +255,10 @@ final class TransitionTests: XCTestCase {
         XCTAssertEqual(project(again, 0), project(expanding, 0.5))
     }
 
-    // MARK: - Order, hit testing, marks, measuring
+    // MARK: - Order, hit testing, marks
+
+    //
+    // Measuring during a transition is tested with C-SCENE-12, in Measurement3DTests.
 
     func test_C_SCENE_10_fractionalLevelsAreDrawnBackToFront() throws {
         let start = try layout(), end = try layout(collapsed: [2])
@@ -287,17 +290,6 @@ final class TransitionTests: XCTestCase {
         let halfway = project(transition, 0.5, marks: [.layer(3), .layer(5), .layer(99)])
         XCTAssertEqual(halfway.marks.map(\.mark), [.layer(3)], "5 is hidden, 99 unknown")
         XCTAssertEqual(halfway.marks.first?.points, try item(3, in: halfway).points)
-    }
-
-    /// Between two expansions in 2D the distances stay; in 3D see C-SCENE-12. Between two
-    /// lenses the preview measures nothing (C-PREV-11).
-    func test_C_SCENE_10_distancesAreMeasuredInA2DTransition() throws {
-        let layout = try layout()
-        let collapsing = try transition(from: layout, to: try self.layout(collapsed: [6]))
-        let flat = collapsing.project(
-            progress: 0.5, lens: Lens(.flat), viewport: viewport, selected: 3, hovered: 8,
-            measuring: 8)
-        XCTAssertEqual(flat.measurement?.measurement.distances.map(\.value), [26.5, 68])
     }
 
     // MARK: - From the independent review

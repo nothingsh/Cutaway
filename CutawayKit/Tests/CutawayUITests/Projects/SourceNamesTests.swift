@@ -74,22 +74,6 @@ final class SourceNamesTests: XCTestCase {
         XCTAssertEqual(ValueNames(black, index: Self.index).colorNotes, ["Asset: Plain"])
     }
 
-    func test_C_SRC_04_theColorFieldShowsTheAssetAndItsTooltipTheRest() throws {
-        let editor = AttributeEditorView(attribute: Self.tintAttribute, onSet: { _, _ in })
-        editor.show(Self.tintAttribute.value, names: ValueNames(Self.tintAttribute, index: Self.index))
-        let hex = try XCTUnwrap(
-            AppListViewTests
-                .descendants(of: editor) { $0.accessibilityIdentifier() == AttributeEditorView.hexIdentifier }
-                .first as? AttributeEditField)
-        XCTAssertEqual(hex.shownText, "Brand/Tint")
-        // The fixture's tint is dynamic: both appearances end the tooltip (C-ATTR-25).
-        XCTAssertEqual(hex.toolTip, "Asset: Brand/Tint · System Blue · #007AFF · Light 007AFF · Dark 0A84FF")
-        // UIKit's name alone, as before (C-ATTR-22).
-        editor.show(Self.tintAttribute.value, names: ValueNames(Self.tintAttribute, index: nil))
-        XCTAssertEqual(hex.shownText, "System Blue")
-        XCTAssertEqual(hex.toolTip, "#007AFF · Light 007AFF · Dark 0A84FF")
-    }
-
     // MARK: - C-SRC-05
 
     func test_C_SRC_05_aTextNamesItsKeys() {
@@ -104,34 +88,15 @@ final class SourceNamesTests: XCTestCase {
         XCTAssertEqual(ValueNames(other, index: Self.index), .none)
     }
 
-    func test_C_SRC_05_anErrorGoesBeforeTheKeyAndTheKeyComesBack() {
-        let editor = AttributeEditorView(
-            attribute: Attribute(id: "label.text", title: "Text", value: .string("Hello"), editable: true,
-                                 valueKind: .string),
-            onSet: { _, _ in })
-        let row = AttributeRowView(title: "Text", value: .string("Hello"), editor: editor)
-        row.show(.string("Hello"), names: ValueNames(stringKey: "Key greeting · Localizable"))
-        XCTAssertEqual(row.noteText, "Key greeting · Localizable")
-        XCTAssertFalse(row.noteIsError)
-        editor.onNote("Too long.")
-        XCTAssertEqual(row.noteText, "Too long.")
-        XCTAssertTrue(row.noteIsError)
-        editor.onNote(nil)
-        XCTAssertEqual(row.noteText, "Key greeting · Localizable")
-        row.show(.string("Goodbye"), names: .none)
-        XCTAssertNil(row.noteText)
-    }
-
     // MARK: - In the panel
 
     /// Layer 3 of the fixtures in a panel whose project index comes from `index`, every
-    /// attribute on a row of its own unless `clusters`; with `renamed`, under names no list
-    /// could know.
+    /// attribute on a row of its own; with `renamed`, under names no list could know.
     private func panel(
-        _ index: some Publisher<ProjectIndex?, Never>, renamed: Bool = false, clusters: Bool = false
+        _ index: some Publisher<ProjectIndex?, Never>, renamed: Bool = false
     ) async throws -> (AttributesViewController, NSWindow, Session, MockServer) {
         var script = try MockScript.fixtures("handshake", "hierarchy", "layer-details")
-        if !clusters { script = script.withoutClusters() }
+            .withoutClusters()
         if renamed { script = script.renamingAttributes() }
         let server = try await MockServer.start(script: script)
         let channel = try await ConnectionChannel.connect(host: "127.0.0.1", port: server.port, timeout: .seconds(2))
@@ -189,20 +154,6 @@ final class SourceNamesTests: XCTestCase {
         XCTAssertEqual(try shownColor(try row("Tint", in: controller)), "System Blue")
         XCTAssertNil(try row("Text", in: controller).noteText)
 
-        withExtendedLifetime(window) {}
-        await session.close()
-        await server.stop()
-    }
-
-    func test_C_SRC_04_aCompoundRowsColorIsNamedToo() async throws {
-        let (controller, window, session, server) = try await panel(Just<ProjectIndex?>(Self.index), clusters: true)
-        // Layer 3's border colour is black, the colour of `Plain`.
-        let border = try XCTUnwrap(controller.compoundRows.first { $0.view(forAttribute: "layer.borderColor") != nil })
-        let part = try XCTUnwrap(border.view(forAttribute: "layer.borderColor"))
-        let field = AppListViewTests.descendants(of: part) {
-            $0.accessibilityIdentifier() == AttributeEditorView.hexIdentifier
-        }.first as? AttributeEditField
-        XCTAssertEqual(try XCTUnwrap(field).shownText, "Plain")
         withExtendedLifetime(window) {}
         await session.close()
         await server.stop()

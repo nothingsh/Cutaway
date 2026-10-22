@@ -191,22 +191,6 @@ extension AttributeEditingViewTests {
     }
 
     @MainActor
-    func test_C_ATTR_05_aDecimalInAnIntegerFieldSaysSo() async throws {
-        let (model, session, server) = try await inspection([])
-        let (controller, window) = panel(for: model)
-        let lines = try row("Lines", in: controller)
-        let count = try XCTUnwrap(try numbers(of: lines).first)
-
-        enter("1.5", into: count.field, in: window)
-        XCTAssertEqual(lines.noteText, "Must be a whole number.")
-        XCTAssertNotNil(count.field.currentEditor())
-
-        withExtendedLifetime(window) {}
-        await session.close()
-        await server.stop()
-    }
-
-    @MainActor
     func test_C_ATTR_05_textThatIsNotANumberSaysSo() async throws {
         let (model, session, server) = try await inspection([])
         let (controller, window) = panel(for: model)

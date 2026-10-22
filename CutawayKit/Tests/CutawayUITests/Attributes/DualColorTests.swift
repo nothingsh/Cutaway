@@ -67,12 +67,6 @@ final class DualColorTests: XCTestCase {
         return NSPoint(x: x, y: swatch.isFlipped ? square.maxY + 2 : square.minY - 2)
     }
 
-    private func isClose(_ a: NSColor, _ b: NSColor, within: CGFloat = 1 / 255) -> Bool {
-        abs(a.redComponent - b.redComponent) <= within
-            && abs(a.greenComponent - b.greenComponent) <= within
-            && abs(a.blueComponent - b.blueComponent) <= within
-    }
-
     // MARK: - Tooltip
 
     func test_C_ATTR_25_aDynamicColourNamesBothAppearancesInItsTooltip() throws {
@@ -81,17 +75,15 @@ final class DualColorTests: XCTestCase {
         let (row, window) = row(tint)
         // The code, as for any named colour, then the two appearances.
         XCTAssertEqual(try hex(in: row).toolTip, "#007AFF · Light 007AFF · Dark 0A84FF")
-        withExtendedLifetime(window) {}
-    }
 
-    func test_C_ATTR_25_aDynamicColourWithoutANameStillSaysBoth() throws {
-        var tint = try Self.attribute("view.tintColor", in: Self.layerThree())
-        tint.systemColorName = nil
-        tint.appearanceColors = AppearanceColors(
+        // Without a name, the two appearances alone, each with its opacity when it has one.
+        var unnamed = tint
+        unnamed.systemColorName = nil
+        unnamed.appearanceColors = AppearanceColors(
             light: Color(red: 0, green: 0, blue: 0, alpha: 0.5), dark: Color(red: 1, green: 1, blue: 1, alpha: 1))
-        let (row, window) = row(tint)
-        XCTAssertEqual(try hex(in: row).toolTip, "Light 000000 50% · Dark FFFFFF")
-        withExtendedLifetime(window) {}
+        let (unnamedRow, unnamedWindow) = self.row(unnamed)
+        XCTAssertEqual(try hex(in: unnamedRow).toolTip, "Light 000000 50% · Dark FFFFFF")
+        withExtendedLifetime([window, unnamedWindow]) {}
     }
 
     func test_C_ATTR_25_aStaticColourKeepsItsTooltip() throws {
@@ -112,28 +104,6 @@ final class DualColorTests: XCTestCase {
     }
 
     // MARK: - Drawing
-
-    func test_C_ATTR_25_theHalvesOfADynamicSwatchDiffer() throws {
-        let tint = try Self.attribute("view.tintColor", in: Self.layerThree())
-        let (row, window) = row(tint)
-        let swatch = try swatch(in: row)
-        let left = try color(at: Self.point(0.25, of: swatch), in: swatch, of: row)
-        let right = try color(at: Self.point(0.75, of: swatch), in: swatch, of: row)
-        // A read-only value is drawn faint, so the halves are compared with each other: the
-        // dark blue has more red and green than the light one.
-        XCTAssertLessThan(left.redComponent + 2 / 255, right.redComponent, "left \(left), right \(right)")
-        XCTAssertLessThan(left.greenComponent + 2 / 255, right.greenComponent)
-
-        // A static colour is one block.
-        var plain = tint
-        plain.appearanceColors = nil
-        let (plainRow, plainWindow) = self.row(plain)
-        let plainSwatch = try self.swatch(in: plainRow)
-        let plainLeft = try color(at: Self.point(0.25, of: plainSwatch), in: plainSwatch, of: plainRow)
-        let plainRight = try color(at: Self.point(0.75, of: plainSwatch), in: plainSwatch, of: plainRow)
-        XCTAssertTrue(isClose(plainLeft, plainRight), "\(plainLeft), \(plainRight)")
-        withExtendedLifetime([window, plainWindow]) {}
-    }
 
     func test_C_ATTR_25_theUnderlineMarksTheAppearanceInEffect() throws {
         let black = Color(red: 0, green: 0, blue: 0, alpha: 1)

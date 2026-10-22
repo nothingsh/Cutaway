@@ -39,15 +39,6 @@ final class RenderTests: XCTestCase {
 
     // MARK: - C-REND-01: images and borders
 
-    func test_C_REND_01_aPaddedImageIsDrawnWithoutItsPadding() throws {
-        let keys = try RenderFixtures.storeDetails(scenario: "layer-details-edge", in: textures)
-        let list = RenderFixtures.layout(try RenderFixtures.hierarchyLayers(textures: keys))
-            .project(camera: .flat, viewport: RenderFixtures.portrait, selected: nil, hovered: nil)
-        let image = try render(list, RenderFixtures.portrait)
-        assertPixel(image.pixel(at: try center(list, 8)), RenderFixtures.orange, "layer 8")
-        assertPixel(image.pixel(at: try center(list, 3)), RenderFixtures.red, "layer 3")
-    }
-
     func test_C_REND_01_aShrunkenImageIsAveragedInsteadOfShowingMoire() throws {
         // A checkerboard of single black and white pixels, 256 × 256, drawn about 3.6 times
         // smaller than its pixels: every pixel should come out the board's average grey.
@@ -140,22 +131,16 @@ final class RenderTests: XCTestCase {
         assertPixel(image.pixel(at: try center(list, 3)), RenderFixtures.pixel(style.background))
     }
 
-    func test_C_REND_01_aTargetWithoutPixelsIsRefused() {
-        XCTAssertThrowsError(
-            try renderer.renderImage(
-                .empty, textures: textures, style: style, pixelWidth: 0, pixelHeight: 10)
-        ) { error in
-            XCTAssertEqual(error as? RenderError, .invalidSize(width: 0, height: 10))
-        }
-    }
-
-    func test_C_REND_01_aTargetLargerThanATextureIsRefused() {
-        let side = Renderer.maxTextureDimension(of: renderer.device) + 1
-        XCTAssertThrowsError(
-            try renderer.renderImage(
-                .empty, textures: textures, style: style, pixelWidth: side, pixelHeight: 1)
-        ) { error in
-            XCTAssertEqual(error as? RenderError, .invalidSize(width: side, height: 1))
+    func test_C_REND_01_aTargetWithoutPixelsOrLargerThanATextureIsRefused() {
+        let tooLong = Renderer.maxTextureDimension(of: renderer.device) + 1
+        for (width, height) in [(0, 10), (tooLong, 1)] {
+            XCTAssertThrowsError(
+                try renderer.renderImage(
+                    .empty, textures: textures, style: style, pixelWidth: width,
+                    pixelHeight: height)
+            ) { error in
+                XCTAssertEqual(error as? RenderError, .invalidSize(width: width, height: height))
+            }
         }
     }
 

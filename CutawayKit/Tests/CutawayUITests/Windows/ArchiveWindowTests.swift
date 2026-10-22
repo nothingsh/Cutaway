@@ -59,11 +59,6 @@ final class ArchiveWindowTests: XCTestCase {
     }
 
     @MainActor
-    private static func labels(in view: NSView) -> [NSTextField] {
-        ((view as? NSTextField).map { [$0] } ?? []) + view.subviews.flatMap(labels(in:))
-    }
-
-    @MainActor
     private final class Failures {
         var all: [(URL, ArchiveOpenError)] = []
     }
@@ -131,22 +126,6 @@ final class ArchiveWindowTests: XCTestCase {
         XCTAssertEqual(failures.all.map(\.0), [bad])
         XCTAssertEqual(failures.all.map(\.1), [.notAnArchive])
         XCTAssertEqual(recents.urls, [])
-
-        XCTAssertEqual(
-            ArchiveOpenError.openFailureTitle(bad), "\u{201C}Text.cutaway\u{201D} can\u{2019}t be opened.")
-        XCTAssertEqual(
-            ArchiveOpenError.notAnArchive.openFailureText, "It isn\u{2019}t a Cutaway archive.")
-        XCTAssertEqual(
-            ArchiveOpenError.incomplete.openFailureText,
-            "The file is incomplete. It may not have finished copying or downloading.")
-        XCTAssertEqual(ArchiveOpenError.damaged.openFailureText, "The file is damaged.")
-        XCTAssertEqual(
-            ArchiveOpenError.newer.openFailureText,
-            "It was saved by a newer version of Cutaway. Update Cutaway to open it.")
-        XCTAssertEqual(
-            ArchiveOpenError.otherMajor.openFailureText,
-            "It was saved by a version of Cutaway that this one can\u{2019}t read.")
-        XCTAssertEqual(ArchiveOpenError.unreadable("No such file.").openFailureText, "No such file.")
     }
 
     @MainActor

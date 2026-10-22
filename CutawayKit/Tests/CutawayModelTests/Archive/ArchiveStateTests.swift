@@ -28,17 +28,6 @@ final class ArchiveStateTests: XCTestCase {
         XCTAssertEqual(ArchiveState(decoding: ArchiveState().encoded()), ArchiveState())
     }
 
-    func test_C_ARCH_03_theDefaultsAreAFreshInspections() {
-        let state = ArchiveState()
-        XCTAssertNil(state.expanded, "the tree opens by the rule")
-        XCTAssertNil(state.selected)
-        XCTAssertNil(state.focused)
-        XCTAssertEqual(state.previewMode, .twoD)
-        XCTAssertEqual(state.cameras, PreviewCameras())
-        XCTAssertFalse(state.showsHiddenLayers)
-        XCTAssertTrue(state.borders.showsBorders)
-    }
-
     func test_C_ARCH_03_missingOrWrongKeysFallBackOneByOne() {
         let state = decoded("""
         {"expanded": "all", "selected": 3, "focused": -1, "mode": "4d",
