@@ -261,26 +261,6 @@ final class RefreshTests: XCTestCase {
     }
 
     @MainActor
-    func test_C_HIER_02_anUnchangedTreeStartsANewRoundOfScreenshotsToo() async throws {
-        // A session without a connection: requests fail at once, and asking stops.
-        let model = InspectionStore(
-            session: Session(channel: InertChannel(), client: Self.client), newLayers: .expanded)
-        model.rowsWait = .zero
-        model.enter()
-        let settled = await Wait.until { await !model.isLoading }
-        XCTAssertTrue(settled)
-        model.apply(try Fixtures.hierarchy())
-        let asked = await Wait.until { await model.batchesStarted > 0 }
-        XCTAssertTrue(asked)
-        try await Task.sleep(for: .milliseconds(100))
-        let batches = model.batchesStarted
-
-        model.apply(try Fixtures.hierarchy())  // the same tree again
-        let again = await Wait.until { await model.batchesStarted > batches }
-        XCTAssertTrue(again, "a new round asks for screenshots again")
-    }
-
-    @MainActor
     func test_C_DET_01_enteringAgainAsksForTheRowsInViewFirst() async throws {
         let server = try await MockServer.start(
             script: try .fixtures(

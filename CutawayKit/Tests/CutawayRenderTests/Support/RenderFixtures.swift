@@ -112,7 +112,6 @@ enum RenderFixtures {
 
     static let red = Pixel(blue: 0, green: 0, red: 255, alpha: 255)
     static let green = Pixel(blue: 0, green: 255, red: 0, alpha: 255)
-    static let orange = Pixel(blue: 0x00, green: 0x80, red: 0xFF, alpha: 0xFF)
     /// 0x80 0x00 0x00 0x80 from `layer-details-cancelled`, as 0–1 premultiplied RGBA.
     static let translucentBlue = SIMD4<Float>(0, 0, 128.0 / 255, 128.0 / 255)
 }

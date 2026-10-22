@@ -2,7 +2,9 @@ import CutawayScene
 import XCTest
 
 /// The distances between two layers as a turned camera sees them (C-SCENE-12): the values of
-/// 2D, the selected layer's box and the lines on its level, the other box on its own.
+/// 2D, the selected layer's box and the lines on its level, the other box on its own. Which
+/// layers are measured, and that measuring moves nothing else, is tested for both cameras with
+/// C-SCENE-09.
 final class Measurement3DTests: XCTestCase {
     private static let portrait = Viewport(width: 480, height: 900)
 
@@ -14,12 +16,8 @@ final class Measurement3DTests: XCTestCase {
         6: ScenePoint(x: 46.5, y: 400),
     ]
 
-    private func fixtureLayout(
-        focus: UInt64? = nil, showsHidden: Bool = false
-    ) throws -> SceneLayout {
-        SceneLayout(
-            layers: try SceneFixtures.hierarchyLayers(), expanded: SceneFixtures.allIDs,
-            focus: focus, showsHidden: showsHidden)
+    private func fixtureLayout() throws -> SceneLayout {
+        SceneLayout(layers: try SceneFixtures.hierarchyLayers(), expanded: SceneFixtures.allIDs)
     }
 
     private func point(_ x: Double, _ y: Double) -> ScenePoint {
@@ -259,37 +257,6 @@ final class Measurement3DTests: XCTestCase {
             drawn.lines[0], from: point(146.5, 530), to: point(246.5, 530), onLevelOf: 6, layout,
             "the selected box on the node's level")
         XCTAssertEqual(drawn.links.count, 4)
-    }
-
-    func test_C_SCENE_12_onlyTwoDifferentLayersInThePictureAreMeasured() throws {
-        func measures(_ layout: SceneLayout, _ selected: UInt64?, _ other: UInt64?) -> Bool {
-            layout.project(
-                camera: .standard3D, viewport: Self.portrait, selected: selected, hovered: other,
-                measuring: other
-            ).measurement != nil
-        }
-        let layout = try fixtureLayout()
-        XCTAssertTrue(measures(layout, 3, 2))
-        XCTAssertFalse(measures(layout, 3, 3), "the selection itself")
-        XCTAssertFalse(measures(layout, nil, 2), "nothing selected")
-        XCTAssertFalse(measures(layout, 3, nil), "nothing to measure to")
-        XCTAssertFalse(measures(layout, 5, 3), "a hidden selection")
-        XCTAssertTrue(measures(try fixtureLayout(showsHidden: true), 5, 3), "shown as a ghost")
-        XCTAssertFalse(measures(try fixtureLayout(focus: 4), 3, 4), "outside the focus")
-    }
-
-    func test_C_SCENE_12_measuringChangesNeitherTheLayersNorTheMarks() throws {
-        let layout = try fixtureLayout()
-        let plain = layout.project(
-            camera: .standard3D, viewport: Self.portrait, selected: 3, hovered: 2,
-            marks: [.layer(4)])
-        let measuring = layout.project(
-            camera: .standard3D, viewport: Self.portrait, selected: 3, hovered: 2,
-            marks: [.layer(4)], measuring: 2)
-        XCTAssertNil(plain.measurement)
-        XCTAssertNotNil(measuring.measurement)
-        XCTAssertEqual(measuring.items, plain.items)
-        XCTAssertEqual(measuring.marks, plain.marks)
     }
 
     // MARK: - Transitions

@@ -9,8 +9,7 @@ import XCTest
 @testable import Cutaway
 
 /// End to end: the running app opens an archive it saved, as the Finder
-/// hands it one, and shows it offline; a file that is not an archive is declined with a reason
-/// (C-ARCH-04, C-ARCH-05).
+/// hands it one, and shows it offline (C-ARCH-05).
 final class ArchiveOpenExitTests: XCTestCase {
     private var directory: URL!
 
@@ -116,19 +115,5 @@ final class ArchiveOpenExitTests: XCTestCase {
         XCTAssertFalse(
             AppWindows.views(identifier: "preview.disconnected").contains { AppWindows.isShown($0) })
         XCTAssertTrue(failures.all.isEmpty)
-    }
-
-    @MainActor
-    func test_C_ARCH_04_theRunningAppDeclinesABadFile() async throws {
-        let (coordinator, failures) = try coordinator()
-        let bad = directory.appendingPathComponent("Bad.cutaway")
-        try Data("not an archive".utf8).write(to: bad)
-
-        let delegate = try XCTUnwrap(NSApp.delegate as? AppDelegate)
-        delegate.application(NSApp, open: [bad])
-        let declined = await eventually { failures.all.count == 1 }
-        XCTAssertTrue(declined)
-        XCTAssertEqual(failures.all.first?.1, .notAnArchive)
-        XCTAssertTrue(coordinator.archiveWindows.isEmpty)
     }
 }

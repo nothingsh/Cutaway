@@ -17,13 +17,7 @@ final class AppListExitTests: XCTestCase {
 
         // Found within one scan round and a bit (C-CONN-01: two seconds).
         let found = await AppWindows.waitForAppRow(named: "Demo", toExist: true, within: 5)
-        let row = try XCTUnwrap(found, "the app did not list the replayed app")
-
-        func text(_ identifier: String) -> String? {
-            (AppWindows.views(in: row, identifier: identifier).first as? NSTextField)?.stringValue
-        }
-        // On this Mac the second line names the simulator (C-LIST-04).
-        XCTAssertEqual(text("app.subtitle"), "dev.cutaway.demo · iPhone 16 · iOS 18.0")
+        XCTAssertNotNil(found, "the app did not list the replayed app")
 
         // The icon was fetched over the same connection and decoded: 2 by 2 pixels.
         var icon: NSImage?

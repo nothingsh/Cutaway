@@ -43,8 +43,6 @@ final class AppListRowsTests: XCTestCase {
             AppListRows([incompatible(second.id)]).choosableRow(of: second.id), "not a choice")
     }
 
-    // MARK: - C-LIST-04: the keyboard
-
     private func incompatible(_ id: AppLocation) -> AppEntry {
         AppEntry(
             id: id, info: Self.demo,

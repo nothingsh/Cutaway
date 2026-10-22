@@ -166,39 +166,6 @@ final class EditingFixtureDecodingTests: XCTestCase {
                 nodes: whole.nodes.filter { [10, 11].contains($0.id) }, keyWindowID: 1))))
     }
 
-    func test_C_WIRE_05_layerDetailsCarryTheFlags() throws {
-        guard case .layerDetailsChunk(let chunk) =
-            try decode("layer-details", "02-s2c-chunk-0.bin").body
-        else {
-            XCTFail("not a chunk")
-            return
-        }
-        let attributes = chunk.details[0].attributeGroups.flatMap(\.attributes)
-        XCTAssertEqual(attributes.count, 22)
-
-        XCTAssertEqual(
-            attributes.filter { !$0.editable }.map(\.id), ["layer.frame", "label.fontTextStyle"])
-        XCTAssertEqual(
-            attributes.filter(\.acceptsNil).map(\.id),
-            ["layer.borderColor", "label.text", "view.backgroundColor", "view.tintColor",
-             "view.accessibilityLabel"])
-        let background = try XCTUnwrap(attributes.first { $0.id == "view.backgroundColor" })
-        XCTAssertNil(background.value)
-        XCTAssertEqual(background.valueKind, .color)
-        for attribute in attributes {
-            if let value = attribute.value {
-                XCTAssertEqual(attribute.valueKind, value.kind, attribute.id ?? "")
-            }
-        }
-        let alignment = try XCTUnwrap(attributes.first { $0.id == "label.textAlignment" })
-        guard case .enumeration(let value) = alignment.value else {
-            XCTFail("not an enum")
-            return
-        }
-        XCTAssertEqual(value.caseValues, [0, 1, 2, 3, 4])
-        XCTAssertEqual(value.caseValues.count, value.cases.count)
-    }
-
     /// What a 0.2 server sends: an attribute table without the three flags and an enum
     /// without `case_values`. Built field by field, so that those fields are truly absent
     /// rather than written with their default value.

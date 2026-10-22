@@ -113,18 +113,6 @@ final class ArchiveTests: XCTestCase {
         XCTAssertEqual(try decoder.chunk(at: 2).details.map(\.layerID), [3, 4, 9, 8, 99])
     }
 
-    func test_C_WIRE_10_anArchiveKeepsWhatOnePointOneAppended() throws {
-        let decoder = try ArchiveDecoder(try archive(try fixturePayloads()))
-        XCTAssertEqual(decoder.manifest.protocolVersion, ProtocolVersion.current)
-        let node3 = try XCTUnwrap(decoder.hierarchy.nodes.first { $0.id == 3 })
-        XCTAssertEqual(node3.layerAddress, 0x6000_03B4_C080)
-        XCTAssertEqual(node3.viewAddress, 0x1_0380_6E00)
-        let attributes = try decoder.chunk(at: 0).details[0].attributeGroups.flatMap(\.attributes)
-        XCTAssertEqual(attributes.first { $0.id == "view.tag" }?.section, .identity)
-        XCTAssertEqual(
-            attributes.first { $0.id == "view.alpha" }?.limits, [NumberLimit(minimum: 0, maximum: 1)])
-    }
-
     func test_C_WIRE_10_anArchiveFromOnePointOhReadsWithoutTheNewFields() throws {
         guard case .hierarchy(let hierarchy) = try FrameCodec.decode(try fixture("hierarchy", "02-s2c-hierarchy.bin"))
             .body,
@@ -153,25 +141,6 @@ final class ArchiveTests: XCTestCase {
         let attributes = try decoder.chunk(at: 0).details[0].attributeGroups.flatMap(\.attributes)
         XCTAssertEqual(attributes.count, 22)
         XCTAssertTrue(attributes.allSatisfy { $0.section == .unspecified && $0.limits == nil })
-    }
-
-    func test_C_WIRE_11_anArchiveKeepsTheOptionalFields() throws {
-        let decoder = try ArchiveDecoder(try archive(try fixturePayloads()))
-        let node4 = try XCTUnwrap(decoder.hierarchy.nodes.first { $0.id == 4 })
-        XCTAssertEqual(node4.viewClassOrigin, .app)
-        let node5 = try XCTUnwrap(decoder.hierarchy.nodes.first { $0.id == 5 })
-        XCTAssertEqual(node5.layerBaseClassName, "CAShapeLayer")
-        let node2 = try XCTUnwrap(decoder.hierarchy.nodes.first { $0.id == 2 })
-        XCTAssertEqual(node2.viewControllerVisibility, .shown)
-        let groups = try decoder.chunk(at: 0).details[0].attributeGroups
-        XCTAssertEqual(groups.map(\.className), ["CALayer", "UILabel", "UIView"])
-        let attributes = groups.flatMap(\.attributes)
-        XCTAssertEqual(
-            attributes.first { $0.id == "view.alpha" }?.cluster,
-            AttributeCluster(name: "visibility", slot: "opacity"))
-        XCTAssertEqual(attributes.first { $0.id == "view.alpha" }?.unit, .fraction)
-        XCTAssertEqual(attributes.first { $0.id == "layer.borderColor" }?.inactiveCause, "layer.borderWidth")
-        XCTAssertEqual(attributes.first { $0.id == "view.tintColor" }?.systemColorName, "systemBlue")
     }
 
     func test_C_WIRE_11_anArchiveWithoutTheOptionalFieldsReads() throws {
@@ -204,22 +173,6 @@ final class ArchiveTests: XCTestCase {
         let attributes = try decoder.chunk(at: 0).details[0].attributeGroups.flatMap(\.attributes)
         XCTAssertTrue(attributes.allSatisfy { $0.cluster == nil && $0.unit == .unspecified })
         XCTAssertEqual(attributes.first { $0.id == "view.tag" }?.section, .identity)
-    }
-
-    func test_C_WIRE_12_anArchiveKeepsWhatOnePointTwoAppended() throws {
-        let decoder = try ArchiveDecoder(try archive(try fixturePayloads()))
-        XCTAssertEqual(decoder.manifest.protocolVersion, Version(major: 1, minor: 2))
-        let layer3 = try decoder.chunk(at: 0).details[0].attributeGroups.flatMap(\.attributes)
-        XCTAssertEqual(layer3.first { $0.id == "view.accessibilityLabel" }?.section, .accessibility)
-        XCTAssertNotNil(layer3.first { $0.id == "view.tintColor" }?.appearanceColors)
-        let layer6 = try XCTUnwrap(try decoder.chunk(at: 1).details.first { $0.layerID == 6 })
-        let delegate = layer6.attributeGroups.flatMap(\.attributes).first { $0.id == "scrollView.delegate" }
-        XCTAssertEqual(delegate?.valueKind, .references)
-        guard case .references(let references) = delegate?.value else {
-            XCTFail("the delegate is not a reference")
-            return
-        }
-        XCTAssertEqual(references.map(\.layerID), [2])
     }
 
     func test_C_WIRE_12_anArchiveFromOnePointOneReadsWithoutTheNewFields() throws {

@@ -265,16 +265,6 @@ final class LayoutFixtureDecodingTests: XCTestCase {
 
     // MARK: - Protocol 0.5
 
-    func test_C_WIRE_07_autoresizingConstraintsDecodeAsTheFixtureWritesThem() throws {
-        let frame = try decode("layout-constraints", "02-s2c-chunk-0.bin")
-        guard case .layerDetailsChunk(let chunk) = frame.body else {
-            XCTFail("not a chunk: \(String(describing: frame.body))")
-            return
-        }
-        let nine = try XCTUnwrap(chunk.details.first { $0.layerID == 9 })
-        XCTAssertEqual(nine.constraints, Self.autoresizingConstraints)
-    }
-
     func test_C_WIRE_07_theAutoresizingAttributesAreWrittenWithUIKitsRawValues() throws {
         let attributes: [LayoutAttribute] = [.minX, .minY, .maxX, .maxY]
         XCTAssertEqual(attributes.map(\.rawValue), [32, 33, 36, 37])

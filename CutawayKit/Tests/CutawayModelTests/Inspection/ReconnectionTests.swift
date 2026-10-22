@@ -82,20 +82,15 @@ final class ReconnectionTests: XCTestCase {
 
     @MainActor
     func test_C_WIN_04_theSameAppOnAnotherPortIsInspectedAgain() throws {
-        let model = inspecting()
-        model.apply(.lost(Self.first))
-        model.apply(.found(Self.later, Self.demo, session()))
-        XCTAssertEqual(model.inspectedApp, Self.later)
-        XCTAssertNil(model.awaitingReconnection)
-        XCTAssertTrue(try XCTUnwrap(model.inspection(at: Self.later)).isOpen)
-    }
-
-    @MainActor
-    func test_C_WIN_04_theSameAppOnTheSamePortIsInspectedAgain() {
-        let model = inspecting()
-        model.apply(.lost(Self.first))
-        model.apply(.found(Self.first, Self.demo, session()))
-        XCTAssertEqual(model.inspectedApp, Self.first)
+        // On the same port too.
+        for location in [Self.later, Self.first] {
+            let model = inspecting()
+            model.apply(.lost(Self.first))
+            model.apply(.found(location, Self.demo, session()))
+            XCTAssertEqual(model.inspectedApp, location)
+            XCTAssertNil(model.awaitingReconnection)
+            XCTAssertTrue(try XCTUnwrap(model.inspection(at: location)).isOpen)
+        }
     }
 
     @MainActor

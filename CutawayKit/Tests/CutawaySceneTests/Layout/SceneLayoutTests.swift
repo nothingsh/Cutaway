@@ -102,33 +102,33 @@ final class SceneLayoutTests: XCTestCase {
         XCTAssertNil(layout.texture(of: 7))
     }
 
-    func test_C_SCENE_03_anExpandedNodeUsesItsSolo() throws {
-        let textures: [UInt64: LayerTextures] = [
-            4: LayerTextures(solo: SceneFixtures.solo(4), group: SceneFixtures.group(4)),
+    func test_C_SCENE_03_whichImageALayerIsDrawnWith() throws {
+        typealias Fix = SceneFixtures
+        // Layer 3 has no sublayers; layer 4's only sublayer, 5, is hidden, but 4 still has a
+        // sublayer.
+        // Name, layer, its images, whether it is collapsed, the image it is drawn with.
+        let cases: [(String, UInt64, LayerTextures, Bool, TextureKey?)] = [
+            ("an expanded node uses its solo",
+             4, LayerTextures(solo: Fix.solo(4), group: Fix.group(4)), false, Fix.solo(4)),
+            // The server may leave a leaf's solo out (P-DET-04).
+            ("an expanded leaf without solo uses its group",
+             3, LayerTextures(group: Fix.group(3)), false, Fix.group(3)),
+            // P-DET-04: a leaf's solo and group are the same picture. The group is the kind
+            // asked for, so it is the one kept fresh; an older solo must not cover it.
+            ("an expanded leaf uses its group even with a solo",
+             3, LayerTextures(solo: Fix.solo(3), group: Fix.group(3)), false, Fix.group(3)),
+            ("an expanded node with sublayers and without solo has no image",
+             4, LayerTextures(group: Fix.group(4)), false, nil),
+            ("a collapsed node without group has no image",
+             4, LayerTextures(solo: Fix.solo(4)), true, nil),
         ]
-        let layout = try fixtureLayout(textures: textures)
-        XCTAssertEqual(layout.texture(of: 4), SceneFixtures.solo(4))
-    }
-
-    func test_C_SCENE_03_anExpandedLeafWithoutSoloUsesItsGroup() throws {
-        // Layer 3 has no sublayers; the server may leave its solo out (P-DET-04).
-        let layout = try fixtureLayout(textures: [3: LayerTextures(group: SceneFixtures.group(3))])
-        XCTAssertEqual(layout.texture(of: 3), SceneFixtures.group(3))
-    }
-
-    func test_C_SCENE_03_anExpandedNodeWithSublayersAndWithoutSoloHasNoImage() throws {
-        // Layer 4's only sublayer, 5, is hidden; 4 still has a sublayer.
-        let layout = try fixtureLayout(textures: [4: LayerTextures(group: SceneFixtures.group(4))])
-        XCTAssertTrue(layout.isDisplayed(4))
-        XCTAssertNil(layout.texture(of: 4))
-    }
-
-    func test_C_SCENE_03_aCollapsedNodeWithoutGroupHasNoImage() throws {
-        var expanded = SceneFixtures.allIDs
-        expanded.remove(4)
-        let layout = try fixtureLayout(
-            expanded: expanded, textures: [4: LayerTextures(solo: SceneFixtures.solo(4))])
-        XCTAssertNil(layout.texture(of: 4))
+        for (name, id, textures, collapsed, expected) in cases {
+            let layout = try fixtureLayout(
+                expanded: collapsed ? Fix.allIDs.subtracting([id]) : Fix.allIDs,
+                textures: [id: textures])
+            XCTAssertTrue(layout.isDisplayed(id), name)
+            XCTAssertEqual(layout.texture(of: id), expected, name)
+        }
     }
 
     // MARK: - C-SCENE-06: opacity
@@ -370,15 +370,6 @@ final class SceneLayoutTests: XCTestCase {
         }
     }
 
-    func test_C_SCENE_03_anExpandedLeafUsesItsGroupEvenWithASolo() throws {
-        // P-DET-04: a leaf's solo and group are the same picture. The group is the kind asked
-        // for, so it is the one kept fresh; an older solo must not cover it.
-        let layout = try fixtureLayout(textures: [
-            3: LayerTextures(solo: SceneFixtures.solo(3), group: SceneFixtures.group(3)),
-        ])
-        XCTAssertEqual(layout.texture(of: 3), SceneFixtures.group(3))
-    }
-
     // MARK: - C-HIER-05: a focused subtree
 
     func test_C_HIER_05_onlyTheSubtreeIsDisplayed() throws {
@@ -482,13 +473,6 @@ final class SceneLayoutTests: XCTestCase {
         XCTAssertFalse(layout.isGhost(4))
         XCTAssertNotNil(layout.level(of: 5))
         XCTAssertTrue(layout.neededTextures.contains(TextureNeed(layerID: 5, kind: .group)))
-    }
-
-    func test_C_PREV_08_withoutTheSwitchNothingChanges() throws {
-        let off = try fixtureLayout()
-        XCTAssertFalse(off.isDisplayed(5))
-        XCTAssertFalse(off.isGhost(5))
-        XCTAssertFalse(off.neededTextures.contains { $0.layerID == 5 })
     }
 
     func test_C_PREV_08_aGhostIsDrawnAsIfItWereShown() {

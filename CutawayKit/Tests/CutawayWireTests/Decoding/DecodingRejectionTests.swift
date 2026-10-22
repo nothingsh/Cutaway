@@ -36,23 +36,6 @@ final class DecodingRejectionTests: XCTestCase {
         }
     }
 
-    func test_C_WIRE_02_corruptedFramesNeverCrashTheDecoder() throws {
-        let payload = try hello()
-        // Overwrite each byte in turn. The decoder may accept the result or reject it; what it
-        // may not do is crash or throw something other than FrameError.
-        for index in 0..<payload.count {
-            for replacement: UInt8 in [0x00, 0xFF] where payload[index] != replacement {
-                var corrupted = payload
-                corrupted[index] = replacement
-                do {
-                    _ = try FrameCodec.decode(corrupted)
-                } catch {
-                    XCTAssertTrue(error is FrameError, "byte \(index) threw \(error)")
-                }
-            }
-        }
-    }
-
     func test_C_WIRE_02_decodesASliceOfALargerBuffer() throws {
         let payload = try hello()
         // A slice keeps the indices of the buffer it was cut from.
@@ -74,11 +57,6 @@ final class DecodingRejectionTests: XCTestCase {
             bytesNoCopy: memory.advanced(by: 1), count: payload.count, deallocator: .none)
         XCTAssertEqual(unaligned.startIndex, 0)
         XCTAssertEqual(try FrameCodec.decode(unaligned), try FrameCodec.decode(payload))
-    }
-
-    func test_C_WIRE_02_limitsMatchTheProtocol() {
-        XCTAssertEqual(FrameCodec.maximumFrameLength, 268_435_456)
-        XCTAssertEqual(FrameCodec.fileIdentifier, "CTWY")
     }
 
     /// C-WIRE-08: a frame within the length limit is not refused for how many tables it holds

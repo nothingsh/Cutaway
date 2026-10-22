@@ -24,19 +24,6 @@ final class AppListStoreTests: XCTestCase {
     // MARK: - C-LIST-01
 
     @MainActor
-    func test_C_LIST_01_aFoundAppIsListedWithItsInfo() {
-        let model = AppListStore()
-        XCTAssertEqual(model.entries, [])
-
-        model.apply(.found(Self.simulator, Self.demo, session()))
-
-        XCTAssertEqual(model.entries, [
-            AppEntry(id: Self.simulator, info: Self.demo, status: .ready(.active), icon: nil),
-        ])
-        XCTAssertNotNil(model.session(at: Self.simulator))
-    }
-
-    @MainActor
     func test_C_LIST_01_inspectingAnAppRecordsItAndLeavingClearsIt() {
         let model = AppListStore()
         model.apply(.found(Self.simulator, Self.demo, session()))

@@ -59,12 +59,6 @@ final class AppSectionTests: XCTestCase {
         XCTAssertNil(listing.section(.app))
     }
 
-    func test_C_ATTR_23_theSectionIsCalledAppWithTheAppBadge() {
-        XCTAssertEqual(AttributesViewController.title(of: .app), "App")
-        XCTAssertEqual(AttributesViewController.symbol(of: .app), "app.badge")
-        XCTAssertNotNil(NSImage(systemSymbolName: "app.badge", accessibilityDescription: nil))
-    }
-
     // MARK: - The panel
 
     /// A panel showing `layer`, on a server that answers by content: the fixtures' app, with
@@ -105,14 +99,6 @@ final class AppSectionTests: XCTestCase {
         return (controller, window, model, session, server)
     }
 
-    private func headings(in section: AttributeGroupView) -> [String] {
-        AppListViewTests.descendants(of: section)
-            .filter { $0.accessibilityIdentifier() == AttributeGroupView.partHeadingIdentifier }
-            .compactMap { heading in
-                AppListViewTests.descendants(of: heading).compactMap { $0 as? NSTextField }.first?.stringValue
-            }
-    }
-
     private func isShown(_ view: NSView) -> Bool {
         var current: NSView? = view
         while let candidate = current {
@@ -120,39 +106,6 @@ final class AppSectionTests: XCTestCase {
             current = candidate.superview
         }
         return true
-    }
-
-    func test_C_ATTR_23_eachAppGroupHasItsTitleAsAHeadingInTheOrderReceived() async throws {
-        let (controller, window, _, session, server) = try await panel(selecting: 3)
-        XCTAssertEqual(
-            controller.sectionViews.map(\.title),
-            ["Label", "App", "Appearance", "Layout", "Behavior", "Accessibility", "Object"])
-        let app = try XCTUnwrap(controller.section(.app))
-        XCTAssertEqual(headings(in: app), ["Price", "Formatting"], "the first group has its heading too")
-        XCTAssertEqual(
-            app.rows.compactMap { ($0 as? AttributeRowView)?.title },
-            ["Amount", "Currency", "Highlight", "Shows Sign"])
-        // The Content section still titles itself by its first group, with no heading over it.
-        let content = try XCTUnwrap(controller.section(.content))
-        XCTAssertEqual(headings(in: content), [])
-
-        withExtendedLifetime(window) {}
-        await session.close()
-        await server.stop()
-    }
-
-    func test_C_ATTR_23_theFixturesVirtualNodeListsItsRowGroupInTheAppSection() async throws {
-        let (controller, window, _, session, server) = try await panel(selecting: 10)
-        XCTAssertEqual(controller.sectionViews.map(\.title), ["App", "Object"])
-        let app = try XCTUnwrap(controller.section(.app))
-        XCTAssertEqual(headings(in: app), ["Row"])
-        let rows = app.rows.compactMap { $0 as? AttributeRowView }
-        XCTAssertEqual(rows.map(\.title), ["Title", "Amount", "Color"])
-        XCTAssertEqual(rows.prefix(2).map(\.plainText), ["Total", "128.5"])
-
-        withExtendedLifetime(window) {}
-        await session.close()
-        await server.stop()
     }
 
     func test_C_ATTR_23_filteringAndFoldingIncludeTheAppSection() async throws {

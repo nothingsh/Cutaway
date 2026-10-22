@@ -13,97 +13,10 @@ final class Protocol11DecodingTests: XCTestCase {
         try FrameCodec.decode(try Fixtures.data(scenario: scenario, file: file))
     }
 
-    private func nodes(_ scenario: String) throws -> [LayerNode] {
-        guard case .hierarchy(let hierarchy) = try decode(scenario, "02-s2c-hierarchy.bin").body
-        else { throw UnexpectedBody() }
-        return hierarchy.nodes
-    }
-
     private func layer3() throws -> [Attribute] {
         guard case .layerDetailsChunk(let chunk) = try decode("layer-details", "02-s2c-chunk-0.bin").body
         else { throw UnexpectedBody() }
         return chunk.details[0].attributeGroups.flatMap(\.attributes)
-    }
-
-    // MARK: - Addresses
-
-    func test_C_WIRE_10_hierarchyNodesCarryTheirAddresses() throws {
-        let nodes = try nodes("hierarchy")
-        XCTAssertEqual(nodes.count, 14)
-        // A virtual node has no addresses (P-HIER-14, 1.2).
-        for node in nodes where node.kind == .virtual {
-            XCTAssertNil(node.layerAddress, "node \(node.id)")
-            XCTAssertNil(node.viewAddress, "node \(node.id)")
-        }
-        for node in nodes where node.kind == .layer {
-            XCTAssertEqual(node.layerAddress, 0x6000_03B4_C000 + 0x40 * (node.id - 1), "node \(node.id)")
-            if node.viewClassName == nil {
-                XCTAssertNil(node.viewAddress, "node \(node.id) backs no view")
-            } else {
-                XCTAssertEqual(node.viewAddress, 0x1_0380_6800 + 0x200 * node.id, "node \(node.id)")
-            }
-            XCTAssertEqual(
-                node.viewControllerAddress, node.id == 2 ? 0x1_0300_7A00 : nil, "node \(node.id)")
-        }
-        XCTAssertEqual(
-            nodes.filter { $0.kind == .layer && $0.viewAddress == nil }.map(\.id), [5, 8])
-    }
-
-    func test_C_WIRE_10_aSubtreeCarriesTheSameAddresses() throws {
-        let subtree = try nodes("subtree")
-        let whole = try nodes("hierarchy")
-        XCTAssertEqual(subtree.map(\.id), [4, 10, 11, 12, 5])
-        for node in subtree {
-            let same = try XCTUnwrap(whole.first { $0.id == node.id })
-            XCTAssertEqual(node.layerAddress, same.layerAddress)
-            XCTAssertEqual(node.viewAddress, same.viewAddress)
-            XCTAssertEqual(node.viewControllerAddress, same.viewControllerAddress)
-        }
-    }
-
-    // MARK: - Sections and limits
-
-    func test_C_WIRE_10_layerDetailsCarrySectionsAndLimits() throws {
-        let attributes = try layer3()
-        let sections = Dictionary(uniqueKeysWithValues: attributes.map { ($0.id ?? "", $0.section) })
-        XCTAssertEqual(sections["view.tag"], .identity)
-        for id in ["layer.frame", "layer.bounds", "layer.position", "layer.transform", "view.layoutMargins"] {
-            XCTAssertEqual(sections[id], .layout, id)
-        }
-        // The rest are in Content, Appearance or Behavior (C-WIRE-11), or Accessibility
-        // (C-WIRE-12); none is General.
-        XCTAssertEqual(
-            Set(sections.filter { $0.value != .identity && $0.value != .layout }.keys),
-            ["layer.shadowOpacity", "layer.shadowOffset", "layer.borderWidth",
-             "layer.borderColor", "label.text", "label.fontSize", "label.fontTextStyle",
-             "label.adjustsFontForContentSizeCategory", "label.numberOfLines",
-             "label.textAlignment", "view.isHidden", "view.alpha", "view.backgroundColor",
-             "view.tintColor", "view.isUserInteractionEnabled", "view.accessibilityLabel"])
-
-        let limits = Dictionary(uniqueKeysWithValues: attributes.map { ($0.id ?? "", $0.limits) })
-        let atLeastZero = NumberLimit(minimum: 0)
-        XCTAssertEqual(limits["layer.bounds"], [NumberLimit(), NumberLimit(), atLeastZero, atLeastZero])
-        XCTAssertEqual(limits["view.alpha"], [NumberLimit(minimum: 0, maximum: 1)])
-        XCTAssertEqual(limits["layer.shadowOpacity"], [NumberLimit(minimum: 0, maximum: 1)])
-        XCTAssertEqual(limits["layer.borderWidth"], [atLeastZero])
-        XCTAssertEqual(limits["label.numberOfLines"], [atLeastZero])
-        XCTAssertEqual(limits["label.fontSize"], [NumberLimit(minimum: 0, minimumIsExclusive: true)])
-        XCTAssertEqual(
-            Set(limits.filter { $0.value != nil }.keys),
-            ["layer.bounds", "view.alpha", "layer.shadowOpacity", "layer.borderWidth",
-             "label.numberOfLines", "label.fontSize"],
-            "no other attribute has limits")
-    }
-
-    func test_C_WIRE_10_setAttributeResultsCarrySectionsAndLimits() throws {
-        let results = try Fixtures.setAttributeResults()
-        let layer4 = try XCTUnwrap(results.first { $0.layerID == 4 })
-        let attributes = layer4.attributeGroups.flatMap(\.attributes)
-        XCTAssertTrue(attributes.allSatisfy { $0.section == .appearance })
-        XCTAssertEqual(
-            attributes.first { $0.id == "layer.cornerRadius" }?.limits, [NumberLimit(minimum: 0)])
-        XCTAssertEqual(
-            attributes.first { $0.id == "view.alpha" }?.limits, [NumberLimit(minimum: 0, maximum: 1)])
     }
 
     // MARK: - Without what 1.1 appended

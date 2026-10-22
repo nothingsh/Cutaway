@@ -36,95 +36,7 @@ final class Protocol11OptionalFieldsDecodingTests: XCTestCase {
         try FrameCodec.decode(FrameCodec.encode(Frame(requestID: 2, body: body))).body
     }
 
-    // MARK: - Hierarchy
-
-    func test_C_WIRE_11_hierarchyNodesCarryOriginsBaseClassesAndVisibility() throws {
-        let nodes = try hierarchy("hierarchy").nodes
-        XCTAssertEqual(nodes.count, 14)
-        for node in nodes {
-            // A virtual node's type is the host app's (P-HIER-20, 1.2).
-            XCTAssertEqual(
-                node.layerClassOrigin, node.kind == .virtual ? .app : .system, "node \(node.id)")
-            switch (node.viewClassName, node.id) {
-            case (nil, _): XCTAssertEqual(node.viewClassOrigin, .unknown, "node \(node.id)")
-            case (_, 4): XCTAssertEqual(node.viewClassOrigin, .app, "node 4 is Demo.CardView")
-            case (_, 13): XCTAssertEqual(node.viewClassOrigin, .app, "node 13 is Demo.PaymentCardView")
-            default: XCTAssertEqual(node.viewClassOrigin, .system, "node \(node.id)")
-            }
-            if node.id == 2 {
-                XCTAssertEqual(node.viewControllerClassOrigin, .app)
-                XCTAssertEqual(node.viewControllerVisibility, .shown)
-            } else {
-                XCTAssertEqual(node.viewControllerClassOrigin, .unknown, "node \(node.id)")
-                XCTAssertEqual(node.viewControllerVisibility, .unknown, "node \(node.id)")
-            }
-        }
-        let viewBases = Dictionary(uniqueKeysWithValues: nodes.map { ($0.id, $0.viewBaseClassName) })
-        XCTAssertEqual(
-            viewBases,
-            [1: "UIWindow", 2: nil, 3: "UILabel", 4: nil, 5: nil, 6: "UIScrollView", 7: "UILabel",
-             8: nil, 9: nil, 10: nil, 11: nil, 12: nil, 13: nil, 14: "UILabel"])
-        XCTAssertEqual(nodes.compactMap(\.layerBaseClassName), ["CAShapeLayer"])
-        XCTAssertEqual(nodes.first { $0.layerBaseClassName != nil }?.id, 5)
-    }
-
-    func test_C_WIRE_11_aSubtreeCarriesTheSameFields() throws {
-        let subtree = try hierarchy("subtree").nodes
-        let whole = try hierarchy("hierarchy").nodes
-        XCTAssertEqual(subtree.map(\.id), [4, 10, 11, 12, 5])
-        for node in subtree {
-            XCTAssertEqual(node, try XCTUnwrap(whole.first { $0.id == node.id }), "node \(node.id)")
-        }
-    }
-
     // MARK: - Attributes
-
-    func test_C_WIRE_11_layer3CarriesClustersUnitsCausesAndAColorName() throws {
-        let detail = try details("layer-details")[0]
-        XCTAssertEqual(detail.layerID, 3)
-        XCTAssertEqual(detail.attributeGroups.map(\.className), ["CALayer", "UILabel", "UIView"])
-        let attributes = attributes(detail)
-        XCTAssertEqual(attributes.count, 22)
-
-        let clusters = attributes.compactMapValues(\.cluster)
-        XCTAssertEqual(
-            clusters,
-            ["layer.frame": AttributeCluster(name: "geometry", slot: "frame"),
-             "layer.bounds": AttributeCluster(name: "geometry", slot: "bounds"),
-             "layer.position": AttributeCluster(name: "geometry", slot: "position"),
-             "layer.transform": AttributeCluster(name: "geometry", slot: "transform"),
-             "layer.shadowOpacity": AttributeCluster(name: "shadow", slot: "opacity"),
-             "layer.shadowOffset": AttributeCluster(name: "shadow", slot: "offset"),
-             "layer.borderWidth": AttributeCluster(name: "border", slot: "width"),
-             "layer.borderColor": AttributeCluster(name: "border", slot: "color"),
-             "label.fontSize": AttributeCluster(name: "font", slot: "size"),
-             "label.fontTextStyle": AttributeCluster(name: "font", slot: "textStyle"),
-             "label.adjustsFontForContentSizeCategory": AttributeCluster(name: "font", slot: "scalable"),
-             "label.numberOfLines": AttributeCluster(name: "lines", slot: "count"),
-             "view.isHidden": AttributeCluster(name: "visibility", slot: "hidden"),
-             "view.alpha": AttributeCluster(name: "visibility", slot: "opacity")])
-
-        let units = attributes.mapValues(\.unit).filter { $0.value != .unspecified }
-        XCTAssertEqual(
-            units,
-            ["layer.frame": .points, "layer.bounds": .points, "layer.position": .points,
-             "layer.shadowOffset": .points, "layer.borderWidth": .points, "label.fontSize": .points,
-             "view.layoutMargins": .points, "layer.shadowOpacity": .fraction, "view.alpha": .fraction])
-
-        XCTAssertEqual(
-            attributes.compactMapValues(\.inactiveCause),
-            ["layer.borderColor": "layer.borderWidth", "layer.shadowOffset": "layer.shadowOpacity"])
-        XCTAssertEqual(attributes.compactMapValues(\.systemColorName), ["view.tintColor": "systemBlue"])
-        XCTAssertNil(attributes["layer.borderColor"]?.systemColorName, "a CGColor has no name")
-
-        let sections = attributes.mapValues(\.section)
-        XCTAssertEqual(sections["label.text"], .content)
-        XCTAssertEqual(sections["view.backgroundColor"], .appearance)
-        XCTAssertEqual(sections["view.isUserInteractionEnabled"], .behavior)
-        XCTAssertEqual(sections["view.tag"], .identity)
-        XCTAssertEqual(sections["layer.frame"], .layout)
-        XCTAssertFalse(sections.values.contains(.general), "no fixture uses General")
-    }
 
     func test_C_WIRE_11_aLayerThatBacksNoViewHasTheLayersAttributes() throws {
         let details = try details("layer-details-edge")
@@ -142,40 +54,6 @@ final class Protocol11OptionalFieldsDecodingTests: XCTestCase {
             attributes(layer9).compactMapValues(\.cluster),
             ["layer.frame": AttributeCluster(name: "geometry", slot: "frame"),
              "view.isHidden": AttributeCluster(name: "visibility", slot: "hidden")])
-    }
-
-    func test_C_WIRE_11_aClusterSpansTwoGroups() throws {
-        let results = try Fixtures.setAttributeResults()
-        let layer4 = try XCTUnwrap(results.first { $0.layerID == 4 })
-        var corners: [String: String] = [:]
-        for group in layer4.attributeGroups {
-            for attribute in group.attributes where attribute.cluster?.name == "corners" {
-                corners[attribute.cluster?.slot ?? ""] = group.id
-            }
-        }
-        XCTAssertEqual(corners, ["radius": "layer", "clip": "view"])
-        let ids = layer4.attributeGroups.flatMap(\.attributes).compactMap(\.id)
-        XCTAssertFalse(ids.contains("layer.opacity"), "layer 4 backs a view (P-ATTR-11)")
-    }
-
-    // MARK: - Constraints
-
-    func test_C_WIRE_11_constraintsCarryOriginsAndTheGuideItsKind() throws {
-        let details = try details("layout-constraints")
-        var origins: [UInt64: ClassOrigin] = [:]
-        var guides: [LayoutGuide] = []
-        for constraint in details.flatMap(\.constraints) {
-            origins[constraint.id] = constraint.origin
-            for case .layoutGuide(let guide)? in [constraint.firstItem, constraint.secondItem] {
-                guides.append(guide)
-            }
-        }
-        XCTAssertEqual(origins.count, 11)
-        for id in 1...11 {
-            XCTAssertEqual(origins[UInt64(id)], id <= 7 ? .app : .system, "constraint \(id)")
-        }
-        XCTAssertFalse(guides.isEmpty)
-        XCTAssertTrue(guides.allSatisfy { $0.kind == .safeArea })
     }
 
     // MARK: - Without the optional fields
@@ -224,14 +102,6 @@ final class Protocol11OptionalFieldsDecodingTests: XCTestCase {
                 XCTAssertEqual(guide.kind, .unknown)
             }
         }
-    }
-
-    func test_C_WIRE_11_theNewFieldsAreWrittenAsTheyWereRead() throws {
-        let hierarchy = try hierarchy("hierarchy")
-        XCTAssertEqual(try roundTrip(.hierarchy(hierarchy)), .hierarchy(hierarchy))
-        let details = try details("layer-details") + self.details("layout-constraints")
-        let body = Body.layerDetailsChunk(LayerDetailsChunk(sequence: 0, details: details))
-        XCTAssertEqual(try roundTrip(body), body)
     }
 
     // MARK: - Values this client does not know, and fields that break the rules

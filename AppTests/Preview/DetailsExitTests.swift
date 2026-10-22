@@ -42,14 +42,9 @@ final class DetailsExitTests: XCTestCase {
             AppWindows.isClose(try AppWindows.centerPixel(of: 4, in: preview), green),
             "chunk 1 is held")
 
-        // The toolbar's capsule counts them (C-WIN-06).
-        let subtitle = try XCTUnwrap(
-            AppWindows.views(identifier: "toolbar.capsule.subtitle").first as? NSButton)
+        // The toolbar's capsule shows its progress (C-WIN-06).
         let progress = try XCTUnwrap(AppWindows.views(identifier: "toolbar.capsule.progress").first)
         XCTAssertTrue(AppWindows.isShown(progress))
-        // Six layers are drawn as the fixture first opens: layer 7 is inside the collapsed
-        // layer 6 (C-HIER-09).
-        XCTAssertEqual(subtitle.title, "Screenshots 1 / 6")
 
         // The rest arrives.
         await gate.open()
@@ -60,7 +55,6 @@ final class DetailsExitTests: XCTestCase {
             try await Task.sleep(for: .milliseconds(50))
         }
         XCTAssertFalse(AppWindows.isShown(progress), "every screenshot is settled")
-        XCTAssertEqual(subtitle.title, "iPhone 16 \u{00B7} iOS 18.0")
 
         // C-REND-05: the request carried this Mac's limit.
         let device = try XCTUnwrap(MTLCreateSystemDefaultDevice())

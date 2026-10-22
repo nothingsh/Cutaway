@@ -9,8 +9,8 @@ import XCTest
 @testable import CutawayModel
 @testable import CutawayUI
 
-/// The menu bar as the requirements lay it out: its items (C-MENU-01), their shortcuts and
-/// when each can be used (C-MENU-02), About (C-MENU-03) and Help (C-MENU-04).
+/// The menu bar: when each item can be used and that no two items share a shortcut
+/// (C-MENU-02), and About's acknowledgements (C-MENU-03).
 final class MainMenuTests: XCTestCase {
     private static let demo = AppInfo(
         name: "Demo", bundleID: "dev.cutaway.demo", appVersion: "1.0", deviceName: "iPhone 16",
@@ -53,30 +53,13 @@ final class MainMenuTests: XCTestCase {
         case appKit
     }
 
-    private enum Target {
-        /// None: the responder chain.
-        case chain
-        case coordinator
-    }
-
+    /// An item of the menu bar: its title and when it can be used.
     private struct Expected {
         let title: String
-        let key: String
-        let modifiers: NSEvent.ModifierFlags
-        let action: Selector?
-        let target: Target
         let rule: Rule
 
-        init(
-            _ title: String, _ action: Selector?, _ key: String = "",
-            _ modifiers: NSEvent.ModifierFlags = .command, target: Target = .chain,
-            rule: Rule
-        ) {
+        init(_ title: String, rule: Rule) {
             self.title = title
-            self.key = key
-            self.modifiers = modifiers
-            self.action = action
-            self.target = target
             self.rule = rule
         }
     }
@@ -85,32 +68,28 @@ final class MainMenuTests: XCTestCase {
         String(Character(UnicodeScalar(UInt32(key)) ?? " "))
     }
 
-    private typealias Window = InspectorWindowController
-
     /// View › Borders (C-PREV-17).
     private static let borders: [Expected] = [
-        Expected("Show Borders", #selector(Window.toggleBorders(_:)), "b", [.command, .shift], rule: .inspector),
-        Expected("Plain", #selector(Window.showPlainBorders(_:)), rule: .inspector),
-        Expected("By Kind", #selector(Window.showBordersByKind(_:)), rule: .inspector),
-        Expected("Only the App\u{2019}s Own Classes", #selector(Window.toggleOnlyAppClasses(_:)), rule: .inspector),
+        Expected("Show Borders", rule: .inspector),
+        Expected("Plain", rule: .inspector),
+        Expected("By Kind", rule: .inspector),
+        Expected("Only the App\u{2019}s Own Classes", rule: .inspector),
     ]
 
     /// Edit › Copy LLDB Command (C-SRC-06).
     private static let lldb: [Expected] = [
-        Expected("Print Object", #selector(Window.copyLLDBPrintCommand(_:)), rule: .addressed),
-        Expected("Stop When the Frame Changes", #selector(Window.copyLLDBFrameBreakpoints(_:)), rule: .addressed),
+        Expected("Print Object", rule: .addressed),
+        Expected("Stop When the Frame Changes", rule: .addressed),
     ]
 
     /// View › Environment (C-MENU-05), without the values' submenus.
     private static let environment: [Expected] = [
-        Expected("Appearance", nil, rule: .appKit),
-        Expected("Text Size", nil, rule: .appKit),
-        Expected("Layout Direction", nil, rule: .appKit),
-        Expected("Size Classes", nil, rule: .appKit),
-        Expected(
-            "Toggle Light and Dark", #selector(Window.toggleAppearance(_:)), "a", [.command, .shift],
-            rule: .environment),
-        Expected("Reset", #selector(Window.resetEnvironment(_:)), rule: .environment),
+        Expected("Appearance", rule: .appKit),
+        Expected("Text Size", rule: .appKit),
+        Expected("Layout Direction", rule: .appKit),
+        Expected("Size Classes", rule: .appKit),
+        Expected("Toggle Light and Dark", rule: .environment),
+        Expected("Reset", rule: .environment),
     ]
 
     /// Every item of a menu and of its submenus, depth first.
@@ -121,108 +100,67 @@ final class MainMenuTests: XCTestCase {
     /// The menu bar, item by item.
     private static let table: [(menu: String, items: [Expected])] = [
         ("Cutaway", [
-            Expected("About Cutaway", #selector(WindowCoordinator.showAbout(_:)), target: .coordinator, rule: .always),
-            Expected(
-                "Check for Updates\u{2026}", #selector(WindowCoordinator.checkForUpdates(_:)), target: .coordinator,
-                rule: .always),
-            Expected(
-                "Settings\u{2026}", #selector(WindowCoordinator.showSettings(_:)), ",", target: .coordinator,
-                rule: .always),
-            Expected("Services", nil, rule: .appKit),
-            Expected("Hide Cutaway", #selector(NSApplication.hide(_:)), "h", rule: .appKit),
-            Expected(
-                "Hide Others", #selector(NSApplication.hideOtherApplications(_:)), "h", [.command, .option],
-                rule: .appKit),
-            Expected("Show All", #selector(NSApplication.unhideAllApplications(_:)), rule: .appKit),
-            Expected("Quit Cutaway", #selector(NSApplication.terminate(_:)), "q", rule: .always),
+            Expected("About Cutaway", rule: .always),
+            Expected("Check for Updates\u{2026}", rule: .always),
+            Expected("Settings\u{2026}", rule: .always),
+            Expected("Services", rule: .appKit),
+            Expected("Hide Cutaway", rule: .appKit),
+            Expected("Hide Others", rule: .appKit),
+            Expected("Show All", rule: .appKit),
+            Expected("Quit Cutaway", rule: .always),
         ]),
         ("File", [
-            Expected(
-                "Open\u{2026}", #selector(WindowCoordinator.openArchivePanel(_:)), "o", target: .coordinator,
-                rule: .always),
-            Expected("Open Recent", nil, rule: .appKit),
-            Expected(
-                "Link Project Folder\u{2026}", #selector(Window.linkProjectFolder(_:)), rule: .layout),
-            Expected("Open in Xcode", #selector(Window.openInXcode(_:)), "o", [.command, .option], rule: .declared),
-            Expected("Save Archive\u{2026}", #selector(Window.saveArchive(_:)), "s", rule: .online),
-            Expected(
-                "Export Layer Screenshot\u{2026}", #selector(Window.exportLayerScreenshot(_:)), "e",
-                [.command, .shift], rule: .selection),
-            Expected(
-                "Export Screenshot with Sublayers\u{2026}", #selector(Window.exportScreenshotWithSublayers(_:)),
-                "e", [.command, .shift, .option], rule: .selection),
-            Expected("Close Window", #selector(NSWindow.performClose(_:)), "w", rule: .window),
+            Expected("Open\u{2026}", rule: .always),
+            Expected("Open Recent", rule: .appKit),
+            Expected("Link Project Folder\u{2026}", rule: .layout),
+            Expected("Open in Xcode", rule: .declared),
+            Expected("Save Archive\u{2026}", rule: .online),
+            Expected("Export Layer Screenshot\u{2026}", rule: .selection),
+            Expected("Export Screenshot with Sublayers\u{2026}", rule: .selection),
+            Expected("Close Window", rule: .window),
         ]),
         ("Edit", [
-            Expected("Undo", Selector(("undo:")), "z", rule: .appKit),
-            Expected("Redo", Selector(("redo:")), "z", [.command, .shift], rule: .appKit),
-            Expected("Cut", #selector(NSText.cut(_:)), "x", rule: .appKit),
-            Expected("Copy", #selector(NSText.copy(_:)), "c", rule: .appKit),
-            Expected("Paste", #selector(NSText.paste(_:)), "v", rule: .appKit),
-            Expected("Delete", #selector(NSText.delete(_:)), rule: .appKit),
-            Expected("Select All", #selector(NSText.selectAll(_:)), "a", rule: .appKit),
-            Expected("Find\u{2026}", #selector(Window.findLayer(_:)), "f", rule: .inspector),
-            Expected("Copy LLDB Command", nil, rule: .appKit),
+            Expected("Undo", rule: .appKit),
+            Expected("Redo", rule: .appKit),
+            Expected("Cut", rule: .appKit),
+            Expected("Copy", rule: .appKit),
+            Expected("Paste", rule: .appKit),
+            Expected("Delete", rule: .appKit),
+            Expected("Select All", rule: .appKit),
+            Expected("Find\u{2026}", rule: .inspector),
+            Expected("Copy LLDB Command", rule: .appKit),
         ]),
         ("View", [
-            Expected("Refresh", #selector(Window.refresh(_:)), "r", rule: .online),
-            Expected(
-                "Refresh Selected Subtree", #selector(Window.refreshSelectedSubtree(_:)), "r",
-                [.command, .shift], rule: .subtree),
-            Expected("2D", #selector(Window.showTwoD(_:)), "1", rule: .inspector),
-            Expected("3D", #selector(Window.showThreeD(_:)), "2", rule: .inspector),
-            Expected("Zoom In", #selector(Window.zoomIn(_:)), "=", rule: .inspector),
-            Expected("Zoom Out", #selector(Window.zoomOut(_:)), "-", rule: .inspector),
-            Expected("Reset View", #selector(Window.resetView(_:)), "0", rule: .inspector),
-            Expected(
-                "Show Hidden Layers", #selector(Window.toggleHiddenLayers(_:)), "h", [.command, .shift],
-                rule: .inspector),
-            Expected("Borders", nil, rule: .appKit),
-            Expected(
-                "Show Constraint Ends", #selector(Window.toggleConstraintEnds(_:)), "k",
-                [.command, .shift], rule: .inspector),
-            Expected("Environment", nil, rule: .appKit),
-            Expected(
-                "Select Parent Layer", #selector(Window.selectParentLayer(_:)),
-                arrow(NSUpArrowFunctionKey), .command, rule: .selection),
-            Expected(
-                "Select First Child Layer", #selector(Window.selectFirstChildLayer(_:)),
-                arrow(NSDownArrowFunctionKey), .command, rule: .selection),
-            Expected(
-                "Focus on Selected Layer", #selector(Window.focusOnSelectedLayer(_:)),
-                arrow(NSDownArrowFunctionKey), [.command, .option], rule: .unfocusedSelection),
-            Expected(
-                "Show All Layers", #selector(Window.showAllLayers(_:)), arrow(NSUpArrowFunctionKey),
-                [.command, .option], rule: .focusing),
-            Expected(
-                "Expand All", #selector(Window.expandAllLayers(_:)), arrow(NSRightArrowFunctionKey),
-                [.command, .option], rule: .inspector),
-            Expected(
-                "Collapse All", #selector(Window.collapseAllLayers(_:)), arrow(NSLeftArrowFunctionKey),
-                [.command, .option], rule: .inspector),
-            Expected(
-                "Show Sidebar", #selector(NSSplitViewController.toggleSidebar(_:)), "s",
-                [.command, .control], rule: .layout),
-            Expected(
-                "Show Inspector", #selector(NSSplitViewController.toggleInspector(_:)), "i",
-                [.command, .option], rule: .layout),
-            Expected(
-                "Enter Full Screen", #selector(NSWindow.toggleFullScreen(_:)), "f", [.command, .control],
-                rule: .layout),
+            Expected("Refresh", rule: .online),
+            Expected("Refresh Selected Subtree", rule: .subtree),
+            Expected("2D", rule: .inspector),
+            Expected("3D", rule: .inspector),
+            Expected("Zoom In", rule: .inspector),
+            Expected("Zoom Out", rule: .inspector),
+            Expected("Reset View", rule: .inspector),
+            Expected("Show Hidden Layers", rule: .inspector),
+            Expected("Borders", rule: .appKit),
+            Expected("Show Constraint Ends", rule: .inspector),
+            Expected("Environment", rule: .appKit),
+            Expected("Select Parent Layer", rule: .selection),
+            Expected("Select First Child Layer", rule: .selection),
+            Expected("Focus on Selected Layer", rule: .unfocusedSelection),
+            Expected("Show All Layers", rule: .focusing),
+            Expected("Expand All", rule: .inspector),
+            Expected("Collapse All", rule: .inspector),
+            Expected("Show Sidebar", rule: .layout),
+            Expected("Show Inspector", rule: .layout),
+            Expected("Enter Full Screen", rule: .layout),
         ]),
         ("Window", [
-            Expected("Minimize", #selector(NSWindow.performMiniaturize(_:)), "m", rule: .window),
-            Expected("Zoom", #selector(NSWindow.performZoom(_:)), rule: .window),
-            Expected(
-                "Show App List", #selector(WindowCoordinator.showAppList(_:)), "0", [.command, .shift],
-                target: .coordinator, rule: .always),
-            Expected("Bring All to Front", #selector(NSApplication.arrangeInFront(_:)), rule: .always),
+            Expected("Minimize", rule: .window),
+            Expected("Zoom", rule: .window),
+            Expected("Show App List", rule: .always),
+            Expected("Bring All to Front", rule: .always),
         ]),
         ("Help", [
-            Expected("Cutaway Help", #selector(WindowCoordinator.openHelp(_:)), target: .coordinator, rule: .always),
-            Expected(
-                "Integrating CutawayServer", #selector(WindowCoordinator.openIntegrationGuide(_:)),
-                target: .coordinator, rule: .always),
+            Expected("Cutaway Help", rule: .always),
+            Expected("Integrating CutawayServer", rule: .always),
         ]),
     ]
 

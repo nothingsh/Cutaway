@@ -1,32 +1,23 @@
+import CutawayTestSupport
 import XCTest
 
 @testable import CutawayScene
+
+/// The numbers the scenes below are made from, the same for the same seed on every machine.
+extension SeededGenerator {
+    mutating func unit() -> Double { Double(next() >> 11) / Double(1 << 53) }
+
+    mutating func below(_ n: Int) -> Int { Int(next() % UInt64(n)) }
+}
 
 /// The levels found through the per-level grids are those of C-SCENE-02 itself: one above the
 /// highest level among the displayed layers drawn before that overlap, or 0. The definition is
 /// worked out here by comparing every pair, on scenes made from a seed.
 final class LevelSearchTests: XCTestCase {
-    /// SplitMix64: the same numbers for the same seed on every machine.
-    private struct Numbers {
-        var state: UInt64
-
-        mutating func next() -> UInt64 {
-            state &+= 0x9E37_79B9_7F4A_7C15
-            var z = state
-            z = (z ^ (z >> 30)) &* 0xBF58_476D_1CE4_E5B9
-            z = (z ^ (z >> 27)) &* 0x94D0_49BB_1331_11EB
-            return z ^ (z >> 31)
-        }
-
-        mutating func unit() -> Double { Double(next() >> 11) / Double(1 << 53) }
-
-        mutating func below(_ n: Int) -> Int { Int(next() % UInt64(n)) }
-    }
-
     /// Layers of all sizes in a tree, some turned, some hidden, some without area, a few
     /// outside the rest; every parent before its children.
     private func scene(seed: UInt64, count: Int) -> [SceneLayer] {
-        var numbers = Numbers(state: seed)
+        var numbers = SeededGenerator(seed: seed)
         var layers: [SceneLayer] = []
         for index in 0..<count {
             let id = UInt64(index + 1)

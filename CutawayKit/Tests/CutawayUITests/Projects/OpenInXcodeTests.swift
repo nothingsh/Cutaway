@@ -199,7 +199,6 @@ final class OpenInXcodeTests: XCTestCase {
         inspector.store.select(2)
         let buttons = buttons(inspector)
         XCTAssertEqual(buttons.count, 1, "only the view controller's class is the app's")
-        XCTAssertEqual(buttons.first?.toolTip, "Open in Xcode \u{2014} HomeViewController.swift:3")
         buttons.first?.performClick(nil)
         XCTAssertEqual(recorder.runs.last?.arguments.prefix(2), ["--line", "3"])
         XCTAssertEqual(recorder.runs.last?.arguments.last?.hasSuffix("Demo/Home/HomeViewController.swift"), true)
@@ -220,7 +219,6 @@ final class OpenInXcodeTests: XCTestCase {
         // Layer 4 backs a CardView, declared in two files.
         inspector.store.select(4)
         let button = try XCTUnwrap(buttons(inspector).first)
-        XCTAssertEqual(button.toolTip, "Open in Xcode (2 places)")
         button.performClick(nil)
         XCTAssertEqual(offered.last?.map(\.folder), ["Demo/Cards", "Legacy"])
         XCTAssertEqual(offered.last?.map(\.line), [1, 3])

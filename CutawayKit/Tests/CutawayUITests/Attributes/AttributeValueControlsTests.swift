@@ -5,9 +5,9 @@ import XCTest
 
 @testable import CutawayUI
 
-/// Units (C-ATTR-20), values with no effect (C-ATTR-21), and the colour field, the insets box
-/// and the segments of a short enum (C-ATTR-22), one editor at a time. What an editor sends is
-/// caught where the panel would hand it to the model.
+/// Units (C-ATTR-20), and the colour field, the insets box and the segments of a short enum
+/// (C-ATTR-22), one editor at a time. What an editor sends is caught where the panel would hand
+/// it to the model.
 final class AttributeValueControlsTests: XCTestCase {
     @MainActor
     private final class Recorder {
@@ -82,16 +82,6 @@ final class AttributeValueControlsTests: XCTestCase {
         number.commit("2")
         XCTAssertEqual(recorder.sent, [.integer(2)])
     }
-
-    // MARK: - C-ATTR-21
-
-    private static let width = Attribute(
-        id: "layer.borderWidth", title: "Border Width", value: .double(0), editable: true,
-        valueKind: .double, unit: .points)
-    private static let color = Attribute(
-        id: "layer.borderColor", title: "Border Color",
-        value: .color(Color(red: 0, green: 0, blue: 0, alpha: 1)), editable: true, valueKind: .color,
-        inactiveCause: "layer.borderWidth")
 
     // MARK: - C-ATTR-22
 

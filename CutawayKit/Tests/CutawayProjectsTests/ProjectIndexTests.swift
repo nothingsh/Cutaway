@@ -29,15 +29,28 @@ final class ProjectIndexTests: XCTestCase {
         Set(index.declarations.keys)
     }
 
-    func test_C_SRC_02_theFoldersOfBuildsThirdPartiesAndHiddenOnesAreLeftOut() async throws {
+    /// The folders of builds, third parties and hidden ones, node modules, frameworks and
+    /// bundles.
+    func test_C_SRC_02_excludedFoldersAreLeftOut() async throws {
         let builder = try sample()
-        let index = try await ProjectIndexer(root: builder.root).build().0
+        try builder.write("Web/node_modules/kit/Kit.swift", "class InNodeModules {}")
+        try builder.write("Vendor/Kit.framework/Headers/Kit.h", "@interface InFramework : NSObject\n@end")
+        try builder.write(
+            "Vendor/Kit.xcframework/ios-arm64/Kit.framework/Headers/Kit.h", "@interface InXCFramework : NSObject\n@end")
+        try builder.write("Shop/Resources.bundle/InBundle.swift", "class InBundle {}")
+        try builder.write("Shop/Resources.bundle/en.lproj/Bundle.strings", #""bundle.key" = "In a bundle";"#)
+
+        let indexer = ProjectIndexer(root: builder.root)
+        let index = try await indexer.build().0
         XCTAssertTrue(names(index).contains("HomeViewController"))
         for name in [
             "InPods", "InCarthage", "InDerivedData", "InBuild", "InDotBuild", "InSourcePackages", "InHidden",
+            "InNodeModules", "InFramework", "InXCFramework", "InBundle",
         ] {
             XCTAssertFalse(names(index).contains(name), name)
         }
+        let strings = await indexer.strings()
+        XCTAssertFalse(strings.contains { $0.key == "bundle.key" })
     }
 
     func test_C_SRC_02_symbolicLinksAreNotFollowed() async throws {
@@ -152,25 +165,6 @@ final class ProjectIndexTests: XCTestCase {
         } catch {
             XCTAssertTrue(error is ProjectIndexer.FolderUnreadable, "\(error)")
         }
-    }
-
-    func test_C_SRC_02_nodeModulesFrameworksAndBundlesAreLeftOut() async throws {
-        let builder = try sample()
-        try builder.write("Web/node_modules/kit/Kit.swift", "class InNodeModules {}")
-        try builder.write("Vendor/Kit.framework/Headers/Kit.h", "@interface InFramework : NSObject\n@end")
-        try builder.write(
-            "Vendor/Kit.xcframework/ios-arm64/Kit.framework/Headers/Kit.h", "@interface InXCFramework : NSObject\n@end")
-        try builder.write("Shop/Resources.bundle/InBundle.swift", "class InBundle {}")
-        try builder.write("Shop/Resources.bundle/en.lproj/Bundle.strings", #""bundle.key" = "In a bundle";"#)
-
-        let indexer = ProjectIndexer(root: builder.root)
-        let index = try await indexer.build().0
-        for name in ["InNodeModules", "InFramework", "InXCFramework", "InBundle"] {
-            XCTAssertFalse(names(index).contains(name), name)
-        }
-        let strings = await indexer.strings()
-        XCTAssertFalse(strings.contains { $0.key == "bundle.key" })
-        XCTAssertTrue(names(index).contains("HomeViewController"))
     }
 
     func test_C_SRC_02_theWalkStopsAtTheMostFilesAndSaysSo() async throws {
