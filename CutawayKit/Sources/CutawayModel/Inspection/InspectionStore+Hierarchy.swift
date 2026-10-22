@@ -25,19 +25,22 @@ extension InspectionStore {
     /// Expands or collapses several layers and lays the tree out once: collapsing a row in the
     /// list collapses every expanded row inside it too. Layers that are not in
     /// the tree are ignored. Taken also once the connection is gone: the list's disclosure
-    /// triangles still open and close its rows then.
+    /// triangles still open and close its rows then. Only the rows and the preview follow
+    /// then: the selection stays where it was, even inside a collapsed node, since the
+    /// attributes of another layer could not be asked for, and no screenshot is asked for.
     public func setExpanded(_ ids: [UInt64], _ expanded: Bool) {
         let (change, state) = transition { $0.setExpanded(ids, expanded, in: tree) }
         guard change.contains(.expansion) else { return }
         announceExpansion()
-        setSelection(state.selection)
+        if takesIntents { setSelection(state.selection) }
         rebuildLayout()
-        fetchNext()
+        if takesIntents { fetchNext() }
     }
 
     /// Searches the list for the text (C-HIER-04). Taken also once the connection is gone:
     /// the field no longer takes typing then, but what was typed before may still be on its
-    /// way, and carries over to the next connection (C-WIN-04).
+    /// way, and carries over to the next connection, which reads it from this store when it
+    /// opens (C-WIN-04).
     public func setSearchText(_ text: String) {
         guard publishSearchText(text) else { return }
         if refilter() { announceRows() }

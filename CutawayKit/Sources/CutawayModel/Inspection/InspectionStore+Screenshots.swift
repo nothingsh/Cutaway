@@ -31,8 +31,10 @@ extension InspectionStore {
 // MARK: - What the fetcher's batches mean
 
 extension InspectionStore: ScreenshotFetcherDelegate {
+    /// Never once the connection is gone: a view that still holds the inspection may report
+    /// its rows, and nothing may go out over the connection that ended.
     var mayFetchScreenshots: Bool {
-        isOpen && !loader.isLoading && changesOnTheirWay == 0
+        isOpen && takesIntents && !loader.isLoading && changesOnTheirWay == 0
     }
 
     func fetcher(_ fetcher: ScreenshotFetcher, took details: [ImageDecompression.DecompressedDetail]) {

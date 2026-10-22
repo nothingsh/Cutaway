@@ -34,14 +34,12 @@ final class InspectorSplitViewController: NSSplitViewController {
     init(store: InspectionStore, appName: String, paneWidths: PaneWidths? = nil, project: ProjectLookup? = nil) {
         self.paneWidths = paneWidths
         self.store = store
-        hierarchyController = HierarchyViewController(store: store, appName: appName)
-        containerController = PreviewPaneViewController(store: store, appName: appName)
+        hierarchyController = HierarchyViewController(store: store, appName: appName, project: project)
+        containerController = PreviewPaneViewController(store: store, appName: appName, project: project)
         attributesController = AttributesViewController(
             store: store.attributes, appName: appName, inputs: store.attributesPanelInputs(project: project),
             actions: store.attributesPanelActions(project: project))
         super.init(nibName: nil, bundle: nil)
-        hierarchyController.layerMenu.project = project
-        previewController.layerMenu.project = project
         hierarchyController.onPointerOverRow = { [weak self] isOn in
             self?.previewController.pointerIsOnList(isOn)
         }

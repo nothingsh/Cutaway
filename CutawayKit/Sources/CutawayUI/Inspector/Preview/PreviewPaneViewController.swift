@@ -58,10 +58,11 @@ final class PreviewPaneViewController: NSViewController {
     /// Follows the toolbar's height.
     private var layoutRectObservation: NSKeyValueObservation?
 
-    init(store: InspectionStore, appName: String) {
+    /// `project` is the way to the app's project folder (C-SRC-03), nil for none.
+    init(store: InspectionStore, appName: String, project: ProjectLookup? = nil) {
         self.store = store
         self.viewModel = PreviewPaneViewModel(store: store, appName: appName)
-        self.previewController = PreviewViewController(store: store)
+        self.previewController = PreviewViewController(store: store, project: project)
         super.init(nibName: nil, bundle: nil)
     }
 
@@ -88,7 +89,7 @@ final class PreviewPaneViewController: NSViewController {
         // Over everything else: once the connection is lost the preview takes no more clicks.
         let shield = ClickShieldView()
             .accessibilityIdentifier(Self.shieldIdentifier)
-            .bind(\.isHidden, to: viewModel.isDisconnected.map { !$0 })
+            .bind(\.isHidden, to: viewModel.isConnected)
 
         let disconnectedPanel = makeDisconnectedPanel()
 
@@ -164,10 +165,10 @@ final class PreviewPaneViewController: NSViewController {
             equalTo: noticePanel.bottomAnchor, constant: gap)
         let underDisconnected = failures.topAnchor.constraint(
             equalTo: disconnectedPanel.bottomAnchor, constant: gap)
-        Publishers.CombineLatest(viewModel.notice.map { $0 != nil }, viewModel.isDisconnected)
-            .sink { notices, disconnected in
+        Publishers.CombineLatest(viewModel.notice.map { $0 != nil }, viewModel.isConnected)
+            .sink { notices, isConnected in
                 NSLayoutConstraint.deactivate([alone, underNotice, underDisconnected])
-                (disconnected ? underDisconnected : notices ? underNotice : alone).isActive = true
+                (!isConnected ? underDisconnected : notices ? underNotice : alone).isActive = true
             }
             .store(in: &cancellables)
     }
@@ -326,7 +327,7 @@ final class PreviewPaneViewController: NSViewController {
                 .accessibilityIdentifier(Self.showAppsIdentifier)
                 .sink(\.clickPublisher) { [weak self] in self?.onShowApps() },
             identifier: Self.disconnectedIdentifier, spacing: 10, edgePadding: 6)
-            .bind(\.isHidden, to: viewModel.isDisconnected.map { !$0 })
+            .bind(\.isHidden, to: viewModel.isConnected)
     }
 
     /// At the top: why the archive was not saved (C-ARCH-02).

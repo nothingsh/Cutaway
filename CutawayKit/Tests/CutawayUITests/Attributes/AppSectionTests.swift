@@ -170,7 +170,8 @@ final class AppSectionTests: XCTestCase {
         field.sendAction(field.action, to: field.target)
 
         // Folded, it stays folded on another layer and back (C-ATTR-15).
-        controller.fold("app", true)
+        app.toggle(all: false)
+        XCTAssertTrue(app.isCollapsed)
         model.select(10)
         let other = await Wait.until {
             await MainActor.run { controller.section(.app)?.rows.count == 3 }

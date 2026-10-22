@@ -45,18 +45,17 @@ package enum FrameCodec {
         // The verifier refuses a scalar whose address is not aligned to its size, and the
         // runtime reads scalars where they lie. A payload that starts on an 8-byte boundary is
         // read in place, whatever its indices: a frame sliced out of a mapped archive file
-        // among them. Any other is copied into memory of its own.
-        if startsAligned(payload) {
-            return try payload.withUnsafeBytes { bytes in
-                // The buffer does not own this memory: it neither copies nor frees it, and
-                // verifying and reading never write to it. At least 8 bytes long, the payload
-                // has an address.
-                // swiftlint:disable:next force_unwrapping
-                let start = UnsafeMutableRawPointer(mutating: bytes.baseAddress!)
-                var buffer = ByteBuffer(assumingMemoryBound: start, capacity: bytes.count)
-                return try body(try verifiedRoot(&buffer))
-            }
+        // among them. Any other is copied into memory of its own. The address is checked where
+        // the bytes are read: another access to them need not give the same one.
+        let inPlace: Result? = try payload.withUnsafeBytes { bytes in
+            guard let base = bytes.baseAddress, Int(bitPattern: base) % 8 == 0 else { return nil }
+            // The buffer does not own this memory: it neither copies nor frees it, and
+            // verifying and reading never write to it.
+            var buffer = ByteBuffer(
+                assumingMemoryBound: UnsafeMutableRawPointer(mutating: base), capacity: bytes.count)
+            return try body(try verifiedRoot(&buffer))
         }
+        if let inPlace { return inPlace }
         copies.add()
         var buffer = ByteBuffer(data: alignedCopy(of: payload))
         return try body(try verifiedRoot(&buffer))
@@ -71,14 +70,6 @@ package enum FrameCodec {
             throw FrameError.wrongFileIdentifier
         } catch {
             throw FrameError.verificationFailed(String(describing: error))
-        }
-    }
-
-    /// Whether `payload`'s first byte lies on an 8-byte boundary. A slice's indices do not
-    /// matter: the buffer is given its first byte's address.
-    private static func startsAligned(_ payload: Data) -> Bool {
-        payload.withUnsafeBytes { bytes in
-            bytes.baseAddress.map { Int(bitPattern: $0) % 8 == 0 } ?? false
         }
     }
 

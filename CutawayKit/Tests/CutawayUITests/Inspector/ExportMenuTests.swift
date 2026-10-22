@@ -60,7 +60,7 @@ final class ExportMenuTests: XCTestCase {
 
         var suggested: String?
         let png = directory.appendingPathComponent("Layer.png")
-        inspector.chooseScreenshotDestination = { _, name, done in
+        inspector.fileActions.chooseScreenshotDestination = { _, name, done in
             suggested = name
             done(png)
         }
@@ -88,7 +88,7 @@ final class ExportMenuTests: XCTestCase {
     func test_C_ARCH_06_aFailedExportSaysWhy() async throws {
         let inspector = try liveInspector()
         inspector.showWindow(nil)
-        inspector.chooseScreenshotDestination = { [directory] _, _, done in
+        inspector.fileActions.chooseScreenshotDestination = { [directory] _, _, done in
             done(directory!.appendingPathComponent("Layer.png"))
         }
         inspector.store.select(4)

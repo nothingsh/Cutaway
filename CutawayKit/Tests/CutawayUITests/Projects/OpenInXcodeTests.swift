@@ -7,6 +7,7 @@ import CutawayWire
 import XCTest
 
 @testable import CutawayModel
+@testable import CutawayProjects
 @testable import CutawayUI
 
 /// What an Open in Xcode would run, recorded instead of run.

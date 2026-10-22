@@ -143,7 +143,7 @@ final class AttributesViewModel {
 
     /// Whether the connection holds (C-WIN-03): the ancestors show whether they can be
     /// chosen.
-    var isLive: AnyPublisher<Bool, Never> {
+    var isConnected: AnyPublisher<Bool, Never> {
         connection.map { !$0.isLost }.removeDuplicates().eraseToAnyPublisher()
     }
 

@@ -6,6 +6,8 @@ import QuartzCore
 protocol PreviewClock: AnyObject {
     /// Seconds, from any origin.
     var now: Double { get }
+    /// Whether it calls a tick each frame: false once stopped, by its owner or on its own.
+    var isRunning: Bool { get }
     /// Calls `tick` once a frame until `stop()`, or until `tick` returns false: what it
     /// draws for is gone.
     func start(_ tick: @escaping @MainActor () -> Bool)
@@ -68,7 +70,7 @@ final class DisplayClock: PreviewClock {
 
     var now: Double { CACurrentMediaTime() }
 
-    /// Whether the display link is running. For tests.
+    /// Whether the display link is running.
     var isRunning: Bool { link != nil }
 
     func start(_ tick: @escaping @MainActor () -> Bool) {

@@ -22,7 +22,7 @@ final class PreviewViewController: NSViewController {
     private var textureLoader: PreviewTextureLoader?
     private var cancellables = Set<AnyCancellable>()
     private let motion: PreviewMotion
-    private(set) lazy var layerMenu = LayerContextMenu(store: store)
+    let layerMenu: LayerContextMenu
 
     /// Whether a transition is under way.
     var isInTransition: Bool { projector?.isInTransition ?? false }
@@ -33,9 +33,11 @@ final class PreviewViewController: NSViewController {
         preview?.isPointerOnList = isOn
     }
 
-    init(store: InspectionStore, motion: PreviewMotion = .system) {
+    /// `project` is the way to the app's project folder (C-SRC-03), nil for none.
+    init(store: InspectionStore, motion: PreviewMotion = .system, project: ProjectLookup? = nil) {
         self.store = store
         self.motion = motion
+        layerMenu = LayerContextMenu(store: store, project: project)
         super.init(nibName: nil, bundle: nil)
     }
 

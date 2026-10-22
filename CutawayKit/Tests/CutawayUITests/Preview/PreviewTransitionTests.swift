@@ -264,6 +264,29 @@ final class PreviewTransitionTests: XCTestCase {
         XCTAssertFalse(clock.isRunning)
     }
 
+    /// A clock that stopped on its own, as the display's does once its view is gone, is
+    /// started again by the next transition, which then goes on to its end.
+    @MainActor
+    func test_C_PREV_11_aClockThatStoppedOnItsOwnStartsAgain() throws {
+        let model = try model()
+        let clock = ManualClock()
+        let (controller, preview, window) = try previewInWindow(model, motion: .paced(by: clock))
+        model.setPreviewMode(.threeD)
+        XCTAssertTrue(clock.isRunning)
+        clock.advance(by: Self.half)
+        // Stopped by the clock itself, not by the preview.
+        clock.stop()
+
+        model.setPreviewMode(.twoD)
+        XCTAssertTrue(controller.isInTransition)
+        XCTAssertTrue(clock.isRunning, "the next transition starts the clock again")
+        clock.advance(by: PreviewMotion.duration)
+        XCTAssertFalse(controller.isInTransition)
+        XCTAssertEqual(preview.drawList, still(model, preview))
+        XCTAssertFalse(clock.isRunning)
+        withExtendedLifetime(window) {}
+    }
+
     /// The display's clock stops itself with its first frame after what it ticks for, or its
     /// view, is gone; the display link then lets go of it.
     @MainActor

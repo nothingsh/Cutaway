@@ -71,9 +71,6 @@ final class ScreenshotFetcher {
         self.delegate = delegate
     }
 
-    /// Whether a batch is on its way.
-    var isFetching: Bool { !fetches.isEmpty }
-
     private func isUnderWay(_ batch: UInt64) -> Bool {
         fetches.contains { $0.batch == batch }
     }

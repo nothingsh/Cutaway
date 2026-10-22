@@ -30,8 +30,6 @@ final class PreviewProjector {
     /// Keeps the textures of the images drawn and drops the rest.
     private let keepTextures: @MainActor (Set<TextureKey>) -> Void
     private let show: @MainActor (_ list: DrawList, _ isInTransition: Bool) -> Void
-    /// Whether the clock is ticking.
-    private var isTicking = false
     /// Set once the subscriptions are made: the values they first send are where the preview
     /// starts, not changes to show.
     var followsChanges = false
@@ -207,8 +205,8 @@ final class PreviewProjector {
     }
 
     private func startTicking() {
-        guard !isTicking, let clock else { return }
-        isTicking = true
+        // The clock may have stopped on its own, its view gone: it is started again.
+        guard let clock, !clock.isRunning else { return }
         // A projector let go of in a transition, its preview's `viewDidDisappear` never
         // come, stops the clock with its next frame.
         clock.start { [weak self] in
@@ -219,9 +217,8 @@ final class PreviewProjector {
     }
 
     private func stopTicking() {
-        guard isTicking else { return }
-        isTicking = false
-        clock?.stop()
+        guard let clock, clock.isRunning else { return }
+        clock.stop()
     }
 
     /// One frame of the transitions under way. A transition that has reached its end is

@@ -20,7 +20,7 @@ import Foundation
 /// themselves go through `editor`; what an answer means for the attributes held is decided
 /// here.
 @MainActor
-public final class AttributesStore: ObservableObject {
+public final class AttributesStore {
     public enum State: Equatable, Sendable {
         /// No layer is selected.
         case none

@@ -1,8 +1,9 @@
 import Combine
-import CutawayProjects
 import CutawayTestSupport
 import Foundation
 import XCTest
+
+@testable import CutawayProjects
 
 /// C-SRC-01: the folder linked to each app is kept, found again once moved, and read as none
 /// once gone.
@@ -262,5 +263,72 @@ final class ProjectSourcesTests: XCTestCase {
         let index = try XCTUnwrap(sources.indexes["com.example.shop"])
         XCTAssertEqual(Set(index.declarations.keys), ["OnlyInOther"])
         XCTAssertEqual(sources.reports["com.example.shop"], ProjectIndexReport(read: 1))
+    }
+
+    /// The folder deleted while its index is being built, and the index asked for again
+    /// meanwhile: no empty index is published, and the folder reads as missing.
+    func test_C_SRC_02_aFolderDeletedWhileBuildingPublishesNoEmptyIndex() async throws {
+        let (sources, builder) = try await linkedSample()
+        let path = builder.root.path
+        var published: [Int?] = []
+        let watching = sources.$indexes.dropFirst().sink {
+            published.append($0["com.example.shop"]?.declarations.count)
+        }
+        defer { watching.cancel() }
+        try builder.write("Shop/New.swift", "class Added {}")
+        sources.update(bundleID: "com.example.shop")
+        try FileManager.default.removeItem(at: builder.root)
+        sources.update(bundleID: "com.example.shop")
+        await sources.waitForIndex(bundleID: "com.example.shop")
+        XCTAssertFalse(published.contains(0), "published \(published)")
+        XCTAssertNil(sources.indexes["com.example.shop"])
+        XCTAssertEqual(sources.update(bundleID: "com.example.shop"), .missing(path: path))
+    }
+
+    /// The folder renamed while its index is being built, and the index asked for again
+    /// meanwhile: the folder is found again, and indexed where it is now.
+    func test_C_SRC_02_aFolderRenamedWhileBuildingIsFoundAgain() async throws {
+        let (sources, builder) = try await linkedSample()
+        let renamed = builder.root.deletingLastPathComponent().appendingPathComponent("Renamed", isDirectory: true)
+        sources.update(bundleID: "com.example.shop")
+        try FileManager.default.moveItem(at: builder.root, to: renamed)
+        sources.update(bundleID: "com.example.shop")
+        await sources.waitForIndex(bundleID: "com.example.shop")
+        let index = try XCTUnwrap(sources.indexes["com.example.shop"])
+        XCTAssertEqual(index.root.lastPathComponent, "Renamed")
+        XCTAssertNotNil(index.declarations["HomeViewController"])
+    }
+
+    /// A following cancelled on another thread, as when what holds it is released there,
+    /// counts once it reaches the main thread: nothing follows the index any more.
+    func test_C_SRC_02_aFollowingCancelledOnAnotherThreadStopsFollowing() async throws {
+        let sources = ProjectSources(folders: ProjectFolders(defaults: defaults), keptAside: 0)
+        let builder = try ProjectBuilder()
+        self.builder = builder
+        try builder.write("A.swift", "class InA {}")
+        let following = sources.index(for: "a").sink { _ in }
+        sources.link(builder.root, bundleID: "a", appName: "A")
+        await sources.waitForIndex(bundleID: "a")
+        XCTAssertNotNil(sources.indexes["a"])
+
+        Self.cancelOnAnotherThread(following)
+        // What was sent to the main thread arrives.
+        for _ in 0..<100 where sources.indexes["a"] != nil {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        XCTAssertNil(sources.indexes["a"], "followed by nothing, and none kept aside")
+    }
+
+    /// Cancels on a thread of its own while the main thread waits, so that whatever the cancel
+    /// sends to the main thread arrives only after.
+    private static func cancelOnAnotherThread(_ cancellable: AnyCancellable) {
+        nonisolated(unsafe) let cancellable = cancellable
+        let done = DispatchSemaphore(value: 0)
+        let thread = Thread {
+            cancellable.cancel()
+            done.signal()
+        }
+        thread.start()
+        done.wait()
     }
 }
