@@ -191,6 +191,43 @@ final class ReconnectionTests: XCTestCase {
     }
 
     @MainActor
+    func test_C_WIN_04_searchTextThatReachesTheLostInspectionLateCarriesOver() throws {
+        let model = inspecting()
+        let old = try XCTUnwrap(model.inspection(at: Self.first))
+        old.apply(try Fixtures.hierarchy())
+        old.setSearchText("lab")
+
+        model.apply(.lost(Self.first))
+        // The search field's debounce delivers what was typed before the loss only now.
+        old.setSearchText("label")
+        model.apply(.found(Self.later, Self.demo, session()))
+        let new = try XCTUnwrap(model.inspection(at: Self.later))
+        XCTAssertEqual(new.searchText, "label")
+        XCTAssertEqual(new.settings, old.settings)
+    }
+
+    @MainActor
+    func test_C_WIN_04_whatWasShownCarriesOverOnceNothingHoldsTheLostInspection() throws {
+        let model = inspecting()
+        try XCTUnwrap(model.inspection(at: Self.first)).setBorderStyle(.off)
+        model.apply(.lost(Self.first))
+        model.apply(.found(Self.later, Self.demo, session()))
+        XCTAssertFalse(try XCTUnwrap(model.inspection(at: Self.later)).borders.showsBorders)
+    }
+
+    @MainActor
+    func test_C_WIN_03_aNewConnectionOnTheSamePortClosesTheOldInspection() throws {
+        let model = inspecting()
+        let old = try XCTUnwrap(model.inspection(at: Self.first))
+        XCTAssertTrue(old.isOpen)
+        // Found again without having been lost first.
+        model.apply(.found(Self.first, Self.demo, session()))
+        XCTAssertTrue(old.connection.isLost)
+        XCTAssertFalse(old.isOpen, "it asks nothing more of the old connection")
+        XCTAssertFalse(old.mayFetchScreenshots)
+    }
+
+    @MainActor
     func test_C_WIN_04_aViewFittedToAFocusIsNotCarriedOverWithoutIt() throws {
         let model = inspecting()
         let old = try XCTUnwrap(model.inspection(at: Self.first))

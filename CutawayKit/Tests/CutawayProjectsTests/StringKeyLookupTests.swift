@@ -44,6 +44,16 @@ final class StringKeyLookupTests: XCTestCase {
         XCTAssertFalse(matches("from %@ to %@ at %@", "from a at b to c"))
     }
 
+    /// A literal is found only as whole characters, which may be written composed or not.
+    func test_C_SRC_05_aLiteralIsFoundOnlyAsWholeCharacters() {
+        XCTAssertTrue(matches("%@e%@", "aeb"))
+        XCTAssertFalse(matches("%@e%@", "ae\u{301}b"), "an e with a combining accent is another character")
+        XCTAssertTrue(matches("%@e%@", "ae\u{301}eb"))
+        XCTAssertTrue(matches("%@\u{E9}%@", "ae\u{301}b"), "composed and decomposed are the same character")
+        XCTAssertTrue(matches("%@e\u{301}%@", "a\u{E9}b"))
+        XCTAssertFalse(matches("%@a%@", "x\u{1F469}\u{200D}\u{1F469}y"))
+    }
+
     func test_C_SRC_05_templatesOfPlaceholdersAloneAreNotCompared() {
         // They would match any text.
         let lookup = StringKeyLookup([
@@ -135,6 +145,8 @@ final class StringKeyLookupTests: XCTestCase {
         for (key, text) in [
             "%@", "%@ %@", "%d items", "%1$@ owes %2$@", "%@ and %@", "%@%@ left", "Hi %@", "%@ at %@!",
             "x%@", "%@x", "%@ x %@ y %@", "%@ y %@", "100%%", "%@ 100%%", "%lld件", "%@ items",
+            // A literal that is part of a character, composed or decomposed.
+            "%@e%@", "%@\u{E9}%@", "%@e\u{301}%@", "e%@",
         ].enumerated() {
             strings.append(value("extra.\(key)", text))
         }
@@ -142,6 +154,7 @@ final class StringKeyLookupTests: XCTestCase {
         let texts = Self.placeholderFirstTexts(count: 200) + [
             "3 items", "Ann owes Bob", "a and b and c", "ab left", "Hi Ann", "a at b!", "xy", "yx", "a x b y c",
             "a y b", "100%", "x 100%", "3件", "Ann items", "x", " items", "a  at  b!", "",
+            "aeb", "ae\u{301}b", "a\u{E9}b", "e\u{301}x", "ex", "ae\u{301}eb",
         ]
         let compared = strings
             .map { (template: StringTemplate($0.value), match: StringKeyMatch(table: $0.table, key: $0.key)) }

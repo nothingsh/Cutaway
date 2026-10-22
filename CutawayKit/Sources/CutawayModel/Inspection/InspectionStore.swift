@@ -16,7 +16,7 @@ import Foundation
 /// `fetcher` for their screenshots, `saver` captures archives. The store decides what each
 /// answer means for what is shown, and publishes it in an order the interface can follow.
 @MainActor
-public final class InspectionStore: ObservableObject {
+public final class InspectionStore {
     // What the InspectionStore+*.swift files use is internal here only so that they can reach
     // it: the stored state that is not private, and the internal setters of the published
     // properties. It belongs to InspectionStore alone. What is internal for tests says so.
@@ -84,9 +84,10 @@ public final class InspectionStore: ObservableObject {
     /// When this publishes, `isExpanded(_:)` and `selectedLayerID` already describe the new
     /// tree.
     @StoreState public internal(set) var tree: LayerTree = .empty
-    /// Never a layer inside a collapsed node: such a selection moves onto that node, so that
-    /// the selected layer is always a row the list shows. Changed only by `setSelection(_:)`,
-    /// which the attributes follow.
+    /// Never a layer inside a collapsed node while the connection lasts: such a selection moves
+    /// onto that node, so that the selected layer is always a row the list shows. Once the
+    /// connection is gone it stays where it was (`setExpanded(_:_:)`). Changed only by
+    /// `setSelection(_:)`, which the attributes follow.
     @StoreState public private(set) var selectedLayerID: UInt64?
 
     /// The attributes of the selected layer (C-ATTR-01).
@@ -346,14 +347,19 @@ public final class InspectionStore: ObservableObject {
     /// The app went away (C-WIN-03): the interface shows it, and a capture under way failed
     /// because of it, also when it is cancelled by `leave()` before it noticed. `waiting`
     /// when the window waits for the app to come back (C-WIN-04). From then on nothing is
-    /// hovered, the attributes cannot be changed, and the user's intents are not taken
-    /// (`takesIntents`). Told once; an archive is never lost.
+    /// hovered or pointed at, the attributes cannot be changed, and the user's intents are not
+    /// taken (`takesIntents`). Told once; an archive is never lost.
     package func connectionLost(waiting: Bool = false) {
         connectionWasLost = true
         cancelEnvironmentSettle()
         if connection == .live {
             connection = .lost(waiting: waiting)
             publishHover(nil)
+            // What the attribute panel's pointer was on: the panel no longer tells when it
+            // leaves, and the stress would stay.
+            heldConstraints.chip = nil
+            heldConstraints.pointing = nil
+            showConstraintEnds()
             attributes.connectionLost()
         }
         environmentController.connectionLost()
@@ -362,7 +368,8 @@ public final class InspectionStore: ObservableObject {
     /// Whether the user's intents are taken: what they ask of the tree, the preview and the
     /// app. Not once the connection is gone (C-WIN-03): what was shown stays as it was. What
     /// only ends something, as leaving, cancelling a save or dismissing a notice, still goes
-    /// on, and so does text typed into the search before the connection went (C-WIN-04).
+    /// on, and so does text typed into the search before the connection went, which the next
+    /// connection takes over (C-WIN-04).
     var takesIntents: Bool { !connection.isLost }
 
     // MARK: - Publishing the view of the tree

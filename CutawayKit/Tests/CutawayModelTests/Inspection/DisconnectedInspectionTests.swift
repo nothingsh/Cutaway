@@ -155,6 +155,57 @@ final class DisconnectedInspectionTests: XCTestCase {
     }
 
     @MainActor
+    func test_C_WIN_03_collapsingARowOnceDisconnectedLeavesTheSelectionWhereItWas() throws {
+        let model = try model()
+        let tree = model.tree
+        let node = try XCTUnwrap(tree.ids.first {
+            tree.parent(of: $0) != nil && !tree.children(of: $0).isEmpty
+        })
+        let child = try XCTUnwrap(tree.children(of: node).first)
+        model.select(child)
+        model.connectionLost()
+        let attributes = model.attributes.state
+        let selectedForAttributes = model.attributes.selectedID
+        var selections: [UInt64?] = []
+        let subscription = model.$selectedLayerID.dropFirst().sink { selections.append($0) }
+        let layouts = model.geometryBuildCount
+
+        model.setExpanded(node, false)
+        XCTAssertFalse(model.isExpanded(node))
+        XCTAssertEqual(model.geometryBuildCount, layouts + 1, "the preview follows the rows")
+        XCTAssertEqual(model.selectedLayerID, child)
+        XCTAssertEqual(selections, [], "the selection did not move onto the collapsed node")
+        XCTAssertEqual(model.attributes.selectedID, selectedForAttributes)
+        XCTAssertEqual(model.attributes.state, attributes, "no attributes are asked for")
+
+        model.setExpanded(node, true)
+        XCTAssertTrue(model.isExpanded(node))
+        XCTAssertEqual(model.selectedLayerID, child)
+        withExtendedLifetime(subscription) {}
+    }
+
+    @MainActor
+    func test_C_WIN_03_noScreenshotIsAskedForOnceDisconnected() async throws {
+        let session = Session(
+            channel: InertChannel(), client: ClientInfo(name: "Cutaway", version: "0.1.0"))
+        let model = InspectionStore(session: session, newLayers: .expanded)
+        model.enter()
+        // The hierarchy request fails at once on a session that never connected.
+        let loaded = await Wait.until { await !model.isLoading }
+        XCTAssertTrue(loaded)
+        model.apply(try Fixtures.hierarchy())
+        XCTAssertTrue(model.mayFetchScreenshots)
+
+        model.connectionLost()
+        XCTAssertFalse(model.mayFetchScreenshots, "a view still holding it may report rows")
+        let batches = model.batchesStarted
+        model.setExpanded(4, false)
+        model.setVisibleLayers([3])
+        XCTAssertEqual(model.batchesStarted, batches)
+        model.leave()
+    }
+
+    @MainActor
     func test_C_ATTR_04_nothingCanBeChangedOnceDisconnected() throws {
         let model = try model()
         model.attributes.setEditingSupported(true)

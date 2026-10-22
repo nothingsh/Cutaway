@@ -16,8 +16,9 @@ final class HierarchyViewController: NSViewController {
     // and `focus`, and what the outline view's data source and delegate
     // (HierarchyViewController+Outline.swift) read and write: `Item`, `roots`, `filter`,
     // `shownChildren`, `collapsedInside`, the guards `isShowingStore`, `writingExpansion` and
-    // `showingStore`, and the helpers under "From the store to the outline". It belongs to
-    // HierarchyViewController alone. What is internal for tests says so.
+    // `showingStore`, `resizeToRowsSoon()`, and the helpers under "From the store to the
+    // outline". It belongs to HierarchyViewController alone. What is internal for tests says
+    // so.
 
     static let outlineIdentifier = "hierarchy.outline"
     static let statusIdentifier = "hierarchy.status"
@@ -95,8 +96,9 @@ final class HierarchyViewController: NSViewController {
         title: { [weak self] row in
             guard let self, let id = self.layerID(atRow: row) else { return nil }
             return self.tree.displayTitle(of: id)
-        },
-        rowsDidChange: { [weak self] in self?.rowsDidChange() })
+        })
+    /// Set while measuring the rows waits for the user's expansion to be over.
+    private var isRowsChangePending = false
     /// True while the outline is being made to match the store. Its notifications are then
     /// not the user's doing.
     private(set) var isShowingStore = false
@@ -112,10 +114,11 @@ final class HierarchyViewController: NSViewController {
     private var reportedVisible: [UInt64]?
     private var cancellables = Set<AnyCancellable>()
 
-    init(store: InspectionStore, appName: String) {
+    /// `project` is the way to the app's project folder (C-SRC-03), nil for none.
+    init(store: InspectionStore, appName: String, project: ProjectLookup? = nil) {
         self.store = store
         viewModel = HierarchyViewModel(store: store, appName: appName)
-        layerMenu = LayerContextMenu(store: store)
+        layerMenu = LayerContextMenu(store: store, project: project)
         super.init(nibName: nil, bundle: nil)
     }
 
@@ -357,12 +360,32 @@ final class HierarchyViewController: NSViewController {
             .store(in: &cancellables)
     }
 
+    /// The rows came or went: the column is measured again, and then the guides, the rows in
+    /// view and the sticky ones follow.
+    private func resizeToRows() {
+        isRowsChangePending = false
+        columnSizer.sizeToRows()
+        rowsDidChange()
+    }
+
+    /// `resizeToRows()` once the expansion the user made is over: folding a row away notifies
+    /// once for every expanded row inside it, and a scan of the rows for each would make a
+    /// large collapse slow.
+    func resizeToRowsSoon() {
+        guard !isRowsChangePending else { return }
+        isRowsChangePending = true
+        DispatchQueue.main.async { [weak self] in
+            guard let self, self.isRowsChangePending else { return }
+            self.resizeToRows()
+        }
+    }
+
     private func followExpansion() {
         // A change the outline made itself is in place already; a search shows every row
         // expanded whatever the store holds.
         guard !isWritingExpansion, filter == nil else { return }
         followedExpansions += 1
-        defer { columnSizer.sizeToRows() }
+        defer { resizeToRows() }
         showingStore {
             applyExpansion(below: roots)
         }
@@ -535,7 +558,7 @@ final class HierarchyViewController: NSViewController {
         }
         reloadCount += 1
         // The column is as wide as the rows shown need.
-        columnSizer.sizeToRows()
+        resizeToRows()
         showSelection(selected, scroll: selectionWasInView && !(selected.map(isRowInView) ?? true))
         reportVisibleRows()
     }

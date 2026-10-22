@@ -165,20 +165,20 @@ public struct ProjectIndex: Sendable {
 /// What building an index did (C-SRC-02): how many files were read, how many were kept from
 /// the last build as they had not changed, how many were too large to be the app's own or
 /// could not be read, and whether the walk stopped at the most files it takes.
-public struct ProjectIndexReport: Equatable, Sendable {
-    public var read: Int
-    public var reused: Int
+struct ProjectIndexReport: Equatable, Sendable {
+    var read: Int
+    var reused: Int
     /// Larger than the most its kind is read at: most likely generated.
-    public var tooLarge: Int
+    var tooLarge: Int
     /// Could not be opened or parsed.
-    public var unreadable: Int
+    var unreadable: Int
     /// The folder holds more files to index than are taken; those past it were left out.
-    public var reachedFileLimit: Bool
+    var reachedFileLimit: Bool
 
     /// The files left out, too large or unreadable.
-    public var skipped: Int { tooLarge + unreadable }
+    var skipped: Int { tooLarge + unreadable }
 
-    public init(
+    init(
         read: Int = 0, reused: Int = 0, tooLarge: Int = 0, unreadable: Int = 0, reachedFileLimit: Bool = false
     ) {
         self.read = read

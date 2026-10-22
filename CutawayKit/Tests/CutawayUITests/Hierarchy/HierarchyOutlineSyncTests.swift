@@ -38,6 +38,30 @@ final class HierarchyOutlineSyncTests: XCTestCase {
         XCTAssertFalse(HierarchyOutlineSync.sameRows(tree, try LayerTree(hidden)))
     }
 
+    /// A row whose icon changes is not the same row, though its title is: the list and its
+    /// sticky rows would go on showing the old icon.
+    func test_C_HIER_11_treesWhoseIconsDifferGiveOtherRows() throws {
+        let tree = try tree()
+
+        // What the server says of the class: the app's own, so the icon is filled.
+        var origin = try Fixtures.hierarchy()
+        let originIndex = try XCTUnwrap(origin.nodes.firstIndex { $0.id == 8 })
+        origin.nodes[originIndex].layerClassOrigin = .app
+        let originTree = try LayerTree(origin)
+        XCTAssertEqual(originTree.title(of: 8), tree.title(of: 8))
+        XCTAssertNotEqual(LayerIcon(originTree.node(8)), LayerIcon(tree.node(8)))
+        XCTAssertFalse(HierarchyOutlineSync.sameRows(tree, originTree))
+
+        // The base class the server names: another glyph.
+        var base = try Fixtures.hierarchy()
+        let baseIndex = try XCTUnwrap(base.nodes.firstIndex { $0.id == 8 })
+        base.nodes[baseIndex].layerBaseClassName = "CAShapeLayer"
+        let baseTree = try LayerTree(base)
+        XCTAssertEqual(baseTree.title(of: 8), tree.title(of: 8))
+        XCTAssertNotEqual(LayerIcon(baseTree.node(8)), LayerIcon(tree.node(8)))
+        XCTAssertFalse(HierarchyOutlineSync.sameRows(tree, baseTree))
+    }
+
     func test_C_HIER_02_aPartOfTheTreeExpandedAsAWholeIsFound() throws {
         let tree = try tree()
         XCTAssertEqual(

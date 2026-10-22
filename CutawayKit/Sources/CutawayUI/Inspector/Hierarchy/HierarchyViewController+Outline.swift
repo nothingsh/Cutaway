@@ -58,7 +58,7 @@ extension HierarchyViewController: NSOutlineViewDataSource, NSOutlineViewDelegat
     func outlineViewItemDidExpand(_ notification: Notification) {
         guard !isShowingStore else { return }
         // Rows appeared: the column follows them, with a search too.
-        defer { columnSizer.sizeSoon() }
+        defer { resizeToRowsSoon() }
         // With a search, expanding is the list's own business (C-HIER-04).
         guard filter == nil, let item = notification.userInfo?["NSObject"] as? Item
         else { return }
@@ -74,7 +74,7 @@ extension HierarchyViewController: NSOutlineViewDataSource, NSOutlineViewDelegat
     func outlineViewItemDidCollapse(_ notification: Notification) {
         guard !isShowingStore else { return }
         // Rows went away: the column follows them, with a search too.
-        defer { columnSizer.sizeSoon() }
+        defer { resizeToRowsSoon() }
         guard filter == nil, let item = notification.userInfo?["NSObject"] as? Item
         else { return }
         // Collapsing a row collapses every expanded row inside it first, each with its own

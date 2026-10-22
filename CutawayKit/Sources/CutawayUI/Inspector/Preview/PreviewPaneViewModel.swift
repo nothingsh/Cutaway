@@ -27,9 +27,9 @@ final class PreviewPaneViewModel {
     let store: InspectionStore
     let appName: String
 
-    /// Whether the connection is gone (C-WIN-03).
-    var isDisconnected: AnyPublisher<Bool, Never> {
-        store.$connection.map(\.isLost).removeDuplicates().eraseToAnyPublisher()
+    /// False once the connection is gone (C-WIN-03).
+    var isConnected: AnyPublisher<Bool, Never> {
+        store.$connection.map { !$0.isLost }.removeDuplicates().eraseToAnyPublisher()
     }
 
     /// Whether the window waits for the lost app to come back (C-WIN-04).
@@ -51,10 +51,9 @@ final class PreviewPaneViewModel {
     // MARK: - The notice
 
     var notice: AnyPublisher<String?, Never> {
-        Publishers.CombineLatest(store.$notice, isDisconnected)
-            .map { [appName] notice, isDisconnected in
-                isDisconnected ? nil : PreviewPaneText.noticeText(
-                    notice, appName: appName)
+        Publishers.CombineLatest(store.$notice, isConnected)
+            .map { [appName] notice, isConnected in
+                isConnected ? PreviewPaneText.noticeText(notice, appName: appName) : nil
             }
             .removeDuplicates()
             .eraseToAnyPublisher()
@@ -72,9 +71,9 @@ final class PreviewPaneViewModel {
     }
 
     var isLoading: AnyPublisher<Bool, Never> {
-        Publishers.CombineLatest3(store.$loadState, store.$tree, isDisconnected)
-            .map { state, tree, isDisconnected in
-                state == .loading && tree.isEmpty && !isDisconnected
+        Publishers.CombineLatest3(store.$loadState, store.$tree, isConnected)
+            .map { state, tree, isConnected in
+                state == .loading && tree.isEmpty && isConnected
             }
             .removeDuplicates()
             .eraseToAnyPublisher()
@@ -86,23 +85,19 @@ final class PreviewPaneViewModel {
     /// when it is another. None once the connection is gone.
     var tags: AnyPublisher<(selected: LayerSummary?, hovered: LayerSummary?), Never> {
         Publishers.CombineLatest4(
-            store.$hoveredLayerID, store.$selectedLayerID, store.$tree, isDisconnected
+            store.$hoveredLayerID, store.$selectedLayerID, store.$tree, isConnected
         )
-        .map { hovered, selected, tree, isDisconnected in
-            guard !isDisconnected else { return (nil, nil) }
+        .map { hovered, selected, tree, isConnected in
+            guard isConnected else { return (nil, nil) }
             return (LayerSummary(tree, selected), hovered == selected ? nil : LayerSummary(tree, hovered))
         }
         .removeDuplicates { $0.selected == $1.selected && $0.hovered == $1.hovered }
         .eraseToAnyPublisher()
     }
 
-    var isConnected: AnyPublisher<Bool, Never> {
-        isDisconnected.map { !$0 }.eraseToAnyPublisher()
-    }
-
     var spacingIsEnabled: AnyPublisher<Bool, Never> {
-        Publishers.CombineLatest(store.$previewMode, isDisconnected)
-            .map { mode, disconnected in mode == .threeD && !disconnected }
+        Publishers.CombineLatest(store.$previewMode, isConnected)
+            .map { mode, isConnected in mode == .threeD && isConnected }
             .eraseToAnyPublisher()
     }
 

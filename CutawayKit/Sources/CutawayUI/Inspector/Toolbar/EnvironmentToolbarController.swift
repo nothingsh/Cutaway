@@ -25,16 +25,11 @@ final class EnvironmentToolbarController: NSObject {
         super.init()
     }
 
-    /// The button follows the app's environment and the archive being saved.
+    /// The button follows the app's environment. While an archive is saved it stays available:
+    /// the popover shows the environment and turns its controls off itself.
     func follow() {
         store.$environment
             .sink { [weak self] state in self?.show(state) }
-            .store(in: &cancellables)
-        store.$archiveSave
-            .sink { [weak self] _ in
-                guard let self else { return }
-                self.button?.isEnabled = self.canShow(self.store.environment)
-            }
             .store(in: &cancellables)
     }
 

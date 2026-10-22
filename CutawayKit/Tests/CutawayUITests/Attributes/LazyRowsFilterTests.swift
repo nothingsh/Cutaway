@@ -55,11 +55,14 @@ final class LazyRowsFilterTests: XCTestCase {
             + (4..<(LazyRowsView.pageSize + 5)).map { single("Drop \($0)") }
 
     private var made: [Weak] = []
+    /// How many rows were made for each title.
+    private var makes: [String: Int] = [:]
 
     private func makeLazy() -> (LazyRowsView, NSView) {
         let lazy = LazyRowsView(items: Self.items) { [weak self] item in
             let row = MadeRow(item)
             self?.made.append(Weak(row))
+            self?.makes[row.title, default: 0] += 1
             return row
         }
         let document = NSView(frame: NSRect(x: 0, y: 0, width: 300, height: 4_000))
@@ -111,5 +114,22 @@ final class LazyRowsFilterTests: XCTestCase {
             XCTAssertEqual(lazy.items, [Self.items[0]])
         }
         XCTAssertEqual(made.compactMap(\.row).map(\.title), [], "no compound row listed: none kept")
+    }
+
+    /// New values and the same filter again ask the compound rows on show what they say, and
+    /// do not make them again to ask.
+    func test_C_SCALE_03_aCompoundRowOnShowIsNotMadeAgainForTheFilter() {
+        let (lazy, document) = makeLazy()
+        lazy.apply(filter: "keep")
+        arrangeAll(lazy, in: document)
+        XCTAssertEqual(lazy.built.count, 2)
+        XCTAssertEqual(makes["Keep A"], 1)
+
+        lazy.replaceValues(Self.items)
+        lazy.apply(filter: "keep")
+        XCTAssertEqual(lazy.items, [Self.items[1], Self.items[3]])
+        XCTAssertEqual(lazy.built.count, 2, "the pages stay built")
+        XCTAssertEqual(makes["Keep A"], 1)
+        XCTAssertEqual(makes["Keep B"], 1)
     }
 }

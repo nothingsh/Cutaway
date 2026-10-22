@@ -61,8 +61,9 @@ public final class InspectorWindowController: NSWindowController {
     /// Called when an archive was saved from this window, with its place.
     var onArchiveSaved: (URL) -> Void = { _ in }
     /// Asks where to save an archive, suggesting a name without the extension, and calls back
-    /// with the place chosen; not at all when the user cancels (C-ARCH-02). The app's tests
-    /// put a place of their own.
+    /// with the place chosen; not at all when the user cancels (C-ARCH-02). For the app's
+    /// tests, which cannot reach `fileActions`, to put a place of their own; the package's
+    /// tests set `fileActions` directly.
     public var chooseArchiveDestination: @MainActor (NSWindow, String, @escaping (URL) -> Void) -> Void {
         get { fileActions.chooseArchiveDestination }
         set { fileActions.chooseArchiveDestination = newValue }

@@ -8,9 +8,9 @@ import Foundation
 /// module. A declaration counts when its own name is the same and the types it is inside are
 /// those parts, with or without the first. An Objective-C class's `@interface` is preferred to
 /// its `@implementation`.
-public enum ClassDeclarationLookup {
+enum ClassDeclarationLookup {
     /// The type's own name and the parts before it, or nil when nothing is left of the name.
-    public static func parts(of displayName: String) -> (name: String, qualifiers: [String])? {
+    static func parts(of displayName: String) -> (name: String, qualifiers: [String])? {
         var kept = ""
         var angle = 0
         var round = 0
@@ -31,7 +31,7 @@ public enum ClassDeclarationLookup {
     }
 
     /// The declarations of the class, by file and then line.
-    public static func declarations(of displayName: String, in index: ProjectIndex) -> [TypeDeclaration] {
+    static func declarations(of displayName: String, in index: ProjectIndex) -> [TypeDeclaration] {
         guard let (name, qualifiers) = parts(of: displayName),
               let candidates = index.declarations[name]
         else { return [] }

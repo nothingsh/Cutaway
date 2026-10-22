@@ -3,27 +3,8 @@ import CutawayWire
 
 /// The rows of the attribute panel: an attribute's own, or a compound one (C-ATTR-19).
 extension AttributesViewController {
-    /// The rows of a part's items, kept in `attributeRows`, `attributeCells` and
-    /// `compoundRows` in the order they are made.
-    func rows(_ items: [AttributeClusters.Item]) -> [any AttributeListRow] {
-        items.map { item -> any AttributeListRow in
-            switch item {
-            case .single(let attribute):
-                let row = makeRow(attribute)
-                attributeRows.append((attribute, row))
-                attributeCells.append((attribute, row))
-                return row
-            case .cluster(let cluster):
-                let row = makeCompound(cluster)
-                compoundRows.append(row)
-                attributeCells += row.cells
-                return row
-            }
-        }
-    }
-
-    /// The row of one item, not kept anywhere: for a part built page by page (C-SCALE-03),
-    /// whose rows the panel lists from the pages built.
+    /// The row of one item, not kept anywhere: the panel lists the rows it shows
+    /// (`ShownAttributeRows`) once they are built.
     func makeListRow(_ item: AttributeClusters.Item) -> any AttributeListRow {
         switch item {
         case .single(let attribute): makeRow(attribute)

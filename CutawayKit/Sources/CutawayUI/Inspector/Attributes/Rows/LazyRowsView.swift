@@ -111,7 +111,18 @@ final class LazyRowsView: NSView {
     /// The places in `allItems` of the items `filter` keeps, in their order.
     private func kept(for filter: String?) -> [Int] {
         guard let filter else { return Array(allItems.indices) }
-        return allItems.indices.filter { matches(allItems[$0], at: $0, filter) }
+        let built = builtRows()
+        return allItems.indices.filter { matches(allItems[$0], at: $0, filter, built: built) }
+    }
+
+    /// The rows of the pages built, by their item's place in `allItems`.
+    private func builtRows() -> [Int: any AttributeListRow] {
+        var rows: [Int: any AttributeListRow] = [:]
+        for page in pages {
+            guard let built = page.rows else { continue }
+            for (index, row) in zip(page.range, built) { rows[positions[index]] = row }
+        }
+        return rows
     }
 
     /// Lists the items at `kept`, and lets go of the rows made for items no longer listed:
@@ -124,14 +135,19 @@ final class LazyRowsView: NSView {
     }
 
     /// Whether the filter keeps an item, as its row would say (C-ATTR-14): an attribute's
-    /// row by its title and ID; a compound row by what it says, which only the row knows.
-    private func matches(_ item: AttributeClusters.Item, at index: Int, _ filter: String) -> Bool {
+    /// row by its title and ID; a compound row by what it says, which only the row knows: the
+    /// one on show if its page is built, or one made to ask.
+    private func matches(
+        _ item: AttributeClusters.Item, at index: Int, _ filter: String,
+        built: [Int: any AttributeListRow]
+    ) -> Bool {
         switch item {
         case .single(let attribute):
             return AttributesViewModel
                 .match(of: filter, in: AttributeText.title(attribute.title, id: attribute.id)) != nil
                 || attribute.id.map { AttributesViewModel.match(of: filter, in: $0) != nil } == true
         case .cluster:
+            if let row = built[index] { return row.matches(filter) }
             let row = madeForMatching[index] ?? make(item)
             madeForMatching[index] = row
             return row.matches(filter)
@@ -199,9 +215,6 @@ final class LazyRowsView: NSView {
             page.rows == nil && page.holder.convert(page.holder.bounds, to: document).intersects(rect)
         }.count
     }
-
-    /// How many pages there are, and how many are built. For tests.
-    var pageCounts: (all: Int, built: Int) { (pages.count, pages.filter { $0.rows != nil }.count) }
 
     /// The frame, in `document`'s coordinates, of the first page built that is in `rect`; what
     /// the list keeps in place while pages change around it.

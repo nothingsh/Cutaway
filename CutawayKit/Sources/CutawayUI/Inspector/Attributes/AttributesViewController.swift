@@ -49,7 +49,7 @@ final class AttributesViewController: NSViewController {
     private(set) var sectionViews: [AttributeGroupView] = []
     /// The sections folded away, by kind, kept while the panel lives; Object starts folded
     /// (C-ATTR-10, C-ATTR-15).
-    var collapsed: Set<String> = [AttributesViewModel.Listing.Kind.object.rawValue]
+    private(set) var collapsed: Set<String> = [AttributesViewModel.Listing.Kind.object.rawValue]
     /// The top of the Object section.
     private(set) var identityView: IdentityLinesView
     /// The constraints shown, or nil when the Layout section has none.
@@ -63,26 +63,16 @@ final class AttributesViewController: NSViewController {
     private var addressCount = 0
     /// The shape of what is listed: rebuilt when it changes, updated in place when not.
     private var shownShape: AttributesViewModel.Shape?
+    /// The rows shown, by what they show: what is updated in place (C-ATTR-06).
+    private var shownRows = ShownAttributeRows()
     /// Each attribute's own row with the attribute it shows, in the order of the list.
-    /// Set only as the rows are made (`AttributesViewController+Rows.swift`).
-    var attributeRows: [(attribute: Attribute, row: AttributeRowView)] = []
+    var attributeRows: [(attribute: Attribute, row: AttributeRowView)] { shownRows.rows }
     /// What shows each attribute, its own row or a part of a compound row (C-ATTR-19), in
-    /// the order of `Listing.attributes`: what is updated in place (C-ATTR-06).
-    var attributeCells: [(attribute: Attribute, cell: any AttributeCell)] = []
+    /// the order of `Listing.attributes`.
+    var attributeCells: [(attribute: Attribute, cell: any AttributeCell)] { shownRows.cells }
     /// The compound rows, in the order of the list.
-    var compoundRows: [CompoundRowView] = []
-    /// Set while pages are built and taken down, which scrolls the list (C-SCALE-03).
-    var isArrangingPages = false
-    /// Set while the pages are to be arranged on the next turn of the run loop.
-    var isPageArrangementDue = false
+    var compoundRows: [CompoundRowView] { shownRows.compounds }
 
-    /// The filter (C-ATTR-14): kept while the panel lives, whatever is selected, refreshed or
-    /// changed; nil when it keeps everything.
-    var filter: String?
-    /// How many attributes the filter keeps of how many, or nil without a filter.
-    var filterCounts: (shown: Int, total: Int)?
-    /// The section whose header stays at the top of the list, if any (C-ATTR-15).
-    var stickySection: (any FoldingSection)?
     private let message = CurrentValueSubject<AttributesViewModel.Message?, Never>(nil)
     /// True while a request runs and nothing is shown yet, below the header.
     private let isWaiting = CurrentValueSubject<Bool, Never>(false)
@@ -92,42 +82,45 @@ final class AttributesViewController: NSViewController {
     private var listedLayerID: UInt64?
     private var selectedLayerID: UInt64?
     private var pendingLoading: DispatchWorkItem?
-    /// Points again at what is under the pointer, once the list is still. Internal only so
-    /// that AttributesViewController+Folding.swift can reach it.
-    var pointerResume: DispatchWorkItem?
-    // `list`, `separators`, `stickyBar`, `filter`, `filterCounts` and `stickySection` are
-    // internal only so that AttributesViewController+Folding.swift can reach them.
     let list = VScroll(alignment: .fill, spacing: 0) {}
     /// The sections, each after a line that shows when a section above it does.
     private let sections = VStack(alignment: .fill, spacing: 0) {}
-    var separators: [(line: NSView, section: NSView)] = []
-    private(set) lazy var filterField: NSSearchField = FilterSearchField().configure {
-        $0.sendsSearchStringImmediately = true
-        $0.placeholderString = localized("attributes.filter.placeholder")
-        // Each change of the text as it is typed; the action, for Esc and the clear button.
-        $0.delegate = self
-        $0.target = self
-        $0.action = #selector(filterChanged(_:))
-    }
+    private var separators: [(line: NSView, section: NSView)] = []
 
-    private(set) lazy var countLabel = NSTextField(labelWithString: "")
-    private(set) lazy var noMatchLabel = NSTextField(wrappingLabelWithString: "").isSelectable(false)
-    private(set) lazy var stickyHeader: SectionHeader = .init().configure {
-        $0.target = self
-        $0.action = #selector(toggleSticky(_:))
-    }
+    /// The filter, the header that stays at the top of the list and the pointer while the
+    /// list scrolls (C-ATTR-14, C-ATTR-15).
+    private lazy var chrome = AttributesListChrome(
+        list: list, sections: { [weak self] in self?.allSections ?? [] },
+        filterDidChange: { [weak self] in
+            self?.applyFilter()
+            self?.scrollToTop()
+        },
+        pausePointer: { [weak self] in
+            self?.constraintsView?.pauseForScrolling()
+            for (_, row) in self?.attributeRows ?? [] { row.references?.point(at: nil) }
+        },
+        resumePointer: { [weak self] in self?.constraintsView?.pointerMayHaveMoved() })
+
+    /// The pages of a layer with very many attributes (C-SCALE-03).
+    private lazy var pages = AttributePageArranger(
+        list: list, parts: { [weak self] in self?.lazyParts ?? [] },
+        isPinned: { [weak self] row in self?.isPinned(row) ?? false },
+        rowsDidChange: { [weak self] in
+            self?.listBuiltRows()
+            self?.showRowStates()
+        },
+        didArrangeLater: { [weak self] in self?.chrome.updateSticky() },
+        layout: { [weak self] in self?.view.layoutSubtreeIfNeeded() })
+
+    /// The filter's field. For tests.
+    var filterField: NSSearchField { chrome.filterField }
+    /// How many attributes the filter keeps of how many, or nil without a filter. For tests.
+    var filterCounts: (shown: Int, total: Int)? { chrome.filterCounts }
 
     /// The selected layer's ancestors, under its name (C-ATTR-16).
     private(set) lazy var ancestorsBar: AncestorsBar = .init().configure {
         $0.onHover = { [weak self] id in self?.actions.hoverLayer(id) }
         $0.onSelect = { [weak self] id in self?.actions.showLayer(id) }
-    }
-
-    /// The header that stays at the top, on the same backdrop as the panel (`backdrop()`),
-    /// so that it is of a piece with the list under it (reported by the user: the sidebar's
-    /// material let much more of the desktop through than the panel does).
-    lazy var stickyBar: NSVisualEffectView = Self.backdrop().configure {
-        $0.isHidden = true
     }
 
     private var cancellables = Set<AnyCancellable>()
@@ -156,7 +149,7 @@ final class AttributesViewController: NSViewController {
         list.autohidesScrollers = true
         list.stack.padding(top: 0, leading: 0, bottom: Theme.Spacing.medium, trailing: 0)
         list.stack.addArrangedSubview(sections)
-        list.stack.addArrangedSubview(makeFilterResults())
+        list.stack.addArrangedSubview(chrome.makeFilterResults())
 
         // One summary for each change, shared by all that follow it: it walks the tree and looks
         // the classes up in the project's index. Each that subscribes later gets the current one.
@@ -183,7 +176,7 @@ final class AttributesViewController: NSViewController {
         }
         view = root
         header.setContentHuggingPriority(.required, for: .vertical)
-        addStickyBar(over: list, in: root)
+        chrome.installStickyBar(in: root)
         rebuild(AttributesViewModel.listing(of: []))
         follow(layer: layer)
     }
@@ -225,15 +218,13 @@ final class AttributesViewController: NSViewController {
             // The icons of the ancestors line up with the selected layer's.
             VStack(alignment: .fill) {
                 ancestorsBar
-                    .bind(\.isEnabled, to: viewModel.isLive)
+                    .bind(\.isEnabled, to: viewModel.isConnected)
             }
             .padding(top: 0, leading: Theme.Spacing.large - 5, bottom: Theme.Spacing.small,
                      trailing: Theme.Spacing.medium)
             .bind(\.isHidden, to: layer.map { $0?.ancestors.isEmpty ?? true })
             VStack(alignment: .fill) {
-                Self.filterBox(around: filterField
-                    .compressionResistancePriority(Theme.textGivesWay, for: .horizontal)
-                    .accessibilityIdentifier(Self.filterIdentifier))
+                chrome.makeFilterBox()
             }
             .padding(top: 0, leading: Theme.Spacing.medium, bottom: Theme.Spacing.small,
                      trailing: Theme.Spacing.medium)
@@ -241,49 +232,6 @@ final class AttributesViewController: NSViewController {
         }
         .accessibilityIdentifier(Self.headerIdentifier)
         .bind(\.isHidden, to: layer.map { $0 == nil })
-    }
-
-    /// What follows the sections while a filter is on: how many attributes it keeps, or that
-    /// it keeps none (C-ATTR-14).
-    private func makeFilterResults() -> NSView {
-        VStack(alignment: .fill, spacing: 0) {
-            VStack(alignment: .center) {
-                noMatchLabel
-                    .font(Theme.Font.body)
-                    .textColor(.secondaryLabelColor)
-                    .alignment(.center)
-                    .accessibilityIdentifier(Self.noMatchIdentifier)
-            }
-            .padding(horizontal: Theme.Spacing.large, vertical: 28)
-            VStack(alignment: .leading) {
-                countLabel
-                    .font(Theme.Font.caption)
-                    .textColor(.tertiaryLabelColor)
-                    .accessibilityIdentifier(Self.filterCountIdentifier)
-            }
-            .padding(top: Theme.Spacing.small, leading: Theme.Spacing.large, bottom: 0,
-                     trailing: Theme.Spacing.large)
-        }
-    }
-
-    /// The bar over the top of the list that holds the header of the section scrolled under it
-    /// (C-ATTR-15).
-    private func addStickyBar(over list: NSView, in root: NSView) {
-        stickyBar.addVStack(alignment: .fill, spacing: 0) {
-            VStack(alignment: .fill) {
-                stickyHeader
-                    .accessibilityIdentifier(Self.stickyIdentifier)
-            }
-            .padding(top: 8, leading: Theme.Spacing.large, bottom: 6, trailing: Theme.Spacing.medium)
-            NSBox().configure { $0.boxType = .separator }
-        }
-        stickyBar.translatesAutoresizingMaskIntoConstraints = false
-        root.addSubview(stickyBar)
-        NSLayoutConstraint.activate([
-            stickyBar.topAnchor.constraint(equalTo: list.topAnchor),
-            stickyBar.leadingAnchor.constraint(equalTo: list.leadingAnchor),
-            stickyBar.trailingAnchor.constraint(equalTo: list.trailingAnchor),
-        ])
     }
 
     /// The message in place of the list: loading, nothing selected, a failure.
@@ -383,9 +331,9 @@ final class AttributesViewController: NSViewController {
 
         list.documentVisibleRectPublisher
             .sink { [weak self] _ in
-                self?.arrangePagesSoon()
-                self?.updateSticky()
-                self?.pauseThePointerWhileScrolling()
+                self?.pages.arrangeSoon()
+                self?.chrome.updateSticky()
+                self?.chrome.pauseThePointerWhileScrolling()
             }
             .store(in: &cancellables)
 
@@ -445,7 +393,7 @@ final class AttributesViewController: NSViewController {
             DispatchQueue.main.asyncAfter(deadline: .now() + loadingDelay, execute: work)
             list.isHidden = true
             isWaiting.send(true)
-            updateSticky()
+            chrome.updateSticky()
             return
         }
         isWaiting.send(false)
@@ -467,8 +415,8 @@ final class AttributesViewController: NSViewController {
         list.isHidden = shown != nil
         // The pages near the top, now that the list shows (C-SCALE-03).
         if !lazyParts.isEmpty { view.layoutSubtreeIfNeeded() }
-        arrangePages()
-        updateSticky()
+        pages.arrange()
+        chrome.updateSticky()
     }
 
     /// Shows the constraints, or none, at the end of the Layout section. Built again only when
@@ -522,12 +470,7 @@ final class AttributesViewController: NSViewController {
                 showObjectSummary()
                 return
             }
-            attributeCells = zip(listing.attributes, attributeCells.map(\.cell)).map {
-                (attribute: $0, cell: $1)
-            }
-            attributeRows = attributeCells.compactMap { attribute, cell in
-                (cell as? AttributeRowView).map { (attribute: attribute, row: $0) }
-            }
+            shownRows.show(listing.attributes)
             showRowStates()
             showObjectSummary()
             return
@@ -544,10 +487,8 @@ final class AttributesViewController: NSViewController {
     /// section is there for its attributes or the constraints, the Object section always.
     private func rebuild(_ listing: AttributesViewModel.Listing) {
         shownListing = listing
-        attributeRows = []
-        attributeCells = []
-        compoundRows = []
-        let byPage = Self.isBuiltByPage(listing)
+        var built: [(item: AttributeClusters.Item, row: any AttributeListRow)] = []
+        let byPage = AttributePageArranger.isBuiltByPage(listing)
         sectionViews = AttributesViewModel.Listing.Kind.allCases.compactMap { kind in
             let section = listing.section(kind)
             switch kind {
@@ -563,12 +504,15 @@ final class AttributesViewController: NSViewController {
                 let heading = kind == .app || (kind == .content && index > 0)
                     ? AttributeText.title(part.groupTitle, id: part.groupID) : nil
                 // Very many: page by page as the list comes near them (C-SCALE-03).
-                return byPage
-                    ? pagedPart(part.listed, heading: heading)
-                    : AttributeGroupView.Part(heading: heading, rows: rows(part.listed))
+                if byPage { return pagedPart(part.listed, heading: heading) }
+                let rows = part.listed.map(makeListRow)
+                built += zip(part.listed, rows).map { (item: $0, row: $1) }
+                return AttributeGroupView.Part(heading: heading, rows: rows)
             }
             return sectionView(kind, first: section?.parts.first, parts: parts)
         }
+        // The pages built page by page have no rows yet.
+        shownRows = ShownAttributeRows(built)
         layoutSection?.setConstraints(constraintsView)
         showObjectSummary()
         arrange()
@@ -624,7 +568,7 @@ final class AttributesViewController: NSViewController {
     }
 
     /// Every section in the order of the list.
-    var allSections: [any FoldingSection] { sectionViews }
+    private var allSections: [any FoldingSection] { sectionViews }
 
     /// Puts the sections into the list, each after a line of its own. The lines are made
     /// again each time: one kept and shown again narrowed the inspector to its least width.
@@ -640,5 +584,64 @@ final class AttributesViewController: NSViewController {
             return (line, section)
         }
         applyFilter()
+    }
+
+    // MARK: - Folding (C-ATTR-15)
+
+    private func fold(_ key: String, _ isCollapsed: Bool) {
+        if isCollapsed { collapsed.insert(key) } else { collapsed.remove(key) }
+        updateStickyAfterLayout()
+    }
+
+    /// Folds or unfolds every section, as Option and a click on any header do.
+    private func foldAll(_ isCollapsed: Bool) {
+        for section in sectionViews {
+            section.setCollapsed(isCollapsed)
+            if isCollapsed { collapsed.insert(section.foldKey) } else { collapsed.remove(section.foldKey) }
+        }
+        updateStickyAfterLayout()
+    }
+
+    // MARK: - Filtering (C-ATTR-14)
+
+    /// Keeps the rows whose titles or IDs hold `text`, from the top of the list.
+    func setFilter(_ text: String) {
+        chrome.setFilter(text)
+    }
+
+    /// Shows the sections, rows and lines the filter keeps.
+    private func applyFilter() {
+        guard isViewLoaded else { return }
+        chrome.apply(to: sectionViews, separators: separators)
+        // The pages the filter made again have no rows yet (C-SCALE-03).
+        if !lazyParts.isEmpty { listBuiltRows() }
+        updateStickyAfterLayout()
+    }
+
+    private func updateStickyAfterLayout() {
+        guard isViewLoaded else { return }
+        view.layoutSubtreeIfNeeded()
+        pages.arrange()
+        chrome.updateSticky()
+    }
+
+    // MARK: - Pages (C-SCALE-03)
+
+    /// Builds the pages near what the list shows. For tests.
+    func arrangePages() {
+        pages.arrange()
+    }
+
+    /// The rows the panel keeps, from the pages built now.
+    private func listBuiltRows() {
+        shownRows = ShownAttributeRows(lazyParts.flatMap(\.built))
+    }
+
+    /// New values for the same attributes (C-ATTR-06): the pages keep their rows, which take
+    /// the new values with the rest.
+    private func replaceValues(_ listing: AttributesViewModel.Listing) {
+        let parts = AttributesViewModel.Listing.Kind.allCases.flatMap { listing.section($0)?.parts ?? [] }
+        for (lazy, part) in zip(lazyParts, parts) { lazy.replaceValues(part.listed) }
+        listBuiltRows()
     }
 }
