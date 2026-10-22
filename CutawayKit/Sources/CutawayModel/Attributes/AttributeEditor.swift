@@ -72,6 +72,8 @@ final class AttributeEditor {
     private var isAppActive = true
     /// Set while an archive is saved: no changes meanwhile (C-ARCH-02).
     private var isSuspended = false
+    /// Set once the connection is gone: no changes from then on (C-WIN-03).
+    private var isDisconnected = false
     private var changes: [AttributeKey: Change] = [:]
     /// The steps the undo manager has actions for. It does not keep its targets.
     private var steps: [EditStep] = []
@@ -88,9 +90,9 @@ final class AttributeEditor {
     }
 
     /// Whether attributes may be changed: the source is an app (C-ATTR-04), the app is active
-    /// (P-APP-01), and no archive is being saved (C-ARCH-02).
+    /// (P-APP-01), no archive is being saved (C-ARCH-02), and the connection holds (C-WIN-03).
     var canEdit: Bool {
-        editingSupported && isAppActive && !isSuspended
+        editingSupported && isAppActive && !isSuspended && !isDisconnected
     }
 
     func setSupported(_ supported: Bool) {
@@ -103,6 +105,10 @@ final class AttributeEditor {
 
     func setSuspended(_ suspended: Bool) {
         isSuspended = suspended
+    }
+
+    func connectionLost() {
+        isDisconnected = true
     }
 
     /// Whether one of the layer's attributes is being changed.

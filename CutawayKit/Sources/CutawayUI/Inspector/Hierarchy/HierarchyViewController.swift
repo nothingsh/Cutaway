@@ -12,7 +12,7 @@ import DeclarativeCombine
 /// back.
 final class HierarchyViewController: NSViewController {
     // What the HierarchyViewController+*.swift files use is internal here only so that they
-    // can reach it: `store`, `viewModel`, the column's sizing state, the getters of `tree`
+    // can reach it: `store`, `viewModel`, `columnSizer`, the getters of `tree`
     // and `focus`, and what the outline view's data source and delegate
     // (HierarchyViewController+Outline.swift) read and write: `Item`, `roots`, `filter`,
     // `shownChildren`, `collapsedInside`, the guards `isShowingStore`, `writingExpansion` and
@@ -65,22 +65,10 @@ final class HierarchyViewController: NSViewController {
         $0.sendsWholeSearchString = false
     }
 
-    /// How long, in seconds, typing in the search field must pause before its text reaches
-    /// the store (C-HIER-04): a word typed quickly filters the whole tree once, not once a
-    /// letter. Clearing the field and pressing Return do not wait.
-    nonisolated static let searchDelay: TimeInterval = 0.15
-
-    /// A text of the search field on its way to the store, and whether it goes at once. No
-    /// text drops the one still waiting and sends nothing.
-    private struct SearchEdit {
-        let text: String?
-        let isImmediate: Bool
+    /// The search field's text on its way to the store, typing held back (C-HIER-04).
+    private lazy var searchInput = DebouncedSearchInput { [weak self] text in
+        self?.store.setSearchText(text)
     }
-
-    /// What the search field sends. A newer edit replaces one still waiting.
-    private let searchEdits = PassthroughSubject<SearchEdit, Never>()
-    /// The typed text still waiting for its pause, if any.
-    private var waitingSearchText: String?
 
     // MARK: - State
 
@@ -91,8 +79,9 @@ final class HierarchyViewController: NSViewController {
     /// Whether the pointer is on a row (a sticky one too), each time it moves: ⌥ there
     /// measures the row's layer in the preview (C-PREV-10).
     var onPointerOverRow: ((Bool) -> Void)?
-    /// What the outline shows, as the store last published it. Inside a subscription the
-    /// store may already hold newer values.
+    /// What the outline shows: the rows it last loaded, which its data source reads and the
+    /// store's next rows are compared with. The store may already hold newer ones, published
+    /// before it announces the rows.
     private(set) var tree = LayerTree.empty
     private(set) var filter: HierarchyFilter?
     private(set) var focus: UInt64?
@@ -100,12 +89,14 @@ final class HierarchyViewController: NSViewController {
     /// search, only those it leaves.
     private(set) var roots: [UInt64] = []
     private var items: [UInt64: Item] = [:]
-    /// How wide each title is when shown in full. Class names repeat a lot.
-    var titleWidths: [String: CGFloat] = [:]
-    /// The column's width that every title of the tree needs.
-    var titlesWidth: CGFloat = 0
-    /// Set while a sizing of the column waits for the user's expansion to be over.
-    var isColumnSizingPending = false
+    /// The column's width, as the rows shown need.
+    private(set) lazy var columnSizer = HierarchyColumnSizer(
+        outlineView: outlineView,
+        title: { [weak self] row in
+            guard let self, let id = self.layerID(atRow: row) else { return nil }
+            return self.tree.displayTitle(of: id)
+        },
+        rowsDidChange: { [weak self] in self?.rowsDidChange() })
     /// True while the outline is being made to match the store. Its notifications are then
     /// not the user's doing.
     private(set) var isShowingStore = false
@@ -117,11 +108,6 @@ final class HierarchyViewController: NSViewController {
     /// Rows the outline view collapsed for good inside a row that is being collapsed with ⌥,
     /// waiting for that row's own notification, which comes last.
     var collapsedInside: [UInt64] = []
-    /// The selected and the hovered layer as the store last published them: inside its
-    /// subscriptions the store still holds the old ones. What the rows' guides, hover and the
-    /// sticky rows show.
-    var shownSelection: UInt64?
-    var shownHover: UInt64?
     /// The rows in view as last reported to the store; nil before the first report.
     private var reportedVisible: [UInt64]?
     private var cancellables = Set<AnyCancellable>()
@@ -140,7 +126,7 @@ final class HierarchyViewController: NSViewController {
 
     override func viewWillDisappear() {
         super.viewWillDisappear()
-        sendWaitingSearch()
+        searchInput.flush()
     }
 
     override func loadView() {
@@ -170,7 +156,7 @@ final class HierarchyViewController: NSViewController {
         let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("layer"))
         outlineView.addTableColumn(column)
         outlineView.outlineTableColumn = column
-        // The column is as wide as the rows shown need (see sizeColumnToRows), not as wide as
+        // The column is as wide as the rows shown need (see HierarchyColumnSizer), not as wide as
         // the list, and the outline view does not second-guess that.
         outlineView.columnAutoresizingStyle = .noColumnAutoresizing
         outlineView.autoresizesOutlineColumn = false
@@ -213,7 +199,7 @@ final class HierarchyViewController: NSViewController {
                 for: NSView.frameDidChangeNotification, object: clip))
             .sink { [weak self] _ in
                 MainActor.assumeIsolated {
-                    self?.fitColumn()
+                    self?.columnSizer.fit()
                     self?.reportVisibleRows()
                     self?.updateSticky()
                     self?.outlineView.pointerMayHaveMoved()
@@ -236,14 +222,7 @@ final class HierarchyViewController: NSViewController {
                         // types would move the insertion point to the end.
                         guard field.stringValue != text else { return }
                         field.stringValue = text
-                        // The store's text, set elsewhere, wins over typing still waiting;
-                        // it is the store's already, so nothing goes back to it.
-                        self?.waitingSearchText = nil
-                        self?.searchEdits.send(SearchEdit(text: nil, isImmediate: true))
-                    }
-                    .onReceive(Self.delayedTyping(searchEdits)) { [weak self] _, text in
-                        self?.waitingSearchText = nil
-                        self?.store.setSearchText(text)
+                        self?.searchInput.drop()
                     }
                     .sink(\.actionPublisher) { [weak self] in self?.searchWasEdited(returned: false) }
                     .sink(\.returnPublisher) { [weak self] in self?.searchWasEdited(returned: true) }
@@ -353,7 +332,6 @@ final class HierarchyViewController: NSViewController {
         store.$selectedLayerID
             .removeDuplicates()
             .sink { [weak self] id in
-                self?.shownSelection = id
                 self?.showSelection(id, scroll: true)
                 self?.followSideways(id)
                 self?.decorateRows()
@@ -362,10 +340,7 @@ final class HierarchyViewController: NSViewController {
         // The hover, from the list or the preview (C-HIER-15).
         store.$hoveredLayerID
             .removeDuplicates()
-            .sink { [weak self] id in
-                self?.shownHover = id
-                self?.decorateRows()
-            }
+            .sink { [weak self] _ in self?.decorateRows() }
             .store(in: &cancellables)
         // Expansion the store makes on its own: expanding to a level, revealing a row,
         // focusing (C-HIER-06). The outline follows it without reloading.
@@ -373,7 +348,8 @@ final class HierarchyViewController: NSViewController {
             .dropFirst()
             .sink { [weak self] _ in self?.followExpansion() }
             .store(in: &cancellables)
-        // The connection is gone: nothing on the list can be changed any more (C-WIN-03).
+        // The connection is gone: the list shows that it takes no clicks any more; the store
+        // takes none (C-WIN-03).
         store.$connection
             .sink { [weak self] connection in
                 if connection.isLost { self?.outlineView.isEnabled = false }
@@ -386,7 +362,7 @@ final class HierarchyViewController: NSViewController {
         // expanded whatever the store holds.
         guard !isWritingExpansion, filter == nil else { return }
         followedExpansions += 1
-        defer { sizeColumnToRows() }
+        defer { columnSizer.sizeToRows() }
         showingStore {
             applyExpansion(below: roots)
         }
@@ -450,37 +426,7 @@ final class HierarchyViewController: NSViewController {
 
     /// Typing waits for a pause; clearing the field and Return go at once (C-HIER-04).
     private func searchWasEdited(returned: Bool) {
-        let text = searchField.stringValue
-        let isImmediate = returned || text.isEmpty
-        waitingSearchText = isImmediate ? nil : text
-        searchEdits.send(SearchEdit(text: text, isImmediate: isImmediate))
-    }
-
-    /// Typing still waiting when the list goes away reaches the store now, as it did before
-    /// typing waited: the inspection's settings carry it over (C-WIN-04).
-    private func sendWaitingSearch() {
-        guard let text = waitingSearchText else { return }
-        waitingSearchText = nil
-        searchEdits.send(SearchEdit(text: nil, isImmediate: true))
-        store.setSearchText(text)
-    }
-
-    /// The texts of the edits, each as soon as no newer edit replaced it: typed ones after
-    /// `searchDelay`, the others at once. Delivered on the main queue, as the field's are.
-    private static func delayedTyping(
-        _ edits: some Publisher<SearchEdit, Never>
-    ) -> AnyPublisher<String, Never> {
-        edits
-            .map { edit -> AnyPublisher<String, Never> in
-                guard let text = edit.text.map(Just.init) else {
-                    return Empty().eraseToAnyPublisher()
-                }
-                if edit.isImmediate { return text.eraseToAnyPublisher() }
-                return text.delay(for: .seconds(searchDelay), scheduler: DispatchQueue.main)
-                    .eraseToAnyPublisher()
-            }
-            .switchToLatest()
-            .eraseToAnyPublisher()
+        searchInput.edit(searchField.stringValue, returned: returned)
     }
 
     @objc private func outlineViewWasClicked(_ sender: NSOutlineView) {
@@ -560,31 +506,36 @@ final class HierarchyViewController: NSViewController {
         self.tree = tree
         self.filter = filter
         self.focus = focus
+        let selected = store.selectedLayerID
+        // The same rows: the same layers, so the same items, and the same titles, so the
+        // same width. What is left is the selection the store may have moved.
+        guard rowsChanged else {
+            showSelection(selected, scroll: false)
+            reportVisibleRows()
+            return
+        }
         shownChildren = [:]
         let top = focus.map { [$0] } ?? tree.roots
         roots = filter.map { filter in top.filter(filter.shown.contains) } ?? top
         items = items.filter { tree.contains($0.key) }
         // A selection in view before the reload stays in view after it, wherever its row
         // went; one that was out of view leaves the scroll position alone.
-        let selected = store.selectedLayerID
         let selectionWasInView = selected.map(isRowInView) ?? false
-        if rowsChanged {
-            // A reload keeps where the list is scrolled to.
-            showingStore {
-                // Hidden meanwhile, so that the outline view does not lay out the rows in
-                // view for each change: that took most of the time with thousands of rows.
-                // A hidden view gives up the keyboard focus; the list takes it back.
-                let hadFocus = outlineView.window?.firstResponder === outlineView
-                outlineView.isHidden = true
-                outlineView.reloadData()
-                applyExpansion()
-                outlineView.isHidden = false
-                if hadFocus { outlineView.window?.makeFirstResponder(outlineView) }
-            }
-            reloadCount += 1
+        // A reload keeps where the list is scrolled to.
+        showingStore {
+            // Hidden meanwhile, so that the outline view does not lay out the rows in view
+            // for each change: that took most of the time with thousands of rows. A hidden
+            // view gives up the keyboard focus; the list takes it back.
+            let hadFocus = outlineView.window?.firstResponder === outlineView
+            outlineView.isHidden = true
+            outlineView.reloadData()
+            applyExpansion()
+            outlineView.isHidden = false
+            if hadFocus { outlineView.window?.makeFirstResponder(outlineView) }
         }
+        reloadCount += 1
         // The column is as wide as the rows shown need.
-        sizeColumnToRows()
+        columnSizer.sizeToRows()
         showSelection(selected, scroll: selectionWasInView && !(selected.map(isRowInView) ?? true))
         reportVisibleRows()
     }

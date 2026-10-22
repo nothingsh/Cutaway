@@ -53,9 +53,9 @@ public final class InspectionStore: ObservableObject {
         case layerGone
     }
 
-    /// How the inspection reaches its app (C-WIN-03, C-WIN-04, C-ARCH-05). The interface
-    /// follows it: once the connection is gone, what was shown stays and nothing can be
-    /// changed.
+    /// How the inspection reaches its app (C-WIN-03, C-WIN-04, C-ARCH-05). Once the connection
+    /// is gone, what was shown stays and the store takes none of the user's intents
+    /// (`takesIntents`); the interface follows it to show them unavailable.
     public enum Connection: Equatable, Sendable {
         case live
         /// The app went away; `waiting` when the window waits for it to come back.
@@ -79,15 +79,15 @@ public final class InspectionStore: ObservableObject {
 
     // MARK: - What the interface follows
 
-    @Published public private(set) var connection: Connection
-    @Published public internal(set) var loadState: LoadState = .loading
+    @StoreState public private(set) var connection: Connection
+    @StoreState public internal(set) var loadState: LoadState = .loading
     /// When this publishes, `isExpanded(_:)` and `selectedLayerID` already describe the new
     /// tree.
-    @Published public internal(set) var tree: LayerTree = .empty
+    @StoreState public internal(set) var tree: LayerTree = .empty
     /// Never a layer inside a collapsed node: such a selection moves onto that node, so that
     /// the selected layer is always a row the list shows. Changed only by `setSelection(_:)`,
     /// which the attributes follow.
-    @Published public private(set) var selectedLayerID: UInt64?
+    @StoreState public private(set) var selectedLayerID: UInt64?
 
     /// The attributes of the selected layer (C-ATTR-01).
     public let attributes: AttributesStore
@@ -95,23 +95,23 @@ public final class InspectionStore: ObservableObject {
     /// with `showsAllConstraintEnds` (C-LAYOUT-04), otherwise those of the constraints and the
     /// chip the pointer is on in the attribute panel (C-LAYOUT-07). Empty while its
     /// constraints are not held. Ends not in the tree are left for the scene to pass over.
-    @Published public internal(set) var constraintEnds: [ConstraintEnd] = []
+    @StoreState public internal(set) var constraintEnds: [ConstraintEnd] = []
     /// The ends the preview stresses while the other ends fade: the chip's the pointer is on
     /// (C-LAYOUT-06), or else the row's (C-LAYOUT-07). Empty while there are none.
-    @Published public internal(set) var emphasizedConstraintEnds: [SceneMark] = []
+    @StoreState public internal(set) var emphasizedConstraintEnds: [SceneMark] = []
     /// Whether every end of the selected layer's constraints is marked, or only those pointed
     /// at (C-PREV-18).
-    @Published public internal(set) var showsAllConstraintEnds = false
+    @StoreState public internal(set) var showsAllConstraintEnds = false
     /// The layer under the pointer in the preview (C-PREV-03).
-    @Published public private(set) var hoveredLayerID: UInt64?
-    @Published public internal(set) var previewMode: PreviewMode = .twoD
+    @StoreState public private(set) var hoveredLayerID: UInt64?
+    @StoreState public internal(set) var previewMode: PreviewMode = .twoD
     /// The camera of each mode; each keeps its own (C-PREV-07). Moving a camera never lays
     /// the tree out again (C-SCENE-07).
-    @Published public internal(set) var cameras = PreviewCameras()
+    @StoreState public internal(set) var cameras = PreviewCameras()
     /// Whether layers that cannot be seen are drawn, as ghosts (C-PREV-08).
-    @Published public internal(set) var showsHiddenLayers = false
+    @StoreState public internal(set) var showsHiddenLayers = false
     /// How layers are outlined (C-PREV-09, C-PREV-17).
-    @Published public internal(set) var borders = BorderOptions()
+    @StoreState public internal(set) var borders = BorderOptions()
     /// The layers' images by layer ID, compressed as they arrived (C-DET-08). Only layers of
     /// `tree` have an entry. Their pixels are handed out once, by `arrivingPixels`, and
     /// decompressed again only when asked for (`pixels(for:)`). Not published: a chunk of
@@ -134,39 +134,39 @@ public final class InspectionStore: ObservableObject {
     /// Goes up by one each time a node is expanded or collapsed. The expansion itself is
     /// read with `isExpanded(_:)` or `expandedLayerIDs`, and is already in place when this
     /// publishes.
-    @Published public private(set) var expansionRevision: UInt64 = 0
+    @StoreState public private(set) var expansionRevision: UInt64 = 0
     /// What the search field holds, as typed (C-HIER-04).
-    @Published public private(set) var searchText = ""
+    @StoreState public private(set) var searchText = ""
     /// The rows the search leaves; nil when there is no search. Searching changes only the
     /// list: the expansion, and so the preview, stay as they are.
-    @Published public private(set) var filter: HierarchyFilter?
+    @StoreState public private(set) var filter: HierarchyFilter?
     /// The layer the inspection is focused on, or nil for the whole tree (C-HIER-05). The
     /// list shows it and what is inside it, the preview draws only that, and only those
     /// layers can be selected.
-    @Published public private(set) var focusedLayerID: UInt64?
+    @StoreState public private(set) var focusedLayerID: UInt64?
     /// Goes up by one each time the list's rows change: another tree, search or focus. The
     /// rows are read from `tree`, `filter` and `focusedLayerID`, which are in place when this
     /// publishes.
-    @Published public private(set) var rowsRevision: UInt64 = 0
+    @StoreState public private(set) var rowsRevision: UInt64 = 0
     /// The tree laid out with the images the inspection holds. Its geometry is built again
     /// only when the tree, the expansion or the focus changes; when only images change, their
     /// textures are swapped in. When this publishes, `images`, the expansion and
     /// `expansionRevision` already describe it.
-    @Published public internal(set) var layout = SceneLayout(layers: [], expanded: [])
+    @StoreState public internal(set) var layout = SceneLayout(layers: [], expanded: [])
     /// Of the layers that are drawn, how many have the screenshot they are drawn with, or
     /// failed, in this round (C-DET-02).
-    @Published public internal(set) var detailProgress = DetailProgress.none
+    @StoreState public internal(set) var detailProgress = DetailProgress.none
     /// Shown while the tree is shown. Nil when there is nothing to say.
-    @Published public internal(set) var notice: Notice?
+    @StoreState public internal(set) var notice: Notice?
     /// Whether the source can send a subtree: an app can, an archive cannot (C-DET-07). False
     /// until the source has told, which `enter()` asks it. Set by tests that have no server.
-    @Published public internal(set) var canRefreshSubtrees = false
+    @StoreState public internal(set) var canRefreshSubtrees = false
     /// Saving an archive (C-ARCH-02). Ended saves stay until `dismissArchiveSave()`.
-    @Published public internal(set) var archiveSave = ArchiveSaveState.idle
+    @StoreState public internal(set) var archiveSave = ArchiveSaveState.idle
     /// Exporting a layer's screenshot (C-ARCH-06).
-    @Published public internal(set) var screenshotExport = ScreenshotExportState.idle
+    @StoreState public internal(set) var screenshotExport = ScreenshotExportState.idle
     /// The app's trait environment and the overrides set on it (C-ENV-01).
-    @Published public internal(set) var environment = EnvironmentState.unavailable
+    @StoreState public internal(set) var environment = EnvironmentState.unavailable
 
     // MARK: - What the store is made of
 
@@ -345,14 +345,25 @@ public final class InspectionStore: ObservableObject {
 
     /// The app went away (C-WIN-03): the interface shows it, and a capture under way failed
     /// because of it, also when it is cancelled by `leave()` before it noticed. `waiting`
-    /// when the window waits for the app to come back (C-WIN-04). Told once; an archive is
-    /// never lost.
+    /// when the window waits for the app to come back (C-WIN-04). From then on nothing is
+    /// hovered, the attributes cannot be changed, and the user's intents are not taken
+    /// (`takesIntents`). Told once; an archive is never lost.
     package func connectionLost(waiting: Bool = false) {
         connectionWasLost = true
         cancelEnvironmentSettle()
-        if connection == .live { connection = .lost(waiting: waiting) }
+        if connection == .live {
+            connection = .lost(waiting: waiting)
+            publishHover(nil)
+            attributes.connectionLost()
+        }
         environmentController.connectionLost()
     }
+
+    /// Whether the user's intents are taken: what they ask of the tree, the preview and the
+    /// app. Not once the connection is gone (C-WIN-03): what was shown stays as it was. What
+    /// only ends something, as leaving, cancelling a save or dismissing a notice, still goes
+    /// on, and so does text typed into the search before the connection went (C-WIN-04).
+    var takesIntents: Bool { !connection.isLost }
 
     // MARK: - Publishing the view of the tree
 
@@ -428,7 +439,7 @@ public final class InspectionStore: ObservableObject {
     func layOut(_ tree: LayerTree) {
         geometry = SceneLayout(
             layers: tree.sceneLayers(), expanded: expansion.expandedIDs, focus: focusedLayerID,
-            showsHidden: showsHiddenLayers)
+            showsHidden: showsHiddenLayers, keepingLevelsOf: geometry)
         geometryBuildCount += 1
         fetcher.scheduler.setNeeds(geometry.neededTextures)
     }

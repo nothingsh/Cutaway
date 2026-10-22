@@ -159,9 +159,12 @@ final class ReferenceChipTests: XCTestCase {
             .map { id, tree in LayerSummary(tree, id) }
             .eraseToAnyPublisher()
         let controller = AttributesViewController(
-            store: model.attributes, appName: "Demo", layer: layer, tree: model.$tree.eraseToAnyPublisher(),
-            connection: model.$connection.eraseToAnyPublisher(),
-            onShowLayer: { [weak model] in model?.showLayer($0) }, onHoverLayer: { [weak model] in model?.hover($0) },
+            store: model.attributes, appName: "Demo",
+            inputs: AttributesPanelInputs(
+                layer: layer, tree: model.$tree.eraseToAnyPublisher(),
+                connection: model.$connection.eraseToAnyPublisher()),
+            actions: AttributesPanelActions(
+                showLayer: { [weak model] in model?.showLayer($0) }, hoverLayer: { [weak model] in model?.hover($0) }),
             loadingDelay: 0)
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 300, height: 600), styleMask: [.titled],

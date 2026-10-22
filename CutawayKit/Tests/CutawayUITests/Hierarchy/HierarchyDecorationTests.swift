@@ -116,6 +116,34 @@ final class HierarchyDecorationTests: XCTestCase {
         withExtendedLifetime(window) {}
     }
 
+    /// The sticky rows are asked for on every scroll and every move of the pointer: the same
+    /// rows are neither laid out nor drawn again.
+    @MainActor
+    func test_C_HIER_13_theSameStickyRowsAreNotLaidOutOrDrawnAgain() {
+        let model = model()
+        let (controller, window) = controllerInWindow(for: model)
+        model.apply(chain(depth: 30))
+        window.layoutIfNeeded()
+        scroll(controller, toRow: 6)
+        let sticky = controller.stickyView
+        XCTAssertEqual(sticky.rows.map(\.id), [7, 8, 9, 10])
+        window.layoutIfNeeded()
+        window.displayIfNeeded()
+        let rowViews = sticky.subviews.filter { !$0.isHidden && $0.frame.height > 0 }
+        XCTAssertFalse(sticky.needsLayout)
+        XCTAssertFalse(rowViews.contains { $0.needsLayout || $0.needsDisplay })
+
+        controller.updateSticky()
+        XCTAssertFalse(sticky.needsLayout, "the same rows")
+        XCTAssertFalse(rowViews.contains { $0.needsLayout || $0.needsDisplay }, "the same rows")
+
+        // Another hover is another look for its row.
+        model.hover(8)
+        XCTAssertTrue(sticky.needsLayout)
+        XCTAssertEqual(sticky.rows.map(\.isHovered), [false, true, false, false])
+        withExtendedLifetime(window) {}
+    }
+
     @MainActor
     func test_C_HIER_13_fewerAncestorsStickNearTheTopOfTheTree() throws {
         let model = model()

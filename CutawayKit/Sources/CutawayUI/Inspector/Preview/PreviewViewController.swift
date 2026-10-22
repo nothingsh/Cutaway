@@ -20,8 +20,6 @@ final class PreviewViewController: NSViewController {
     private(set) var preview: PreviewView?
     private(set) var projector: PreviewProjector?
     private var textureLoader: PreviewTextureLoader?
-    /// False once the connection is gone: the pointer no longer moves the camera (C-WIN-03).
-    private var takesInput = true
     private var cancellables = Set<AnyCancellable>()
     private let motion: PreviewMotion
     private(set) lazy var layerMenu = LayerContextMenu(store: store)
@@ -83,11 +81,13 @@ final class PreviewViewController: NSViewController {
         projector?.followsChanges = true
     }
 
-    /// The pointer, clicks, drags, scrolls and pinches on the preview.
+    /// The pointer, clicks, drags, scrolls and pinches on the preview. Once the connection is
+    /// gone the store takes none of them (C-WIN-03): a press under way then still ends here,
+    /// and neither moves nor selects anything.
     private func takeInput(from preview: PreviewView) {
         preview.onHover = { [weak store] id in store?.hover(id) }
-        preview.onClick = { [weak self, weak store] id in
-            guard let store, self?.takesInput == true else { return }
+        preview.onClick = { [weak store] id in
+            guard let store else { return }
             // A click on the selected layer asks again for its attributes when they could not
             // be loaded, as a click on its row does (C-ATTR-01).
             if let id, id == store.selectedLayerID {
@@ -97,16 +97,18 @@ final class PreviewViewController: NSViewController {
             }
         }
         // A double click on a layer with sublayers expands or collapses it, as a double
-        // click on its row does; the list follows the store (C-PREV-13).
-        preview.onDoubleClick = { [weak self, weak store] id in
-            guard let store, self?.takesInput == true, !store.tree.children(of: id).isEmpty
+        // click on its row does; the list follows the store (C-PREV-13). Not once the
+        // connection is gone, as a double click on a row does not; the store still takes an
+        // expansion then, from the list's disclosure triangles.
+        preview.onDoubleClick = { [weak store] id in
+            guard let store, !store.connection.isLost, !store.tree.children(of: id).isEmpty
             else { return }
             store.setExpanded(id, !store.isExpanded(id))
         }
         // A right click selects the layer under it, then opens its menu, the one its row
         // has; on nothing the menu only offers to show all layers while focused (C-PREV-15).
         preview.onContextMenu = { [weak self] id in
-            guard let self, self.takesInput else { return nil }
+            guard let self else { return nil }
             if let id, id != self.store.selectedLayerID { self.store.select(id) }
             let menu = NSMenu()
             self.layerMenu.fill(menu, for: id)
@@ -119,7 +121,7 @@ final class PreviewViewController: NSViewController {
         }
         // A drag turns the 3D view, or pans with ⌥ and in 2D (C-PREV-04, C-PREV-06).
         preview.onDrag = { [weak self] dx, dy, pans in
-            guard let self, let projector = self.projector, self.takesInput else { return }
+            guard let self, let projector = self.projector else { return }
             if pans || projector.mode == .twoD {
                 self.store.pan(by: dx, dy)
             } else {
@@ -127,11 +129,10 @@ final class PreviewViewController: NSViewController {
             }
         }
         preview.onPan = { [weak self] dx, dy in
-            guard let self, self.takesInput else { return }
-            self.store.pan(by: dx, dy)
+            self?.store.pan(by: dx, dy)
         }
         preview.onZoom = { [weak self] factor, point in
-            guard let self, let projector = self.projector, self.takesInput else { return }
+            guard let self, let projector = self.projector else { return }
             self.store.zoom(by: factor, about: point, in: projector.viewport)
         }
     }
@@ -140,9 +141,9 @@ final class PreviewViewController: NSViewController {
     static let zoomStep = 1.25
 
     /// Zooms about the middle of the preview between what floats over it, keeping what is there where it is (C-MENU-02,
-    /// C-PREV-05). Nothing before the preview has a size, or once it no longer takes input.
+    /// C-PREV-05). Nothing before the preview has a size, or once the connection is gone.
     func zoomAboutCentre(by factor: Double) {
-        guard let projector, takesInput else { return }
+        guard let projector else { return }
         let viewport = projector.viewport
         store.zoom(by: factor, about: viewport.middle, in: viewport)
     }
@@ -211,15 +212,5 @@ final class PreviewViewController: NSViewController {
     func texturesSettled() async {
         projector?.showWaitingImages()
         await textureLoader?.settled()
-    }
-
-    /// The connection is gone: dragging, scrolling and pinching no longer move the camera.
-    func stopTakingInput() {
-        takesInput = false
-    }
-
-    /// The connection is gone: the pointer no longer hovers a layer (C-WIN-03).
-    func stopHovering() {
-        preview?.onHover = nil
     }
 }

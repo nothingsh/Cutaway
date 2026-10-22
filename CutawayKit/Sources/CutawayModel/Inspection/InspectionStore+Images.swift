@@ -74,8 +74,10 @@ extension InspectionStore {
     /// Marks the layers excluded from images in the tree, with what is below them, and lays
     /// the tree out again: their needs go (C-DET-11). Whether the tree changed.
     private func markCaptureExcluded(_ ids: [UInt64]) -> Bool {
-        let marked = tree.markingCaptureExcluded(ids)
-        guard marked != tree else { return false }
+        // Marked on a copy, so that the published tree changes once, after the layout; the
+        // copy shares the tree's storage until a node is marked.
+        var marked = tree
+        guard marked.markCaptureExcluded(ids) else { return false }
         layOut(marked)
         tree = marked
         return true

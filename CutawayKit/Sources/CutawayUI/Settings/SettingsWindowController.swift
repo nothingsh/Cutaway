@@ -1,5 +1,6 @@
 import AppKit
 import CutawayModel
+import CutawayProjects
 
 /// The settings window (C-PREF-01): one only, fixed in size, closed but never minimized or
 /// zoomed. Its pages are tabs in the toolbar, General (C-LOC-01, C-PREF-03), Preview and

@@ -1,4 +1,3 @@
-import CutawayModel
 import CutawayRender
 import CutawayScene
 import CutawayTestSupport
@@ -12,20 +11,22 @@ import XCTest
 final class ScaleRenderTests: XCTestCase {
     func test_C_SCALE_01_aFrameOfTenThousandLayersTakesAtMostSixteenMilliseconds() throws {
         try XCTSkipIf(TestRunner.isCI, TestRunner.timedOnTheDevelopersMac)
-        let tree = try LayerTree(ScaleScene.hierarchy())
-        let all = Set(tree.ids)
+        let hierarchy = try ScaleScene.hierarchy()
+        let layers = SceneInput.layers(of: hierarchy)
+        let all = Set(layers.map(\.id))
         // Each layer has the kind of image it is drawn with.
-        let needs = SceneLayout(layers: tree.sceneLayers(), expanded: all).neededTextures
+        let needs = SceneLayout(layers: layers, expanded: all).neededTextures
         var textures: [UInt64: LayerTextures] = [:]
         for need in needs {
             let key = TextureKey(layerID: need.layerID, kind: need.kind, revision: 1)
             textures[need.layerID] = need.kind == .solo ? LayerTextures(solo: key) : LayerTextures(group: key)
         }
-        let layout = SceneLayout(layers: tree.sceneLayers(textures: textures), expanded: all)
+        let layout = SceneLayout(
+            layers: SceneInput.layers(of: hierarchy, textures: textures), expanded: all)
         let list = layout.project(
             camera: .standard3D, viewport: Viewport(width: 900, height: 900), selected: 5,
             hovered: nil)
-        XCTAssertEqual(list.items.count, tree.count)
+        XCTAssertEqual(list.items.count, layers.count)
         XCTAssertTrue(list.items.allSatisfy { $0.texture != nil }, "every layer has its image")
 
         let device = try XCTUnwrap(MTLCreateSystemDefaultDevice())

@@ -50,8 +50,8 @@ public struct ArchiveDecoder: Sendable {
     public let environment: Environment?
 
     private let data: Data
-    /// Where each frame's buffer lies in `data`.
-    private let frames: [Range<Data.Index>]
+    /// Where each frame's buffer lies in `data`. Internal for tests.
+    let frames: [Range<Data.Index>]
     /// The layers of each chunk, noted as the chunks were checked.
     private let chunkLayers: [[ArchiveLayer]]
     /// The index of the first chunk's frame: after the optional `Environment`.
@@ -172,18 +172,25 @@ public struct ArchiveDecoder: Sendable {
         DispatchQueue.concurrentPerform(iterations: frames.count) { chunk in
             results[chunk] = Result { () throws(ArchiveError) -> [ArchiveLayer] in
                 let index = firstIndex + chunk
-                let root: Cutaway_Wire_Frame
+                // Read where it lies in the data when it can be, so that the chunks checked
+                // side by side are not each held twice.
+                let layers: [ArchiveLayer]?
                 do {
-                    root = try FrameCodec.checkedRoot(data[frames[chunk]])
+                    layers = try FrameCodec.withCheckedRoot(data[frames[chunk]]) { root in
+                        guard root.bodyType == .layerdetailschunk,
+                              let body = root.body(type: Cutaway_Wire_LayerDetailsChunk.self)
+                        else { return nil }
+                        return body.details.map {
+                            ArchiveLayer(
+                                layerID: $0.layerId, hasSolo: $0.solo != nil,
+                                hasGroup: $0.group != nil)
+                        }
+                    }
                 } catch {
                     throw .damaged("frame \(index): \(error)")
                 }
-                guard root.bodyType == .layerdetailschunk,
-                      let body = root.body(type: Cutaway_Wire_LayerDetailsChunk.self)
-                else { throw .damaged("frame \(index) is not a LayerDetailsChunk") }
-                return body.details.map {
-                    ArchiveLayer(layerID: $0.layerId, hasSolo: $0.solo != nil, hasGroup: $0.group != nil)
-                }
+                guard let layers else { throw .damaged("frame \(index) is not a LayerDetailsChunk") }
+                return layers
             }
         }
         var layers: [[ArchiveLayer]] = []
@@ -230,7 +237,7 @@ public struct ArchiveDecoder: Sendable {
     /// Whether a frame that verifies holds an `Environment`; a frame that does not verify is
     /// left for the check of its kind to report.
     private static func isEnvironment(_ payload: Data) -> Bool {
-        (try? FrameCodec.checkedRoot(payload))?.bodyType == .environment
+        (try? FrameCodec.withCheckedRoot(payload) { $0.bodyType == .environment }) ?? false
     }
 
     private static func decode(_ payload: Data, index: Int) throws(ArchiveError) -> Body? {

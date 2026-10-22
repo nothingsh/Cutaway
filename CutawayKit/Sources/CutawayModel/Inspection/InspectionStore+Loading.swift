@@ -9,9 +9,9 @@ extension InspectionStore {
     /// selected layer's attributes (C-DET-05). What is shown stays until the new arrives;
     /// expansion, selection, focus and the cameras are kept (C-HIER-02). Asked for again while
     /// one is under way, it is made once more after that one. Nothing happens while the
-    /// inspection is closed.
+    /// inspection is closed, or once the connection is gone (`takesIntents`).
     public func refresh() {
-        guard isOpen, !isSavingArchive else { return }
+        guard isOpen, !isSavingArchive, takesIntents else { return }
         loader.reload()
     }
 
@@ -20,9 +20,10 @@ extension InspectionStore {
     /// images, are asked for again; the rest of the tree and its screenshots stay. Queued
     /// after a load under way; a subtree that is already on its way or waiting is not asked
     /// for twice, nor while a whole reload waits. Nothing happens while the inspection is
-    /// closed, when the server cannot send subtrees, or for a layer that is not in the tree.
+    /// closed, once the connection is gone (`takesIntents`), when the server cannot send
+    /// subtrees, or for a layer that is not in the tree.
     public func refreshSubtree(of id: UInt64) {
-        guard isOpen, !isSavingArchive, canRefreshSubtrees, loadState == .loaded, tree.contains(id)
+        guard isOpen, !isSavingArchive, takesIntents, canRefreshSubtrees, loadState == .loaded, tree.contains(id)
         else { return }
         loader.requestSubtree(id)
     }

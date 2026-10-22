@@ -1,6 +1,7 @@
 import AppKit
 import Combine
 import CutawayModel
+import CutawayProjects
 import CutawayWire
 import DeclarativeAppKit
 import DeclarativeCombine
@@ -37,16 +38,8 @@ final class AttributesViewController: NSViewController {
     static let stickyIdentifier = "attributes.sticky"
 
     let viewModel: AttributesViewModel
-    private let onRetry: () -> Void
-    /// Selects the layer at the other end of a constraint (C-LAYOUT-03), an ancestor
-    /// (C-ATTR-16), or one a value refers to (C-ATTR-28).
-    let onShowLayer: (UInt64) -> Void
-    /// Hovers the layer an ancestor or a reference names, or none (C-ATTR-16, C-ATTR-28,
-    /// C-HIER-15).
-    let onHoverLayer: (UInt64?) -> Void
-    /// Hovers the other end of a constraint, or none (C-LAYOUT-06).
-    private let onHoverConstraintEnd: (ConstraintRow.End?) -> Void
-    private let onPointConstraints: (ConstraintPointer) -> Void
+    /// What the panel asks of the inspection.
+    let actions: AttributesPanelActions
     /// How long a request may take before the panel says it is loading: most answers come
     /// sooner, and a spinner for every click would flicker.
     private let loadingDelay: TimeInterval
@@ -93,6 +86,8 @@ final class AttributesViewController: NSViewController {
     private let message = CurrentValueSubject<AttributesViewModel.Message?, Never>(nil)
     /// True while a request runs and nothing is shown yet, below the header.
     private let isWaiting = CurrentValueSubject<Bool, Never>(false)
+    /// What the header says about the selected layer, as last summarized.
+    private let selectedLayer = CurrentValueSubject<LayerSummary?, Never>(nil)
     /// The layer whose attributes are listed, and the one selected now.
     private var listedLayerID: UInt64?
     private var selectedLayerID: UInt64?
@@ -124,8 +119,8 @@ final class AttributesViewController: NSViewController {
 
     /// The selected layer's ancestors, under its name (C-ATTR-16).
     private(set) lazy var ancestorsBar: AncestorsBar = .init().configure {
-        $0.onHover = { [weak self] id in self?.onHoverLayer(id) }
-        $0.onSelect = { [weak self] id in self?.onShowLayer(id) }
+        $0.onHover = { [weak self] id in self?.actions.hoverLayer(id) }
+        $0.onSelect = { [weak self] id in self?.actions.showLayer(id) }
     }
 
     /// The header that stays at the top, on the same backdrop as the panel (`backdrop()`),
@@ -139,29 +134,15 @@ final class AttributesViewController: NSViewController {
     private let projectIndex: AnyPublisher<ProjectIndex?, Never>
 
     init(
-        store: AttributesStore, appName: String,
-        layer: AnyPublisher<LayerSummary?, Never> = Just(nil).eraseToAnyPublisher(),
-        tree: AnyPublisher<LayerTree, Never> = Just(.empty).eraseToAnyPublisher(),
-        connection: AnyPublisher<InspectionStore.Connection, Never> = Just(.live).eraseToAnyPublisher(),
-        onRetry: @escaping () -> Void = {}, onShowLayer: @escaping (UInt64) -> Void = { _ in },
-        onHoverLayer: @escaping (UInt64?) -> Void = { _ in },
-        onHoverConstraintEnd: @escaping (ConstraintRow.End?) -> Void = { _ in },
-        onPointConstraints: @escaping (ConstraintPointer) -> Void = { _ in },
-        copy: @escaping @MainActor (String) -> Void = AttributesViewController.copyToPasteboard,
-        openInXcode: @escaping @MainActor ([SourceLocation], NSView) -> Void = { _, _ in },
-        projectIndex: AnyPublisher<ProjectIndex?, Never> = Just(nil).eraseToAnyPublisher(),
-        loadingDelay: TimeInterval = 0.2
+        store: AttributesStore, appName: String, inputs: AttributesPanelInputs = .init(),
+        actions: AttributesPanelActions = .init(), loadingDelay: TimeInterval = 0.2
     ) {
         viewModel = AttributesViewModel(
-            store: store, appName: appName, layer: layer, tree: tree, connection: connection)
-        self.onRetry = onRetry
-        self.onShowLayer = onShowLayer
-        self.onHoverLayer = onHoverLayer
-        self.onHoverConstraintEnd = onHoverConstraintEnd
-        self.onPointConstraints = onPointConstraints
+            store: store, appName: appName, layer: inputs.layer, tree: inputs.tree, connection: inputs.connection)
+        self.actions = actions
         self.loadingDelay = loadingDelay
-        self.projectIndex = projectIndex
-        identityView = IdentityLinesView(copy: copy, openInXcode: openInXcode)
+        projectIndex = inputs.projectIndex
+        identityView = IdentityLinesView(copy: actions.copy, openInXcode: actions.openInXcode)
         super.init(nibName: nil, bundle: nil)
     }
 
@@ -177,8 +158,12 @@ final class AttributesViewController: NSViewController {
         list.stack.addArrangedSubview(sections)
         list.stack.addArrangedSubview(makeFilterResults())
 
-        // Not shared: each subscriber gets the current value when it subscribes.
-        let layer = viewModel.layer
+        // One summary for each change, shared by all that follow it: it walks the tree and looks
+        // the classes up in the project's index. Each that subscribes later gets the current one.
+        viewModel.layer
+            .sink { [weak self] summary in self?.selectedLayer.send(summary) }
+            .store(in: &cancellables)
+        let layer = selectedLayer.eraseToAnyPublisher()
         let header = makeHeader(layer: layer)
         let emptyState = makeEmptyState()
 
@@ -347,7 +332,7 @@ final class AttributesViewController: NSViewController {
                 .controlSize(.small)
                 .accessibilityIdentifier(Self.retryIdentifier)
                 .bind(\.isHidden, to: message.map { !($0?.offersRetry ?? false) })
-                .sink(\.clickPublisher) { [weak self] in self?.onRetry() }
+                .sink(\.clickPublisher) { [weak self] in self?.actions.retry() }
             Spacer()
         }
         .padding(24)
@@ -373,13 +358,10 @@ final class AttributesViewController: NSViewController {
             .sink { [weak self] tree in self?.viewModel.tree = tree }
             .store(in: &cancellables)
 
-        // First, so that the first list is built knowing whether it can edit.
+        // Whether the store can edit and the changes: either builds the rows' editors again.
         viewModel.editing
-            .sink { [weak self] canEdit, edits, isConnected in
+            .sink { [weak self] _ in
                 guard let self else { return }
-                self.viewModel.canEdit = canEdit
-                self.viewModel.edits = edits
-                self.viewModel.isConnected = isConnected
                 self.showGroups(self.groups, force: true)
             }
             .store(in: &cancellables)
@@ -498,8 +480,8 @@ final class AttributesViewController: NSViewController {
         constraintRows = rows
         constraintsView = rows.map { rows in
             let view = ConstraintsSectionView(
-                rows: rows, showsGenerated: showsGeneratedConstraints, onShowLayer: onShowLayer,
-                onHoverEnd: onHoverConstraintEnd, onPoint: onPointConstraints)
+                rows: rows, showsGenerated: showsGeneratedConstraints, onShowLayer: actions.showLayer,
+                onHoverEnd: actions.hoverConstraintEnd, onPoint: actions.pointConstraints)
             view.onToggleGenerated = { [weak self] in self?.showsGeneratedConstraints = $0 }
             return view
         }

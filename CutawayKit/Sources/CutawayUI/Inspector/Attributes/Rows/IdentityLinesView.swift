@@ -1,5 +1,6 @@
 import AppKit
 import CutawayModel
+import CutawayProjects
 import DeclarativeAppKit
 
 /// The top of the Identity section (C-ATTR-10, C-ATTR-11, C-HIER-07): the view and the layer,

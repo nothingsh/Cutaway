@@ -8,8 +8,9 @@ import Foundation
 /// projection goes to `show` with whether it is a frame of a transition.
 @MainActor
 final class PreviewProjector {
-    // What the preview shows is worked out from these, which are the values the store
-    // published. Inside a subscription the store itself still holds the old value.
+    // What the preview shows is worked out from these, which the preview passes on from the
+    // store as it publishes them: the projector holds no store, and a new layout is compared
+    // with the one before it.
     private(set) var layout = SceneLayout(layers: [], expanded: [])
     var selected: UInt64?
     var hovered: UInt64?
@@ -208,7 +209,13 @@ final class PreviewProjector {
     private func startTicking() {
         guard !isTicking, let clock else { return }
         isTicking = true
-        clock.start { [weak self] in self?.tick() }
+        // A projector let go of in a transition, its preview's `viewDidDisappear` never
+        // come, stops the clock with its next frame.
+        clock.start { [weak self] in
+            guard let self else { return false }
+            self.tick()
+            return true
+        }
     }
 
     private func stopTicking() {

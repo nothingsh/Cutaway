@@ -1,6 +1,7 @@
 import AppKit
 import Combine
 import CutawayModel
+import CutawayProjects
 import CutawayTransport
 import UniformTypeIdentifiers
 

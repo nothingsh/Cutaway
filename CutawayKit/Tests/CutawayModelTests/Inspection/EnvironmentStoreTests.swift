@@ -188,9 +188,9 @@ final class EnvironmentStoreTests: XCTestCase {
         await server.stop()
     }
 
-    /// An app may change its look a moment after
-    /// the change (Wikipedia, 0.3 s later), so the tree is taken again only after a pause, and
-    /// no screenshot is asked for meanwhile.
+    /// An app may change its look a moment after the change (Wikipedia, 0.3 s later), which
+    /// no server can wait for, so the tree is taken again only after a pause, and no
+    /// screenshot is asked for meanwhile.
     @MainActor
     func test_C_ENV_02_theRefreshWaitsForTheAppToRedraw() async throws {
         let server = try await MockServer.start(script: try Self.responding())

@@ -584,9 +584,9 @@ final class PreviewViewTests: XCTestCase {
     @MainActor
     func test_C_PREV_13_aLostConnectionTakesNoDoubleClicks() throws {
         let model = try model(newLayers: .byRule)
-        let (controller, preview, window) = try previewInWindow(model)
+        let (_, preview, window) = try previewInWindow(model)
         let card = try XCTUnwrap(preview.viewPoint(ofCenterOf: 4))
-        controller.stopTakingInput()
+        model.connectionLost()
 
         Self.doubleClick(at: card, in: preview)
         XCTAssertFalse(model.isExpanded(4))
@@ -605,9 +605,8 @@ final class PreviewViewTests: XCTestCase {
     @MainActor
     func test_C_PREV_15_aLostConnectionOpensNoMenu() throws {
         let model = try model()
-        let (controller, preview, window) = try previewInWindow(model)
+        let (_, preview, window) = try previewInWindow(model)
         let card = try XCTUnwrap(preview.viewPoint(ofCenterOf: 4))
-        controller.stopTakingInput()
         model.connectionLost()
         XCTAssertNil(Self.contextMenu(at: card, in: preview))
         XCTAssertNil(model.selectedLayerID)
@@ -672,8 +671,8 @@ final class PreviewViewTests: XCTestCase {
     @MainActor
     func test_C_PREV_06_nothingMovesOnceDisconnected() throws {
         let model = try model()
-        let (controller, preview, window) = try previewInWindow(model)
-        controller.stopTakingInput()
+        let (_, preview, window) = try previewInWindow(model)
+        model.connectionLost()
         Self.drag(from: NSPoint(x: 100, y: 100), to: NSPoint(x: 150, y: 100), in: preview)
         preview.scrollWheel(
             with: Self.scroll(dx: 10, dy: 10, at: NSPoint(x: 50, y: 50), in: preview))
@@ -700,10 +699,10 @@ final class PreviewViewTests: XCTestCase {
     @MainActor
     func test_C_WIN_03_aClickUnderWayWhenTheConnectionGoesSelectsNothing() throws {
         let model = try model()
-        let (controller, preview, window) = try previewInWindow(model)
+        let (_, preview, window) = try previewInWindow(model)
         let card = try XCTUnwrap(preview.viewPoint(ofCenterOf: 4))
         preview.mouseDown(with: Self.mouse(.leftMouseDown, at: card, in: preview))
-        controller.stopTakingInput()
+        model.connectionLost()
         preview.mouseUp(with: Self.mouse(.leftMouseUp, at: card, in: preview))
         XCTAssertNil(model.selectedLayerID)
         withExtendedLifetime(window) {}

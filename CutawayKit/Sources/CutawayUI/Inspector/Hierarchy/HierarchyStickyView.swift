@@ -64,10 +64,14 @@ final class HierarchyStickyView: NSView {
     var height: CGFloat { rows.isEmpty ? 0 : CGFloat(rows.count) * rowHeight + 1 }
 
     /// Shows these rows, `more` ancestors above them hidden.
+    ///
+    /// Asked on every scroll and every move of the pointer: the same rows change nothing.
     func show(_ rows: [Row], more: Int, rowHeight: CGFloat) {
+        let more = rows.isEmpty ? 0 : more
+        guard rows != self.rows || more != moreAbove || rowHeight != self.rowHeight else { return }
         let changed = rows.map(\.id) != self.rows.map(\.id) || rowHeight != self.rowHeight
         self.rows = rows
-        moreAbove = rows.isEmpty ? 0 : more
+        moreAbove = more
         self.rowHeight = rowHeight
         isHidden = rows.isEmpty
         while rowViews.count < rows.count {
@@ -157,7 +161,12 @@ private final class StickyRowView: NSView {
         fatalError("init(coder:) is not supported")
     }
 
+    /// The row last shown, if any.
+    private var shown: HierarchyStickyView.Row?
+
     func show(_ row: HierarchyStickyView.Row) {
+        guard row != shown else { return }
+        shown = row
         id = row.id
         cell.configure(row.row)
         isSelected = row.isSelected

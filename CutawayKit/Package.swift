@@ -12,6 +12,7 @@ let package = Package(
     products: [
         .library(name: "CutawayUI", targets: ["CutawayUI"]),
         .library(name: "CutawayModel", targets: ["CutawayModel"]),
+        .library(name: "CutawayProjects", targets: ["CutawayProjects"]),
         .library(name: "CutawayRender", targets: ["CutawayRender"]),
         .library(name: "CutawayTransport", targets: ["CutawayTransport"]),
         .library(name: "CutawayWire", targets: ["CutawayWire"]),
@@ -34,6 +35,7 @@ let package = Package(
             name: "CutawayModel",
             dependencies: ["CutawayScene", "CutawayTransport", "CutawayWire"]
         ),
+        .target(name: "CutawayProjects", dependencies: ["CutawayWire"]),
         .target(
             name: "CutawayRender",
             dependencies: ["CutawayScene"],
@@ -45,6 +47,7 @@ let package = Package(
                 "CutawayRender",
                 "CutawayScene",
                 "CutawayModel",
+                "CutawayProjects",
                 "CutawayTransport",
                 "CutawayWire",
                 .product(name: "DeclarativeAppKit", package: "DeclarativeAppKit"),
@@ -74,7 +77,7 @@ let package = Package(
         .testTarget(
             name: "CutawayRenderTests",
             dependencies: [
-                "CutawayRender", "CutawayScene", "CutawayModel", "CutawayWire", "CutawayTestSupport",
+                "CutawayRender", "CutawayScene", "CutawayWire", "CutawayTestSupport",
             ]
         ),
         .testTarget(
@@ -84,6 +87,7 @@ let package = Package(
                 "CutawayScene",
                 "CutawayRender",
                 "CutawayModel",
+                "CutawayProjects",
                 "CutawayTransport",
                 "CutawayWire",
                 "CutawayTestSupport",
@@ -97,6 +101,10 @@ let package = Package(
         .testTarget(
             name: "CutawayTestSupportTests",
             dependencies: ["CutawayTestSupport", "CutawayTransport", "CutawayWire"]
+        ),
+        .testTarget(
+            name: "CutawayProjectsTests",
+            dependencies: ["CutawayProjects", "CutawayWire", "CutawayTestSupport"]
         ),
         .testTarget(
             name: "CutawayModelTests",

@@ -283,17 +283,24 @@ extension LayerTree {
 }
 
 extension LayerTree {
-    /// The tree with these nodes and everything below them excluded from images, as the app
-    /// said when asked for their images (P-DET-10, C-DET-11): until the next hierarchy that
-    /// covers them, which says again. Nodes not in the tree are ignored.
-    public func markingCaptureExcluded(_ ids: some Sequence<UInt64>) -> LayerTree {
-        var marked = self
+    /// Marks these nodes and everything below them as excluded from images, as the app said
+    /// when asked for their images (P-DET-10, C-DET-11): until the next hierarchy that covers
+    /// them, which says again. Nodes not in the tree are ignored. Whether any node was not
+    /// marked yet: one that was is not written to, so a tree that does not change is not
+    /// copied either. What is below a marked node is still looked at, since the app may have
+    /// marked a node without what is below it.
+    @discardableResult
+    public mutating func markCaptureExcluded(_ ids: some Sequence<UInt64>) -> Bool {
+        var changed = false
         var pending = Array(ids)
         while let id = pending.popLast() {
-            guard let entry = marked.entries[id] else { continue }
-            marked.entries[id]?.node.isCaptureExcluded = true
+            guard let entry = entries[id] else { continue }
+            if !entry.node.isCaptureExcluded {
+                entries[id]?.node.isCaptureExcluded = true
+                changed = true
+            }
             pending.append(contentsOf: entry.children)
         }
-        return marked
+        return changed
     }
 }

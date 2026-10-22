@@ -6,8 +6,9 @@ import QuartzCore
 protocol PreviewClock: AnyObject {
     /// Seconds, from any origin.
     var now: Double { get }
-    /// Calls `tick` once a frame until `stop()`.
-    func start(_ tick: @escaping @MainActor () -> Void)
+    /// Calls `tick` once a frame until `stop()`, or until `tick` returns false: what it
+    /// draws for is gone.
+    func start(_ tick: @escaping @MainActor () -> Bool)
     func stop()
 }
 
@@ -52,12 +53,14 @@ struct PreviewMotion {
     }
 }
 
-/// Ticks with the display the view is on (`NSView.displayLink`, macOS 14).
+/// Ticks with the display the view is on (`NSView.displayLink`, macOS 14). The display link
+/// holds its target: the clock stops itself once its view or what it ticks for is gone, so that
+/// a preview let go of in the middle of a transition does not leave it ticking.
 @MainActor
 final class DisplayClock: PreviewClock {
     private weak var view: NSView?
     private var link: CADisplayLink?
-    private var tick: (@MainActor () -> Void)?
+    private var tick: (@MainActor () -> Bool)?
 
     init(view: NSView) {
         self.view = view
@@ -65,7 +68,10 @@ final class DisplayClock: PreviewClock {
 
     var now: Double { CACurrentMediaTime() }
 
-    func start(_ tick: @escaping @MainActor () -> Void) {
+    /// Whether the display link is running. For tests.
+    var isRunning: Bool { link != nil }
+
+    func start(_ tick: @escaping @MainActor () -> Bool) {
         self.tick = tick
         guard link == nil, let view else { return }
         let link = view.displayLink(target: self, selector: #selector(step(_:)))
@@ -80,6 +86,15 @@ final class DisplayClock: PreviewClock {
     }
 
     @objc private func step(_ link: CADisplayLink) {
-        tick?()
+        frame()
+    }
+
+    /// One frame: a tick, or the end of the ticking once nobody is left to see it. Internal
+    /// for tests.
+    func frame() {
+        guard view != nil, let tick, tick() else {
+            stop()
+            return
+        }
     }
 }

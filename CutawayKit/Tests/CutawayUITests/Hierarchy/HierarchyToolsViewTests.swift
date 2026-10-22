@@ -108,7 +108,7 @@ final class HierarchyToolsViewTests: XCTestCase {
         }
         XCTAssertEqual(published, [], "nothing while the typing goes on")
         XCTAssertEqual(model.searchText, "")
-        wait(HierarchyViewController.searchDelay + 0.2)
+        wait(DebouncedSearchInput.delay + 0.2)
         XCTAssertEqual(published, ["label"])
         XCTAssertEqual(controller.reloadCount, reloads + 1)
         XCTAssertEqual(layers(of: controller), [1, 2, 3, 6, 7, 13, 14])
@@ -123,7 +123,7 @@ final class HierarchyToolsViewTests: XCTestCase {
         try typeSearch("", in: controller)
         XCTAssertEqual(model.searchText, "")
         XCTAssertEqual(layers(of: controller), [1, 2, 3, 4, 10, 11, 12, 5, 6, 7, 8, 9, 13, 14])
-        wait(HierarchyViewController.searchDelay + 0.2)
+        wait(DebouncedSearchInput.delay + 0.2)
         XCTAssertEqual(model.searchText, "")
     }
 
@@ -138,7 +138,7 @@ final class HierarchyToolsViewTests: XCTestCase {
         try typeSearch("lab", in: controller)
         model.setSearchText("label")
         XCTAssertEqual(published, ["label"])
-        wait(HierarchyViewController.searchDelay + 0.2)
+        wait(DebouncedSearchInput.delay + 0.2)
         XCTAssertEqual(published, ["label"], "the typing that waited is not applied after")
         XCTAssertEqual(model.searchText, "label")
     }
@@ -155,7 +155,7 @@ final class HierarchyToolsViewTests: XCTestCase {
         XCTAssertEqual(model.searchText, "")
         controller.viewWillDisappear()
         XCTAssertEqual(model.searchText, "label")
-        wait(HierarchyViewController.searchDelay + 0.2)
+        wait(DebouncedSearchInput.delay + 0.2)
         XCTAssertEqual(published, ["label"], "and only once")
     }
 

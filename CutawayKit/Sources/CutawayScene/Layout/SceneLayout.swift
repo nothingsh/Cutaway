@@ -70,6 +70,8 @@ public struct SceneLayout: Sendable {
     let stage: Stage?
     /// The same for this layout and the copies with other images, and for no other layout.
     let build = Build()
+    /// Whether the levels were taken from an earlier layout. For tests.
+    let keptLevels: Bool
 
     /// Tells one laying out of the layers from another.
     final class Build: Sendable {}
@@ -80,9 +82,14 @@ public struct SceneLayout: Sendable {
     /// that is not among the layers is no focus. With `showsHidden`, layers that cannot be
     /// seen (hidden, or of opacity 0, themselves or through an ancestor) are displayed as
     /// ghosts (C-PREV-08).
+    ///
+    /// With `earlier`, the levels are taken from it when the same layers are displayed in the
+    /// same places, which a change that moves nothing (an opacity, say) leaves: C-SCENE-02
+    /// depends on nothing else, and finding the levels again is the costly part of laying
+    /// out thousands of layers.
     public init(
         layers: [SceneLayer], expanded: Set<UInt64>, focus: UInt64? = nil,
-        showsHidden: Bool = false
+        showsHidden: Bool = false, keepingLevelsOf earlier: Self? = nil
     ) {
         let (indexByID, parentIndex, hasChildren) = Self.parents(of: layers)
         let focus = focus.flatMap { indexByID[$0] == nil ? nil : $0 }
@@ -147,7 +154,8 @@ public struct SceneLayout: Sendable {
             }
         }
 
-        Self.assignLevels(&entries, displayed: displayed, contentBox: contentBox)
+        keptLevels = Self.setLevels(
+            &entries, displayed: displayed, contentBox: contentBox, keepingThoseOf: earlier)
         let drawOrder = displayed.filter { entries[$0].hasArea }.sorted {
             (entries[$0].level, $0) < (entries[$1].level, $1)
         }
@@ -169,6 +177,35 @@ public struct SceneLayout: Sendable {
             guard entry.hasArea, entry.layer.capturesImage else { return nil }
             return TextureNeed(layerID: entry.layer.id, kind: Self.neededKind(for: entry))
         }
+    }
+
+    /// Gives the displayed layers their levels: those of `earlier` when it places them alike,
+    /// found again otherwise. Returns whether they were taken from `earlier`.
+    private static func setLevels(
+        _ entries: inout [Entry], displayed: [Int], contentBox: SceneRect?, keepingThoseOf earlier: Self?
+    ) -> Bool {
+        guard let earlier, placesLevelsAlike(entries, displayed, as: earlier) else {
+            assignLevels(&entries, displayed: displayed, contentBox: contentBox)
+            return false
+        }
+        for index in displayed { entries[index].level = earlier.entries[index].level }
+        return true
+    }
+
+    /// Whether `earlier` displays the same layers, each with or without an area as here and
+    /// in the same place: all that the levels are found from (`assignLevels`).
+    private static func placesLevelsAlike(
+        _ entries: [Entry], _ displayed: [Int], as earlier: Self
+    ) -> Bool {
+        guard earlier.entries.count == entries.count, earlier.displayed == displayed else {
+            return false
+        }
+        for index in displayed {
+            let entry = entries[index], theirs = earlier.entries[index]
+            guard entry.hasArea == theirs.hasArea else { return false }
+            if entry.hasArea, entry.quad != theirs.quad { return false }
+        }
+        return true
     }
 
     /// The index of each layer, the index of each layer's parent, and whether each layer has

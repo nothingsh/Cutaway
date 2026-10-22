@@ -72,7 +72,8 @@ final class LazyRowsTests: XCTestCase {
         panel.window.makeFirstResponder(field)
         let changed = try XCTUnwrap(panel.controller.attributeRows.first { $0.row.title == "Attribute 9.5" })
         let key = try XCTUnwrap(panel.controller.viewModel.key(of: changed.attribute))
-        panel.controller.viewModel.edits[key] = .sending(.double(1))
+        panel.model.attributes.set(key, to: .double(1), continuous: false)
+        XCTAssertNotNil(panel.model.attributes.edits[key], "on its way")
 
         panel.scroll(to: panel.document.frame.height - panel.visible.height)
         let built = Set(panel.controller.attributeRows.map(\.row.title))

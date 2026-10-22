@@ -138,7 +138,7 @@ extension AttributesViewController {
         default: []
         }
         return attributes.contains { attribute in
-            viewModel.key(of: attribute).flatMap { viewModel.edits[$0] } != nil
+            viewModel.key(of: attribute).flatMap { viewModel.store.edits[$0] } != nil
         }
     }
 }

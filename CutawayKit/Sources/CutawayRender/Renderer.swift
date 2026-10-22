@@ -75,11 +75,16 @@ public final class Renderer {
     private let dotPipeline: any MTLRenderPipelineState
     private let hatchPipeline: any MTLRenderPipelineState
     private let sampler: any MTLSamplerState
+    private let vertexBuffers: VertexBuffers
+
+    /// How many vertex buffers were made since the renderer was. For tests.
+    var vertexBufferCount: Int { vertexBuffers.madeCount }
 
     public init(device: any MTLDevice) throws {
         self.device = device
         guard let queue = device.makeCommandQueue() else { throw RenderError.noCommandQueue }
         self.queue = queue
+        vertexBuffers = VertexBuffers(device: device)
         let library = try ShaderLibrary.make(device: device)
         texturePipeline = try Self.pipeline(device, library, fragment: "layerTextureFragment")
         colorPipeline = try Self.pipeline(device, library, fragment: "layerColorFragment")
@@ -135,23 +140,23 @@ public final class Renderer {
 
     /// Encodes the list into a pass whose colour target has `Renderer.pixelFormat` and is
     /// `width` × `height` pixels. Throws when the GPU cannot take the vertices; the caller
-    /// still ends the encoder.
+    /// still ends the encoder. Returns the vertex buffer the pass reads, if it reads one,
+    /// which the caller gives back once the commands complete.
     private func encode(
         _ list: DrawList, textures: TextureCache, style: RenderStyle, width: Int, height: Int,
         into encoder: any MTLRenderCommandEncoder
-    ) throws {
+    ) throws -> VertexBuffers.Lease? {
         guard !list.items.isEmpty || !list.marks.isEmpty || list.measurement != nil else {
-            return
+            return nil
         }
         let solid = list.measurement?.lines ?? [], dashes = list.measurement?.dashes ?? []
         let dots = list.measurement?.links ?? []
         let count = (list.items.count + list.marks.count) * Self.verticesPerItem
             + 2 * (solid.count + dashes.count + dots.count)
         // Written in place: building an array first and copying it took most of a frame
-        // with thousands of layers.
-        guard let buffer = device.makeBuffer(
-            length: MemoryLayout<Vertex>.stride * count, options: .storageModeShared)
-        else { throw RenderError.gpu("no vertex buffer") }
+        // with thousands of layers. The buffer is one no frame in flight reads.
+        let lease = try vertexBuffers.take(length: MemoryLayout<Vertex>.stride * count)
+        let buffer = lease.buffer
         var vertices = VertexWriter(
             buffer.contents().bindMemory(to: Vertex.self, capacity: count))
         for item in list.items {
@@ -214,6 +219,7 @@ public final class Renderer {
                 from: measurementStart + 2 * (solid.count + dashes.count), count: dots.count,
                 into: encoder)
         }
+        return lease
     }
 
     /// The layers' images (or an excluded layer's stripes), fills and borders, whose vertices
@@ -396,8 +402,9 @@ public final class Renderer {
         guard let encoder = commands.makeRenderCommandEncoder(descriptor: pass) else {
             throw RenderError.gpu("no command buffer")
         }
+        let vertices: VertexBuffers.Lease?
         do {
-            try encode(
+            vertices = try encode(
                 list, textures: textures, style: style, width: target.width,
                 height: target.height, into: encoder)
         } catch {
@@ -406,6 +413,7 @@ public final class Renderer {
             throw error
         }
         encoder.endEncoding()
+        vertexBuffers.giveBack(vertices, after: commands)
         if let drawable { commands.present(drawable) }
         commands.commit()
         return commands
@@ -457,8 +465,9 @@ public final class Renderer {
         guard let encoder = commands.makeRenderCommandEncoder(descriptor: pass) else {
             throw RenderError.gpu("no command buffer")
         }
+        let vertices: VertexBuffers.Lease?
         do {
-            try encode(
+            vertices = try encode(
                 list, textures: textures, style: style, width: pixelWidth, height: pixelHeight,
                 into: encoder)
         } catch {
@@ -467,6 +476,7 @@ public final class Renderer {
             throw error
         }
         encoder.endEncoding()
+        vertexBuffers.giveBack(vertices, after: commands)
         if managed, let blit = commands.makeBlitCommandEncoder() {
             blit.synchronize(resource: target)
             blit.endEncoding()

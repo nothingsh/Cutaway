@@ -1,5 +1,6 @@
 import AppKit
 import CutawayModel
+import CutawayProjects
 import XCTest
 
 @testable import CutawayUI

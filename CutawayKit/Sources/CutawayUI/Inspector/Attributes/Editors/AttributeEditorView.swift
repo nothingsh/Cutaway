@@ -56,8 +56,7 @@ final class AttributeEditorView: NSView {
     /// Called when the note changes.
     var onNote: (String?) -> Void = { _ in }
     /// What the row says under it while the editor is used (C-ATTR-13): why what is typed
-    /// is refused, while it is. The range is not said ahead of time (user's decision,
-    /// 2026-10-14).
+    /// is refused, while it is. The range is not said ahead of time.
     private(set) var note: String? {
         didSet { if note != oldValue { onNote(note) } }
     }
@@ -234,7 +233,7 @@ final class AttributeEditorView: NSView {
     }
 
     /// Fades the value, with the reason in the tooltip, or shows it plainly for nil
-    /// (C-ATTR-21). Nothing is written beside it (user's decision, 2026-10-14).
+    /// (C-ATTR-21). Nothing is written beside it.
     func showInactive(_ reason: String?) {
         guard reason != inactiveReason else { return }
         inactiveReason = reason
