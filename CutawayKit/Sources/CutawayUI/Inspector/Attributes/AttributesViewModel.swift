@@ -1,5 +1,6 @@
 import Combine
 import CutawayModel
+import CutawayProjects
 import CutawayWire
 
 /// What the attribute panel shows, derived from the attributes (C-ATTR-01 to C-ATTR-06,
@@ -9,9 +10,9 @@ import CutawayWire
 /// constraints as the panel writes them. It hands the editors' changes to the store.
 ///
 /// It only builds publishers when asked; the panel subscribes to them where it lays itself
-/// out, each on its own and in its order. What the store said last is kept here as the panel
-/// passes it on from the publishers, which send before the store changes: it is never read
-/// back from the store.
+/// out, each on its own and in its order. What the attributes store holds is read from it:
+/// the store holds what it publishes by the time it publishes it. The tree and the project
+/// folder's index, which come from elsewhere, are kept here as the panel passes them on.
 @MainActor
 final class AttributesViewModel {
     /// What the panel says in place of the attributes.
@@ -109,11 +110,6 @@ final class AttributesViewModel {
     private let trees: AnyPublisher<LayerTree, Never>
     private let connection: AnyPublisher<InspectionStore.Connection, Never>
 
-    /// Whether the store can change attributes, the changes under way or failed, and whether
-    /// the connection holds (C-WIN-03), as last published.
-    var canEdit = false
-    var edits: [AttributeKey: EditStatus] = [:]
-    var isConnected = true
     /// The hierarchy, for the names of the layers constraints relate.
     var tree = LayerTree.empty
     /// The app's project folder as last indexed, for the names of colours and texts
@@ -145,18 +141,16 @@ final class AttributesViewModel {
         trees.prefix(1).eraseToAnyPublisher()
     }
 
-    /// Whether the connection holds (C-WIN-03).
+    /// Whether the connection holds (C-WIN-03): the ancestors show whether they can be
+    /// chosen.
     var isLive: AnyPublisher<Bool, Never> {
         connection.map { !$0.isLost }.removeDuplicates().eraseToAnyPublisher()
     }
 
-    /// Whether the store can change attributes, the changes, and whether the connection
-    /// holds: any of them builds the rows' editors again.
-    var editing: AnyPublisher<(Bool, [AttributeKey: EditStatus], Bool), Never> {
-        Publishers.CombineLatest3(
-            store.$canEdit, store.$edits, connection.map { !$0.isLost }.removeDuplicates()
-        )
-        .eraseToAnyPublisher()
+    /// Whether the store can change attributes, which it cannot once the connection is gone
+    /// (C-WIN-03), and the changes: either builds the rows' editors again.
+    var editing: AnyPublisher<(Bool, [AttributeKey: EditStatus]), Never> {
+        Publishers.CombineLatest(store.$canEdit, store.$edits).eraseToAnyPublisher()
     }
 
     var state: AnyPublisher<AttributesStore.State, Never> {
@@ -288,8 +282,9 @@ final class AttributesViewModel {
         }
     }
 
-    /// Whether rows offer editors now (C-ATTR-04).
-    var offersEditors: Bool { canEdit && isConnected }
+    /// Whether rows offer editors now (C-ATTR-04): whether the store can change attributes,
+    /// which it cannot once the connection is gone (C-WIN-03).
+    var offersEditors: Bool { store.canEdit }
 
     func shape(of groups: [AttributeGroup]) -> Shape {
         Shape(
@@ -323,7 +318,7 @@ final class AttributesViewModel {
     /// A row's value and state: a row being changed shows the value on its way. `layer` is
     /// every attribute of the layer, where the one that makes this one have no effect is.
     func rowState(of attribute: Attribute, among layer: [Attribute] = []) -> RowState {
-        let status = key(of: attribute).flatMap { edits[$0] }
+        let status = key(of: attribute).flatMap { store.edits[$0] }
         var state = switch status {
         case .sending(let value):
             RowState(value: value, isSending: true, failureText: nil)

@@ -7,8 +7,8 @@ import Foundation
 /// whether the expand menu can be used.
 ///
 /// It only builds publishers when asked; the list subscribes to them where it lays itself out.
-/// Where a publisher reads the store inside its closure, it does so there and then: the
-/// property that publishes still holds its old value, those published before it the new ones.
+/// Where a publisher reads the store inside its closure, it does so there and then: the store
+/// holds what it publishes by the time it publishes it.
 @MainActor
 final class HierarchyViewModel {
     /// One step of the path from the window's root layer down to the focus (C-HIER-05).

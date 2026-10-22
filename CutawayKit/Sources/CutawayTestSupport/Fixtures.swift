@@ -89,9 +89,10 @@ extension Fixtures {
         return hierarchy
     }
 
-    /// The `hierarchy` scenario without the nodes 1.2 added to it (10 to 14): the nine nodes the
-    /// baselines are drawn from until virtual and excluded nodes have their own look in
-    /// a later change.
+    /// The `hierarchy` scenario without the nodes 1.2 added to it (10 to 14): the nine nodes of
+    /// 1.1. Tests whose expected positions, orders and row counts were worked out for those nine
+    /// keep using them; the virtual and excluded nodes have tests of their own, and the
+    /// baselines are drawn from all fourteen.
     public static func hierarchyBeforeProtocol12() throws -> Hierarchy {
         var hierarchy = try hierarchy()
         hierarchy.nodes.removeAll { $0.id >= 10 }

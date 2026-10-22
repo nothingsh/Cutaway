@@ -11,8 +11,8 @@ import Foundation
 /// in a new round the selected layer's old answer stays shown until its new one arrives.
 ///
 /// `InspectionStore` owns it and tells it what it needs to know: the selection, whether the
-/// inspection is open, whether a hierarchy is on its way, new rounds, the app's state and
-/// whether the server can change attributes.
+/// inspection is open, whether a hierarchy is on its way, new rounds, the app's state, whether
+/// the server can change attributes and whether the connection is gone.
 ///
 /// It also changes attributes (C-ATTR-04 to C-ATTR-08): `set(_:to:continuous:)` sends a
 /// `SetAttribute`, at most one at a time for each attribute, and the answer replaces the
@@ -39,12 +39,12 @@ public final class AttributesStore: ObservableObject {
     }
 
     /// For the selected layer.
-    @Published public private(set) var state: State = .none
-    /// Whether attributes may be changed: the source is an app (C-ATTR-04) and the app is
-    /// active (P-APP-01). The connection is the window's business (C-WIN-03).
-    @Published public private(set) var canEdit = false
+    @StoreState public private(set) var state: State = .none
+    /// Whether attributes may be changed: the source is an app (C-ATTR-04), the app is active
+    /// (P-APP-01), no archive is being saved (C-ARCH-02) and the connection holds (C-WIN-03).
+    @StoreState public private(set) var canEdit = false
     /// The changes under way and the ones that failed, by attribute (C-ATTR-06).
-    @Published public private(set) var edits: [AttributeKey: EditStatus] = [:]
+    @StoreState public private(set) var edits: [AttributeKey: EditStatus] = [:]
     /// The changes that succeeded, to undo and redo (C-ATTR-08). Its groups are opened and
     /// closed by the editor, one to a change.
     public var undoManager: UndoManager { editor.undoManager }
@@ -159,6 +159,13 @@ public final class AttributesStore: ObservableObject {
     /// Whether changes wait for something else to end: an archive being saved (C-ARCH-02).
     func setEditingSuspended(_ suspended: Bool) {
         editor.setSuspended(suspended)
+        updateCanEdit()
+    }
+
+    /// The connection to the app is gone (C-WIN-03): nothing can be changed from now on. The
+    /// inspection that owns the store says so, once, as it says what is selected.
+    func connectionLost() {
+        editor.connectionLost()
         updateCanEdit()
     }
 

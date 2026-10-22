@@ -159,7 +159,8 @@ public actor Discovery {
             // Nothing listens there, or what listens is not a Cutaway server. Only a server
             // that answered wrongly is worth a line: a closed port is the usual case.
             if case RequestError.protocolViolation(let reason) = error {
-                Self.log.notice("\(String(describing: location), privacy: .public): \(reason, privacy: .public)")
+                Self.log.notice(
+                    "\(String(describing: location), privacy: .private(mask: .hash)): \(reason, privacy: .public)")
             }
             forgetIncompatible(location)
             return
@@ -176,7 +177,7 @@ public actor Discovery {
         switch outcome {
         case .ready(let app, _):
             Self.log.info(
-                "found \(app.name ?? "an app", privacy: .public) at \(String(describing: location), privacy: .public)")
+                "found \(app.name ?? "an app") at \(String(describing: location), privacy: .private(mask: .hash))")
             incompatible.remove(location)
             sessions[location] = session
             continuation.yield(.found(location, app, session))
@@ -184,7 +185,7 @@ public actor Discovery {
         case .incompatible(let local, let remote, let app):
             Self.log.notice(
                 """
-                \(String(describing: location), privacy: .public) speaks protocol \
+                \(String(describing: location), privacy: .private(mask: .hash)) speaks protocol \
                 \(remote.major).\(remote.minor), this Cutaway \(local.major).\(local.minor)
                 """)
             incompatible.insert(location)
@@ -239,7 +240,7 @@ public actor Discovery {
 
     private func sessionEnded(_ session: Session, at location: AppLocation) {
         guard sessions[location] === session else { return }
-        Self.log.info("lost \(String(describing: location), privacy: .public)")
+        Self.log.info("lost \(String(describing: location), privacy: .private(mask: .hash))")
         sessions[location] = nil
         continuation.yield(.lost(location))
     }

@@ -1,5 +1,5 @@
-# Builds and tests the code on every push to main and every pull request by running
-# scripts/check.sh.
+# Builds and tests the code on every push to main or to a dev-* branch, and on every pull request,
+# by running scripts/check.sh.
 name: check
 
 on:

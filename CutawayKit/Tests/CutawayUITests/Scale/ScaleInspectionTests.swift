@@ -216,6 +216,55 @@ final class ScaleInspectionTests: XCTestCase {
         check("collapse all", measured, limit: .seconds(1))
     }
 
+    /// The answer to the refresh after a change (C-DET-06) replaces the changed layer's whole
+    /// window, nearly every layer, though one value changed. What the list and the preview do
+    /// on the main thread with that tree, once the store publishes it, is measured: the
+    /// borders' colours, the rows compared, the window drawn. Laying the scene out is the
+    /// store's, measured with C-SCALE-01's layout.
+    @MainActor
+    func test_C_SCALE_01_aTreeThatComesAgainAfterAChangeTakesTheListAndPreviewAtMostEightyMilliseconds()
+        async throws
+    {
+        let inspection = try await loaded()
+        let model = inspection.model
+        let hierarchy = try ScaleScene.hierarchy()
+        let changed = hierarchy.nodes[hierarchy.nodes.count / 2].id
+        let root = try XCTUnwrap(model.tree.path(to: changed).first)
+        // The window's subtree as the server sends it: parents first.
+        var inside: Set<UInt64> = [root]
+        var window: [LayerNode] = []
+        for node in hierarchy.nodes where node.id == root || inside.contains(node.parentID) {
+            inside.insert(node.id)
+            window.append(node)
+        }
+        let index = try XCTUnwrap(window.firstIndex { $0.id == changed })
+        let rows = inspection.outline.numberOfRows
+        let reloads = inspection.inspector.splitController.hierarchyController.reloadCount
+        var opacity: Float = 0.5
+        let measured = try ScaleScene.median(of: 7) {
+            // Another value each time, so that each tree differs from the last.
+            let value = opacity
+            opacity = opacity == 0.5 ? 0.25 : 0.5
+            var answer = window
+            answer[index].opacity = value
+            let tree = try model.tree.replacingSubtree(
+                with: Hierarchy(nodes: answer, keyWindowID: hierarchy.keyWindowID))
+            let start = ContinuousClock.now
+            // As the store publishes a tree it took in.
+            model.tree = tree
+            model.announceRows()
+            inspection.draw()
+            let elapsed = ContinuousClock.now - start
+            XCTAssertEqual(inspection.preview?.borders.tree.node(changed)?.opacity, value)
+            XCTAssertEqual(inspection.outline.numberOfRows, rows)
+            return elapsed
+        }
+        XCTAssertEqual(
+            inspection.inspector.splitController.hierarchyController.reloadCount, reloads,
+            "the same rows: the list is not reloaded")
+        check("a tree that comes again after a change", measured, limit: .milliseconds(80))
+    }
+
     @MainActor
     func test_C_SCALE_01_anArchiveOfTenThousandLayersOpensWithinTwoSeconds() async throws {
         let directory = FileManager.default.temporaryDirectory

@@ -131,8 +131,8 @@ final class AttributesViewTests: XCTestCase {
             .map { id, tree in LayerSummary(tree, id) }
             .eraseToAnyPublisher()
         let controller = AttributesViewController(
-            store: model.attributes, appName: "Demo", layer: layer, onRetry: onRetry, copy: copy,
-            loadingDelay: loadingDelay)
+            store: model.attributes, appName: "Demo", inputs: AttributesPanelInputs(layer: layer),
+            actions: AttributesPanelActions(retry: onRetry, copy: copy), loadingDelay: loadingDelay)
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 300, height: 600), styleMask: [.titled],
             backing: .buffered, defer: false)

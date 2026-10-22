@@ -23,6 +23,9 @@ public final class AppListStore: ObservableObject {
     /// The request for each app's icon over its current connection; an inspection's first
     /// hierarchy waits for it, so that the requests go out in one order.
     private var iconLoads: [AppLocation: Task<Void, Never>] = [:]
+    /// Decompresses an app's icon. Only ever called away from the main thread (C-DET-09):
+    /// an icon may be as large as a screenshot. Tests replace it.
+    var decodeIcon: @Sendable (EncodedImage) throws -> Bitmap = { try $0.decoded() }
     /// The inspection state of each app that has been inspected over its current connection.
     private var inspections: [AppLocation: InspectionStore] = [:]
     private var consumer: Task<Void, Never>?
@@ -195,8 +198,10 @@ public final class AppListStore: ObservableObject {
 
     @discardableResult
     private func loadIcon(from session: Session, at location: AppLocation) -> Task<Void, Never> {
-        Task { [weak self] in
-            guard let image = try? await session.appIcon(), let icon = try? image.decoded()
+        Task { [weak self, decodeIcon] in
+            // Decompressed away from the main thread; only the result comes back to it.
+            guard let image = try? await session.appIcon(),
+                  let icon = await ImageDecompression.decompress([0: image], using: decodeIcon)[0]
             else { return }
             self?.setIcon(icon, at: location, from: session)
         }

@@ -36,33 +36,9 @@ final class InspectorSplitViewController: NSSplitViewController {
         self.store = store
         hierarchyController = HierarchyViewController(store: store, appName: appName)
         containerController = PreviewPaneViewController(store: store, appName: appName)
-        let layer = project.map { store.selectedLayerSummary(index: $0.index) } ?? store.selectedLayerSummary
         attributesController = AttributesViewController(
-            store: store.attributes, appName: appName, layer: layer,
-            tree: store.$tree.eraseToAnyPublisher(),
-            connection: store.$connection.eraseToAnyPublisher(),
-            onRetry: { [weak store] in store?.retryAttributes() },
-            onShowLayer: { [weak store] id in store?.showLayer(id) },
-            onHoverLayer: { [weak store] id in
-                // Not once the connection is gone, as in the list.
-                guard let store, !store.connection.isLost else { return }
-                store.hover(id)
-            },
-            onHoverConstraintEnd: { [weak store] end in
-                guard let store, !store.connection.isLost else { return }
-                store.hoverConstraintEnd(end?.mark, layerID: end?.layerID)
-            },
-            onPointConstraints: { [weak store] pointer in
-                guard let store, !store.connection.isLost else { return }
-                switch pointer {
-                case .entered(let indices, let stresses):
-                    store.pointConstraints(indices, stresses: stresses)
-                case .left(let indices):
-                    store.leaveConstraints(indices)
-                }
-            },
-            openInXcode: { [weak project] locations, button in project?.open(locations, from: button) },
-            projectIndex: project?.index ?? Just(nil).eraseToAnyPublisher())
+            store: store.attributes, appName: appName, inputs: store.attributesPanelInputs(project: project),
+            actions: store.attributesPanelActions(project: project))
         super.init(nibName: nil, bundle: nil)
         hierarchyController.layerMenu.project = project
         previewController.layerMenu.project = project

@@ -90,12 +90,12 @@ extension InspectionStore {
     // MARK: - Exporting a screenshot
 
     /// Whether a layer's `solo` or `group` can be exported (C-ARCH-06): one export at a time,
-    /// of a layer in the tree that has images of its own, so neither a virtual node
-    /// (C-HIER-16) nor one the app does not let be captured. An app is asked when the time
-    /// comes; an archive is known to hold the image or not, a missing `solo` standing for the
-    /// `group` (P-DET-04).
+    /// while the connection holds (`takesIntents`), of a layer in the tree that has images of
+    /// its own, so neither a virtual node (C-HIER-16) nor one the app does not let be
+    /// captured. An app is asked when the time comes; an archive is known to hold the image
+    /// or not, a missing `solo` standing for the `group` (P-DET-04).
     public func canExportImage(of id: UInt64, kind: TextureKey.Kind) -> Bool {
-        guard let node = tree.node(id), node.kind != .virtual, !node.isCaptureExcluded,
+        guard takesIntents, let node = tree.node(id), node.kind != .virtual, !node.isCaptureExcluded,
               screenshotExport != .exporting
         else { return false }
         guard let known = source.imagePresence else { return true }
@@ -116,12 +116,13 @@ extension InspectionStore {
 
     /// Exports a layer's screenshot to `url` (C-ARCH-06): its image, encoded by `encode` away
     /// from the main thread, written in one piece. A failure stays in `screenshotExport`
-    /// until dismissed. Does nothing while an export is under way.
+    /// until dismissed. Does nothing while an export is under way, or once the connection is
+    /// gone (`takesIntents`).
     public func exportScreenshot(
         of id: UInt64, kind: TextureKey.Kind, to url: URL,
         encode: @escaping @Sendable (Bitmap) -> Data?
     ) {
-        guard screenshotExport != .exporting else { return }
+        guard takesIntents, screenshotExport != .exporting else { return }
         screenshotExport = .exporting
         Task { [weak self] in
             guard let self else { return }

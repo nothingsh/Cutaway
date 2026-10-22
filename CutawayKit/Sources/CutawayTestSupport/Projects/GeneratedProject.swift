@@ -9,6 +9,9 @@ public enum GeneratedProject {
     public static let catalogCount = 2
     public static let keysPerCatalog = 500
     public static let languages = ["en", "zh-Hans", "zh-Hant", "ja", "ko"]
+    /// The files an index reads: the Swift files, each color set's `Contents.json`, the asset
+    /// catalog's and the String Catalogs.
+    public static let fileCount = swiftFileCount + colorSetCount + 1 + catalogCount
 
     /// The name of the class the file numbered `number` declares.
     public static func className(_ number: Int) -> String {

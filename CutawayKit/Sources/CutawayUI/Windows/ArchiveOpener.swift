@@ -1,5 +1,6 @@
 import AppKit
 import CutawayModel
+import CutawayProjects
 
 /// Opens archives, each in a window of its own (C-ARCH-04, C-WIN-05), and keeps those
 /// windows: one per file, cascaded, listed in File › Open Recent.

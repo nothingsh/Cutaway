@@ -3,7 +3,7 @@
 /.swiftpm/
 /CutawayKit/.build/
 /CutawayKit/.swiftpm/
-/.superpowers/
+/.superpowers
 /DerivedData/
 /build/
 /BaselineCandidates/
@@ -15,7 +15,7 @@ xcuserdata/
 .claude/settings.local.json
 
 # Local development documents and agent configuration.
-/docs/
+/docs
 /AGENTS.md
 /CLAUDE.md
 /.claude/

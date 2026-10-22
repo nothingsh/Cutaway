@@ -54,8 +54,9 @@ final class ManyAttributes {
             .map { id, tree in LayerSummary(tree, id) }
             .eraseToAnyPublisher()
         controller = AttributesViewController(
-            store: model.attributes, appName: "Demo", layer: layer,
-            connection: model.$connection.eraseToAnyPublisher(), loadingDelay: 0)
+            store: model.attributes, appName: "Demo",
+            inputs: AttributesPanelInputs(layer: layer, connection: model.$connection.eraseToAnyPublisher()),
+            loadingDelay: 0)
         window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 300, height: 600), styleMask: [.titled],
             backing: .buffered, defer: false)

@@ -25,6 +25,9 @@ struct CompoundFactory {
 /// index path) is written as text under or beside the parts (C-ATTR-27); the text follows the
 /// members' values as they come.
 final class CompoundRowView: NSView, AttributeListRow {
+    private typealias Slot = AttributeClusters.Slot
+    private typealias TextRole = CompoundRowText.Role
+
     static let identifier = "attributes.compound"
     static let lineLabelIdentifier = "attributes.compound.label"
 
@@ -54,7 +57,7 @@ final class CompoundRowView: NSView, AttributeListRow {
     init(_ row: AttributeClusters.Row, factory: CompoundFactory) {
         self.row = row
         words = factory.words
-        title = Self.title(of: row)
+        title = CompoundRowText.title(of: row)
         titleField = WrappingTitleField(title: title)
         titleField.widthIsGiven = true
         super.init(frame: .zero)
@@ -87,8 +90,8 @@ final class CompoundRowView: NSView, AttributeListRow {
         for slot in Self.compactSlots[row.kind] ?? [] {
             if let view = views[slot] { compact.insert(ObjectIdentifier(view)) }
         }
-        if let clip = views["clip"], row.kind == .corners { hugs.insert(ObjectIdentifier(clip)) }
-        if let scalable = views["scalable"], row.kind == .font { hugs.insert(ObjectIdentifier(scalable)) }
+        if let clip = views[Slot.clip], row.kind == .corners { hugs.insert(ObjectIdentifier(clip)) }
+        if let scalable = views[Slot.scalable], row.kind == .font { hugs.insert(ObjectIdentifier(scalable)) }
         build()
         addVStack(alignment: .fill, spacing: 2) {
             stack
@@ -107,43 +110,15 @@ final class CompoundRowView: NSView, AttributeListRow {
 
     /// The single numbers that sit beside other parts at `compactWidth`.
     private static let compactSlots: [AttributeClusters.Kind: [String]] = [
-        .corners: ["radius"], .border: ["width"], .shadow: ["opacity"], .font: ["size"],
-        .lines: ["count"],
+        .corners: [Slot.radius], .border: [Slot.width], .shadow: [Slot.opacity], .font: [Slot.size],
+        .lines: [Slot.count],
     ]
-
-    /// The title of a row: the cluster's, or "Visible" for a `visibility` of Hidden alone.
-    static func title(of row: AttributeClusters.Row) -> String {
-        switch row.kind {
-        case .visibility:
-            if row["opacity"] == nil {
-                localized("attributes.cluster.visible")
-            } else {
-                localized("attributes.cluster.opacity")
-            }
-        case .corners: localized("attributes.cluster.corners")
-        case .border: localized("attributes.cluster.border")
-        case .shadow: localized("attributes.cluster.shadow")
-        case .geometry:
-            geometryLabel(
-                ["frame", "position", "anchor", "bounds", "zPosition", "transform"]
-                    .first { row[$0] != nil } ?? "frame")
-        case .sizing: ""
-        case .autoLayout: localized("attributes.cluster.autoLayout")
-        case .font: localized("attributes.cluster.font")
-        case .lines: localized("attributes.cluster.lines")
-        case .state: localized("attributes.cluster.state")
-        case .scrolling: localized("attributes.cluster.scrolling")
-        case .image: localized("attributes.cluster.image")
-        case .indexPath: localized("attributes.cluster.indexPath")
-        case .listCounts: localized("attributes.cluster.counts")
-        }
-    }
 
     /// Whether a member is written as text: a slot the row always writes so, and an image's
     /// rendering mode that cannot be changed.
     private static func isText(_ slot: String, _ attribute: Attribute, in kind: AttributeClusters.Kind) -> Bool {
         AttributeClusters.isText(slot, in: kind)
-            || (kind == .image && slot == "renderingMode" && !attribute.isEditable)
+            || (kind == .image && slot == Slot.renderingMode && !attribute.isEditable)
     }
 
     /// "Border Width (layer.borderWidth)".
@@ -171,49 +146,39 @@ final class CompoundRowView: NSView, AttributeListRow {
             return (view, EditorPart(view))
         }
         switch (row.kind, slot) {
-        case (.visibility, "hidden"): return toggle(.eye)
-        case (.visibility, "opacity"):
+        case (.visibility, Slot.hidden): return toggle(.eye)
+        case (.visibility, Slot.opacity):
             let part = OpacityPart(
                 attribute: attribute, editor: editor(), sender: factory.sender(attribute))
             return (part, part)
-        case (.corners, "clip"):
+        case (.corners, Slot.clip):
             var clip = attribute
             clip.title = localized("attributes.cluster.clip")
             let view = factory.editor(clip, .init())
             return (view, EditorPart(view))
-        case (.font, "scalable"):
+        case (.font, Slot.scalable):
             var scalable = attribute
             scalable.title = localized("attributes.cluster.dynamicType")
             let view = factory.editor(scalable, .init())
             return (view, EditorPart(view))
-        case (.autoLayout, "autoresizing"):
+        case (.autoLayout, Slot.autoresizing):
             return toggle(.mode(
                 on: localized("attributes.cluster.autoresizing"), off: localized("attributes.cluster.constraints")))
-        case (.autoLayout, "ambiguous"):
+        case (.autoLayout, Slot.ambiguous):
             let toggle = BoolToggle(
                 style: .check(
                     on: localized("attributes.cluster.ambiguous"), off: localized("attributes.cluster.unambiguous")),
                 name: name, sender: nil)
             return (toggle, toggle)
         case (.state, _), (.scrolling, _):
-            return toggle(.chip(Self.chipTitle(slot)))
-        case (.shadow, "radius"): return plain(.init(letter: "B"))
-        case (.shadow, "offset"): return plain(.init(letters: ["X", "Y"]))
-        case (.geometry, "frame"), (.geometry, "bounds"): return plain(.init(grid: true))
-        case (.sizing, let slot) where slot.hasPrefix("intrinsic."):
+            return toggle(.chip(CompoundRowText.chipTitle(slot)))
+        case (.shadow, Slot.radius): return plain(.init(letter: "B"))
+        case (.shadow, Slot.offset): return plain(.init(letters: ["X", "Y"]))
+        case (.geometry, Slot.frame), (.geometry, Slot.bounds): return plain(.init(grid: true))
+        case (.sizing, Slot.intrinsicWidth), (.sizing, Slot.intrinsicHeight):
             return plain(.init(negativeIsNone: true, showsUnit: false))
         case (.sizing, _): return plain(.init(showsUnit: false))
         default: return plain()
-        }
-    }
-
-    private static func chipTitle(_ slot: String) -> String {
-        switch slot {
-        case "enabled": localized("attributes.cluster.enabled")
-        case "selected": localized("attributes.cluster.selected")
-        case "highlighted": localized("attributes.cluster.highlighted")
-        case "paging": localized("attributes.cluster.paging")
-        default: slot
         }
     }
 
@@ -309,32 +274,20 @@ final class CompoundRowView: NSView, AttributeListRow {
     }
 
     /// The colour and opacity on the first line, the blur and offset on the second, always
-    /// shown (user's decision, 2026-10-14: a shadow that is off is not folded to "None").
+    /// shown: a shadow that is off is not folded to "None".
     private func buildShadow() {
-        let top = parts(["color", "opacity"])
+        let top = parts([Slot.color, Slot.opacity])
         if !top.isEmpty { add(line(title, top, first: true)) }
-        let second = parts(["radius", "offset"])
+        let second = parts([Slot.radius, Slot.offset])
         if !second.isEmpty { add(line(nil, second, first: top.isEmpty, equal: true)) }
-    }
-
-    /// The geometry's labels, by slot.
-    private static func geometryLabel(_ slot: String) -> String {
-        switch slot {
-        case "frame": localized("attributes.cluster.frame")
-        case "position": localized("attributes.cluster.position")
-        case "anchor": localized("attributes.cluster.anchor")
-        case "bounds": localized("attributes.cluster.bounds")
-        case "zPosition": localized("attributes.cluster.z")
-        default: localized("attributes.cluster.transform")
-        }
     }
 
     /// The frame, then position, anchor, bounds and Z, then the transform, all shown (user's
     /// decision, 2026-10-14). Without a frame the first line's label is the row's title.
     private func buildGeometry() {
-        for slot in ["frame", "position", "anchor", "bounds", "zPosition", "transform"] {
+        for slot in AttributeClusters.slotNames(of: .geometry) {
             guard let view = views[slot] else { continue }
-            add(line(Self.geometryLabel(slot), [view], first: stack.arrangedSubviews.isEmpty))
+            add(line(CompoundRowText.geometryLabel(slot), [view], first: stack.arrangedSubviews.isEmpty))
         }
     }
 
@@ -349,23 +302,15 @@ final class CompoundRowView: NSView, AttributeListRow {
             header(localized("attributes.cluster.horizontal")), header(localized("attributes.cluster.vertical")),
         ], equal: true))
         for (label, horizontal, vertical) in [
-            (localized("attributes.cluster.hugging"), "hugging.horizontal", "hugging.vertical"),
-            (localized("attributes.cluster.compression"), "compression.horizontal", "compression.vertical"),
-            (localized("attributes.cluster.intrinsic"), "intrinsic.width", "intrinsic.height"),
+            (localized("attributes.cluster.hugging"), Slot.huggingHorizontal, Slot.huggingVertical),
+            (localized("attributes.cluster.compression"), Slot.compressionHorizontal, Slot.compressionVertical),
+            (localized("attributes.cluster.intrinsic"), Slot.intrinsicWidth, Slot.intrinsicHeight),
         ] where views[horizontal] != nil || views[vertical] != nil {
             add(line(label, [views[horizontal] ?? NSView(), views[vertical] ?? NSView()], equal: true))
         }
     }
 
     // MARK: - Texts (C-ATTR-27)
-
-    /// What a text of a row says.
-    enum TextRole {
-        case textStyle, drawn, truncated, imageName, imageDetails, symbolConfiguration, indexPath, counts
-
-        /// Whether it is the row's value rather than a note on it.
-        var isPrimary: Bool { self == .imageName || self == .indexPath || self == .counts }
-    }
 
     static let textIdentifier = "attributes.compound.text"
 
@@ -408,11 +353,11 @@ final class CompoundRowView: NSView, AttributeListRow {
 
     /// The font and size, then the text style and whether it follows the text size.
     private func buildFont() {
-        let top = parts(["name", "size"])
+        let top = parts([Slot.name, Slot.size])
         if !top.isEmpty { add(line(title, top, first: true)) }
         var second: [NSView] = []
-        if textSlots.contains("textStyle") { second.append(label(.textStyle)) }
-        if let scalable = views["scalable"] {
+        if textSlots.contains(Slot.textStyle) { second.append(label(.textStyle)) }
+        if let scalable = views[Slot.scalable] {
             if let style = second.last { second.append(dot(between: style, and: scalable)) }
             second.append(scalable)
         }
@@ -422,67 +367,37 @@ final class CompoundRowView: NSView, AttributeListRow {
     /// The number of lines and how they break, then how many are drawn and whether the text is
     /// cut short.
     private func buildLines() {
-        let top = parts(["count", "lineBreak"])
+        let top = parts([Slot.count, Slot.lineBreak])
         if !top.isEmpty { add(line(title, top, first: true)) }
-        let roles = [("drawn", TextRole.drawn), ("truncated", .truncated)]
+        let roles = [(Slot.drawn, TextRole.drawn), (Slot.truncated, .truncated)]
             .filter { textSlots.contains($0.0) }.map(\.1)
         if !roles.isEmpty { add(textLine(nil, roles, first: top.isEmpty)) }
     }
 
     /// The name, then the size, scale and rendering mode, then the symbol's configuration.
     private func buildImage() {
-        if textSlots.contains("name") { add(textLine(title, [.imageName], first: true)) }
+        if textSlots.contains(Slot.name) { add(textLine(title, [.imageName], first: true)) }
         var second: [NSView] = []
-        if !textSlots.isDisjoint(with: ["size", "scale", "renderingMode"]) { second.append(label(.imageDetails)) }
-        if let mode = views["renderingMode"] {
+        if !textSlots.isDisjoint(with: [Slot.size, Slot.scale, Slot.renderingMode]) {
+            second.append(label(.imageDetails))
+        }
+        if let mode = views[Slot.renderingMode] {
             if let details = second.last { second.append(dot(between: details, and: mode)) }
             second.append(mode)
         }
         if !second.isEmpty {
             let line = line(nil, second, first: stack.arrangedSubviews.isEmpty)
-            if views["renderingMode"] == nil { textLines.append((line, [.imageDetails])) }
+            if views[Slot.renderingMode] == nil { textLines.append((line, [.imageDetails])) }
             add(line)
         }
-        if textSlots.contains("symbolConfiguration") {
+        if textSlots.contains(Slot.symbolConfiguration) {
             add(textLine(nil, [.symbolConfiguration], first: stack.arrangedSubviews.isEmpty))
         }
     }
 
     /// What a text says now, or nil for nothing.
     private func text(_ role: TextRole) -> String? {
-        func string(_ slot: String) -> String? {
-            if case .string(let text) = value(of: slot) { return text }
-            return nil
-        }
-        switch role {
-        case .textStyle:
-            return string("textStyle").map(ClusterText.textStyle)
-        case .drawn:
-            return ClusterText.integer(value(of: "drawn")).map {
-                ClusterText.drawn($0, of: ClusterText.integer(value(of: "count")))
-            }
-        case .truncated:
-            guard case .bool(true) = value(of: "truncated") else { return nil }
-            return localized("attributes.cluster.truncated")
-        case .imageName:
-            return AttributeText.text(of: value(of: "name"))
-        case .imageDetails:
-            return ClusterText.image(
-                size: textSlots.contains("size") ? value(of: "size") : nil, unit: row["size"]?.unit ?? .unspecified,
-                scale: textSlots.contains("scale") ? value(of: "scale") : nil,
-                mode: textSlots.contains("renderingMode") ? value(of: "renderingMode") : nil)
-        case .symbolConfiguration:
-            return string("symbolConfiguration")
-        // The row's only line: with no values it reads as a nil value does (P-ATTR-03).
-        case .indexPath:
-            return ClusterText.indexPath(
-                section: ClusterText.integer(value(of: "section")), item: ClusterText.integer(value(of: "item")),
-                words: words) ?? localized("attributes.value.none")
-        case .counts:
-            return ClusterText.counts(
-                sections: ClusterText.integer(value(of: "sections")), items: ClusterText.integer(value(of: "items")),
-                words: words) ?? localized("attributes.value.none")
-        }
+        CompoundRowText.text(role, of: row, written: textSlots, words: words) { value(of: $0) }
     }
 
     private func showTexts() {
@@ -530,10 +445,10 @@ final class CompoundRowView: NSView, AttributeListRow {
         if !textLabels.isEmpty { showTexts() }
         switch row.kind {
         case .visibility:
-            if case .bool(true) = value(of: "hidden") {
-                views["opacity"]?.alphaValue = 0.4
+            if case .bool(true) = value(of: Slot.hidden) {
+                views[Slot.opacity]?.alphaValue = 0.4
             } else {
-                views["opacity"]?.alphaValue = 1
+                views[Slot.opacity]?.alphaValue = 1
             }
         default:
             break

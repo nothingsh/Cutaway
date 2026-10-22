@@ -1,6 +1,7 @@
 import AppKit
 import CutawayModel
 import CutawayRender
+import CutawayWire
 
 /// How the preview outlines the layers (C-PREV-17): the options and the tree whose layers'
 /// kinds give the colours. It sets the borders' part of a `RenderStyle`.
@@ -8,6 +9,8 @@ import CutawayRender
 struct PreviewBorders {
     var options = BorderOptions()
     var tree = LayerTree.empty
+    /// The layers' kinds as last worked out. Shared by the copies: it only remembers.
+    private let icons = LayerIconMemo()
 
     /// How opaque a border in its kind's colour is: strong for the app's own classes, faint
     /// for the system's.
@@ -30,10 +33,9 @@ struct PreviewBorders {
         guard options.showsBorders, byKind || options.onlyAppClasses else { return [:] }
         var palette: [LayerIcon.Category: SIMD4<Float>] = [:]
         var colors: [UInt64: SIMD4<Float>] = [:]
-        for layer in tree.layers(within: nil) {
-            let icon = LayerIcon(tree.node(layer.id))
+        icons.forEachLayer(of: tree) { id, icon in
             if options.onlyAppClasses, !icon.isAppClass {
-                colors[layer.id] = Self.notOutlined
+                colors[id] = Self.notOutlined
             } else if byKind, icon.category != .layer {
                 let color: SIMD4<Float>
                 if let known = palette[icon.category] {
@@ -43,7 +45,7 @@ struct PreviewBorders {
                     palette[icon.category] = color
                 }
                 let opacity = icon.isAppClass ? Self.appClassOpacity : Self.systemClassOpacity
-                colors[layer.id] = color * opacity
+                colors[id] = color * opacity
             }
         }
         return colors
@@ -60,5 +62,32 @@ struct PreviewBorders {
         return RenderStyle.premultiplied(
             Float(resolved.redComponent), Float(resolved.greenComponent),
             Float(resolved.blueComponent), 1)
+    }
+}
+
+/// The icons of a tree's layers, each kept with the node it was worked out from. A tree that
+/// comes again, as after every change of an attribute, has nearly every node as it was: their
+/// icons are not worked out again, which matches each class name against some thirty endings.
+@MainActor
+final class LayerIconMemo {
+    private var entries: [UInt64: (node: LayerNode, icon: LayerIcon)] = [:]
+
+    /// Calls `body` with every layer of `tree` and its icon, in the tree's order. Layers no
+    /// longer in the tree are forgotten.
+    func forEachLayer(of tree: LayerTree, _ body: (UInt64, LayerIcon) -> Void) {
+        var kept: [UInt64: (node: LayerNode, icon: LayerIcon)] = [:]
+        kept.reserveCapacity(tree.ids.count)
+        for id in tree.ids {
+            guard let node = tree.node(id) else { continue }
+            let icon: LayerIcon
+            if let known = entries[id], known.node == node {
+                icon = known.icon
+            } else {
+                icon = LayerIcon(node)
+            }
+            kept[id] = (node, icon)
+            body(id, icon)
+        }
+        entries = kept
     }
 }
