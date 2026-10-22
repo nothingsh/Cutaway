@@ -3,7 +3,8 @@
 # (site/MEDIA.md lists them). Uses only tools that come with macOS.
 # Usage:
 #   site-media.sh shot <name> <light.png> <dark.png>
-#       scales both to at most 1600 pixels wide and writes <name>-light.png and <name>-dark.png
+#       scales both to at most 1600 pixels wide, converts them to the generic Display P3 profile and
+#       writes <name>-light.png and <name>-dark.png
 #   site-media.sh video <name> <recording.mov>
 #       converts to H.264 at most 1280 pixels wide, 30 frames a second and 1.2 Mbit/s (the page plays
 #       it muted; scripts/site-video.swift) and writes <name>.mp4 and a poster <name>.jpg made from its
@@ -19,6 +20,10 @@ fail() {
 }
 
 max_width=1600
+# A screenshot carries the profile of the display it was taken on, which names the display's model
+# and maker, and sometimes its serial number. Converting to the generic profile keeps the colours
+# and leaves none of that in the file.
+display_p3="/System/Library/ColorSync/Profiles/Display P3.icc"
 
 shot() {
   local source="$1" destination="$2" width
@@ -29,6 +34,7 @@ shot() {
   else
     cp "$source" "$destination"
   fi
+  sips --matchTo "$display_p3" "$destination" --out "$destination" >/dev/null
   echo "site-media: wrote ${destination#"$media/"} ($(($(stat -f %z "$destination") / 1024)) KB)"
 }
 

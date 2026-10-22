@@ -19,7 +19,7 @@ Opening in Xcode and naming colors and texts need a linked project folder. Copyi
 
 Cutaway remembers the folder for the app’s bundle ID, for live inspections and for that app’s archives. Change or remove it in **Settings › Projects** (see [Settings](/guide/settings)).
 
-Cutaway only reads the folder: Swift and Objective-C sources, asset catalogs and string catalogs. It never writes into it and sends it nowhere. It reads in the background and skips hidden folders and build products (`DerivedData`, `build`, `.build`, `SourcePackages`, `Pods`, `Carthage`). When you open an inspector or refresh with <kbd>⌘R</kbd>, it reads again the files that changed.
+Cutaway only reads the folder: Swift and Objective-C sources, asset catalogs and string catalogs. It never writes into it and sends it nowhere. It reads in the background and skips hidden folders, build products and third-party code (`DerivedData`, `build`, `.build`, `SourcePackages`, `Pods`, `Carthage`, `node_modules`), and `.framework`, `.xcframework` and `.bundle` folders. It also skips source files larger than 4 MB and string tables larger than 64 MB, and stops after 200,000 files. When you open an inspector or refresh with <kbd>⌘R</kbd>, it reads again the files that changed.
 
 If the folder has moved or its disk isn’t connected, Cutaway looks for it, and if it can’t find it, asks the first time it needs it: **Choose Again…** or **Later**.
 

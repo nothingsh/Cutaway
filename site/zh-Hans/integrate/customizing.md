@@ -53,7 +53,7 @@ func registerWithCutaway() {
 登记一次即可，例如在启动时紧挨着 `CutawayServer.start()`。描述从 Cutaway 的下一个请求起生效；之后对同一个类再次调用会替换它。
 
 ::: warning 闭包只读
-`attributes` 和 `virtualChildren` 在主线程上调用，每个需要它们的请求调用一次，它们返回的东西在请求答完后丢弃。它们只能读：要改 App，只在属性的 `set` 闭包里改，别处都不行。
+`attributes` 和 `virtualChildren` 在主线程上调用，Cutaway 每次读它们给的东西时都会调用：取层级时、读一个节点的属性时，以及修改之后再读一次，好让回答反映这次修改。在一次取详情的请求里，一个图层的虚拟子节点只问一次，不论请求点到它的多少个节点。它们返回的东西在请求答完后丢弃，虚拟节点的标识除外。它们只能读：要改 App，只在属性的 `set` 闭包里改，别处都不行。
 :::
 
 几个描述作用于同一个图层时（它的类、它的视图的类，以及它们的父类）：
@@ -112,10 +112,12 @@ Cutaway 把你的 App 加的每个分组都显示在检查器里它自己的 **A
 | `section` | 属性属于哪里：`.general`、`.identity`、`.layout`、`.content`、`.appearance`、`.behavior` 或 `.accessibility` |
 | `unit` | 用于数字：`.none`、`.points`（以点为单位的长度）或 `.fraction`（1 为整体的比例，显示为百分比） |
 | `limits` | 数字可以设成的值：`.atLeast`、`.greaterThan`、`.atMost`、`.lessThan`、`.between` 或 `.free`。只给一个限制时作用于每个分量；否则每个分量给一个，按它的字段的次序 |
-| `cluster` | 这个属性可以显示在其中的复合行，以及它在其中的部分，用 Cutaway 协议里的名字 |
+| `cluster` | 这个属性可以显示在其中的复合行，以及它在其中的部分：`.font.size`、`.shadow.color`、`.sizing.huggingHorizontal` 等，Cutaway 协议里的每个复合行和部分都有一个常量；`.init(_:slot:)` 接受字符串形式的名字 |
 | `inactiveBecauseOf` | 同一对象的另一个属性，写成 `"group.name"`，它现在的值使这个属性不起作用；Cutaway 把它显示为淡色 |
 | `acceptsNil` | `set` 能否收到 `nil` |
 | `set` | 使属性可以编辑 |
+
+这些选项的类型嵌在 `CutawayServer.Attribute` 里：`CutawayServer.Attribute.Section`、`.Unit`、`.Limit` 和 `.Cluster`。用上面以点开头的写法，就不必写出它们的全名。
 
 Cutaway 1.2 把你的 App 加的每个分组都显示在 App 一节里，按你返回的次序，不论每个属性的 `section` 是什么。`section` 仍随属性一起发送，作为给按用途排序的客户端的提示。
 
@@ -171,14 +173,14 @@ CutawayServer.Description<SalesChartView>(
 
 | 参数 | 含义 |
 |---|---|
-| `id` | 节点代表什么，每次都是同一个值：用模型的标识，而不是下标。一个图层的节点里，同一个标识只出现一次；重复的节点连同它的子节点都会被去掉 |
+| `id` | 节点代表什么，每次都是同一个值：用模型的标识，而不是下标。一个图层的节点里，同一个标识只出现一次；重复的节点连同它的子节点都会被去掉。Cutaway 会保留每个标识，直到连接结束或图层被释放，所以用 `String`、`Int`、`UUID` 这样的值，不要用对象 |
 | `type` | 节点代表的东西的类型；Cutaway 显示它的名字。节点不代表任何 Swift 类型时，用 `typeName:` 给一个字符串 |
 | `name` | 一个简短的标签，例如柱子的类别 |
 | `frame` | 在父节点的坐标空间里：图层的 bounds，或原点为零的父节点的 frame |
 | `transform` | 绕 `frame` 的中心施加 |
 | `isHidden`、`opacity` | 与图层的相同 |
 | `isCollapsedByDefault` | 节点一开始显示为折叠 |
-| `attributes` | 选中节点时显示；可以像其他属性一样编辑 |
+| `attributes` | 选中节点时显示；可以像其他属性一样编辑。这个表达式只在 Cutaway 读节点的属性时求值，取层级时不求值 |
 | `children` | 画在这个节点里面的节点 |
 
 在 Cutaway 里，一个虚拟节点：
@@ -209,7 +211,7 @@ CutawayServer.describe(CardNumberView.self, CutawayServer.Description(isExcluded
 CutawayServer.registerColor(UIColor(red: 0.2, green: 0.4, blue: 0.8, alpha: 1), named: "brandBlue")
 ```
 
-凡是属性的颜色等于一个登记过的颜色，Cutaway 就显示你起的名字；提示里仍给出十六进制值和这个颜色的其他名字。几个登记的颜色相等时，用最先登记的那个。再次登记一个名字会替换它的颜色，并保留它的位置。
+凡是属性的颜色等于一个登记过的颜色，Cutaway 就显示你起的名字；提示里仍给出十六进制值和这个颜色的其他名字。几个登记的颜色相等时，用最先登记的那个。再次登记一个名字会替换它的颜色，并保留它的位置。动态颜色按与它比较的视图的特征解析：在一个请求里每组特征解析一次，之后的每个请求重新解析。
 
 ## 一个完整的例子 {#a-complete-example}
 

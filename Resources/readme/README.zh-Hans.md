@@ -23,7 +23,7 @@ Cutaway 是一个用来查看正在运行的 iOS App 界面内部的 macOS App�
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="overview-dark.png">
-    <img src="overview-light.png" alt="Cutaway 以 3D 检视一个 App：图层树、分层展开并带测量的预览，以及所选图层的属性。" width="850">
+    <img src="overview-light.png" alt="Cutaway 以 3D 检视一个 App：图层树、分层展开的图层，以及所选图层的属性。" width="850">
   </picture>
 </p>
 
@@ -36,7 +36,7 @@ Cutaway 是一个用来查看正在运行的 iOS App 界面内部的 macOS App�
 - **在运行中修改。** 编辑属性，修改会立即应用到正在运行的 App；⌘Z 可以撤销。 [属性](https://nothingsh.github.io/Cutaway/zh-Hans/guide/attributes)
 - **跟随约束。** 视图的每一条 Auto Layout 约束，标出未生效的，以及它们的另一端。 [约束](https://nothingsh.github.io/Cutaway/zh-Hans/guide/constraints)
 - **试试深色模式和更大的文字。** 改写 App 的外观、文字大小、布局方向和尺寸类别。 [环境](https://nothingsh.github.io/Cutaway/zh-Hans/guide/environment)
-- **跳到你的代码。** 在 Xcode 中打开类，看到 asset 和 String Catalog 里的名字，拷贝 LLDB 命令。 [源码](https://nothingsh.github.io/Cutaway/zh-Hans/guide/source)
+- **跳到你的代码。** 在 Xcode 中打开类，看到 asset 和 String Catalog 里的名字，拷贝 LLDB 命令。 [源代码](https://nothingsh.github.io/Cutaway/zh-Hans/guide/source)
 - **保留你的发现。** 存档一次检查，在任何一台 Mac 上无需设备即可打开；把图层导出为 PNG。 [存档与导出](https://nothingsh.github.io/Cutaway/zh-Hans/guide/archives)
 
 Cutaway 只与这台 Mac 上和通过 USB 线缆连接的 App 通信：没有统计分析，也没有崩溃报告。
@@ -69,7 +69,7 @@ xattr -dr com.apple.quarantine /Applications/Cutaway.app
 2. 在模拟器中运行你的 App，或在用线缆连接到 Mac 的设备上运行。
 3. 打开 Cutaway。几秒钟内你的 App 就会出现在列表中。选中它。
 
-[入门指南](https://nothingsh.github.io/Cutaway/zh-Hans/guide/getting-started)给出了每一步、UIKit 和 SwiftUI 的代码，以及 App 没有出现时要检查什么。
+[开始使用](https://nothingsh.github.io/Cutaway/zh-Hans/guide/getting-started)一页给出了每一步、UIKit 和 SwiftUI 的代码，以及 App 没有出现时要检查什么。
 
 <a id="documentation"></a>
 ## 文档
@@ -79,7 +79,7 @@ xattr -dr com.apple.quarantine /Applications/Cutaway.app
 - [指南](https://nothingsh.github.io/Cutaway/zh-Hans/guide/getting-started)：按任务讲解 Cutaway 的用法，以及所有[键盘快捷键](https://nothingsh.github.io/Cutaway/zh-Hans/guide/shortcuts)。
 - [集成](https://nothingsh.github.io/Cutaway/zh-Hans/integrate/)：把 CutawayServer 添加到你的 App、Debug 与 Release 构建，以及显示 App 自己的信息。
 - [协议](https://nothingsh.github.io/Cutaway/zh-Hans/protocol/)：Cutaway 与 CutawayServer 如何通信，以及哪些版本可以搭配使用。
-- [常见问题与排障](https://nothingsh.github.io/Cutaway/zh-Hans/resources/faq)、[隐私与安全](https://nothingsh.github.io/Cutaway/zh-Hans/resources/privacy)、[性能](https://nothingsh.github.io/Cutaway/zh-Hans/resources/performance)、[版本记录](https://nothingsh.github.io/Cutaway/zh-Hans/resources/releases)、[路线图](https://nothingsh.github.io/Cutaway/zh-Hans/resources/roadmap)。
+- [常见问题与故障排除](https://nothingsh.github.io/Cutaway/zh-Hans/resources/faq)、[隐私与安全](https://nothingsh.github.io/Cutaway/zh-Hans/resources/privacy)、[性能](https://nothingsh.github.io/Cutaway/zh-Hans/resources/performance)、[版本记录](https://nothingsh.github.io/Cutaway/zh-Hans/resources/releases)、[路线图](https://nothingsh.github.io/Cutaway/zh-Hans/resources/roadmap)。
 
 <a id="development"></a>
 ## 开发

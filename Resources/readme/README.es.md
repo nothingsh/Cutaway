@@ -24,7 +24,7 @@ hagas en los atributos se aplican a la app en ejecución.
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="overview-dark.png">
-    <img src="overview-light.png" alt="Cutaway inspeccionando una app en 3D: el árbol de capas, las capas separadas con medidas y los atributos de la capa seleccionada." width="850">
+    <img src="overview-light.png" alt="Cutaway inspeccionando una app en 3D: el árbol de capas, las capas separadas y los atributos de la capa seleccionada." width="850">
   </picture>
 </p>
 

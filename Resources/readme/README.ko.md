@@ -23,7 +23,7 @@ Cutaway는 실행 중인 iOS 앱의 인터페이스 내부를 들여다보기 �
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="overview-dark.png">
-    <img src="overview-light.png" alt="Cutaway가 앱을 3D로 검사하는 모습: 레이어 트리, 벌려 놓은 레이어와 측정값, 선택한 레이어의 속성." width="850">
+    <img src="overview-light.png" alt="Cutaway가 앱을 3D로 검사하는 모습: 레이어 트리, 벌려 놓은 레이어, 선택한 레이어의 속성." width="850">
   </picture>
 </p>
 

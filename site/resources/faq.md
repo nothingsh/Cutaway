@@ -49,7 +49,7 @@ On iOS 26, text and icons in navigation bars, toolbars and tab bars are drawn in
 
 ### The preview shows an old picture.
 
-Cutaway shows what the app looked like when it was asked. Press <kbd>⌘R</kbd> to ask again for the whole tree and every screenshot, or <kbd>⇧⌘R</kbd> for the selected subtree only. See [The preview](/guide/preview).
+Cutaway shows what the app looked like when it was asked. Press <kbd>⌘R</kbd> to ask again for the whole tree and every screenshot, or <kbd>⇧⌘R</kbd> for the selected subtree only. See [Refresh](/guide/preview#refresh).
 
 ### I changed the environment, but some layers still look the old way.
 
@@ -85,7 +85,7 @@ xattr -dr com.apple.quarantine /Applications/Cutaway.app
 
 ### Can I look at an app without the device?
 
-Yes. Save an archive while the app is connected (<kbd>⌘S</kbd>) and open it anywhere, on any Mac: the tree, screenshots, attributes and constraints are all there. Everything works except editing. See [Archives and export](/guide/archives).
+Yes. Save an archive while the app is connected (<kbd>⌘S</kbd>) and open it anywhere, on any Mac: the tree, screenshots, attributes and constraints are all there. Everything works except what needs the app: changing attributes or the environment, refreshing and saving. See [Archives and export](/guide/archives).
 
 ### Can I replay an archive as if it were a running app?
 
