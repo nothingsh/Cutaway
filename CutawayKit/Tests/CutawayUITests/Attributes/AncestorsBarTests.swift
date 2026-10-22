@@ -28,10 +28,11 @@ final class AncestorsBarTests: XCTestCase {
         for model: InspectionStore, width: CGFloat = 360
     ) -> (AttributesViewController, NSWindow) {
         let controller = AttributesViewController(
-            store: model.attributes, appName: "Demo", layer: model.selectedLayerSummary,
-            tree: model.$tree.eraseToAnyPublisher(),
-            onShowLayer: { [weak model] in model?.showLayer($0) },
-            onHoverLayer: { [weak model] in model?.hover($0) }, loadingDelay: 0)
+            store: model.attributes, appName: "Demo",
+            inputs: AttributesPanelInputs(layer: model.selectedLayerSummary, tree: model.$tree.eraseToAnyPublisher()),
+            actions: AttributesPanelActions(
+                showLayer: { [weak model] in model?.showLayer($0) }, hoverLayer: { [weak model] in model?.hover($0) }),
+            loadingDelay: 0)
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: width, height: 600),
             styleMask: [.titled], backing: .buffered, defer: false)

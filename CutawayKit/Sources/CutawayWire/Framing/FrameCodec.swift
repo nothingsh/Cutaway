@@ -25,12 +25,16 @@ package enum FrameCodec {
     /// Decodes one frame from a plain FlatBuffer, without a length prefix.
     /// The whole buffer is verified before any field is read (P-FRAME-04).
     package static func decode(_ payload: Data) throws -> Frame {
-        Frame(try checkedRoot(payload))
+        try withCheckedRoot(payload) { Frame($0) }
     }
 
-    /// The verified root of one frame, before any value is built. The archive reader uses it
-    /// to check a frame's kind without decoding its contents.
-    static func checkedRoot(_ payload: Data) throws -> Cutaway_Wire_Frame {
+    /// Calls `body` with the verified root of one frame, before any value is built. The
+    /// archive reader uses it to check a frame's kind without decoding its contents. The root
+    /// may read `payload` where it lies: neither it nor anything read lazily from it may
+    /// outlive `body`.
+    static func withCheckedRoot<Result>(
+        _ payload: Data, _ body: (Cutaway_Wire_Frame) throws -> Result
+    ) throws -> Result {
         guard payload.count <= maximumFrameLength else {
             throw FrameError.tooLarge(length: payload.count)
         }
@@ -38,7 +42,27 @@ package enum FrameCodec {
         guard payload.count >= 8 else {
             throw FrameError.verificationFailed("\(payload.count) bytes is too short for a frame")
         }
-        var buffer = ByteBuffer(data: startsAligned(payload) ? payload : alignedCopy(of: payload))
+        // The verifier refuses a scalar whose address is not aligned to its size, and the
+        // runtime reads scalars where they lie. A payload that starts on an 8-byte boundary is
+        // read in place, whatever its indices: a frame sliced out of a mapped archive file
+        // among them. Any other is copied into memory of its own.
+        if startsAligned(payload) {
+            return try payload.withUnsafeBytes { bytes in
+                // The buffer does not own this memory: it neither copies nor frees it, and
+                // verifying and reading never write to it. At least 8 bytes long, the payload
+                // has an address.
+                // swiftlint:disable:next force_unwrapping
+                let start = UnsafeMutableRawPointer(mutating: bytes.baseAddress!)
+                var buffer = ByteBuffer(assumingMemoryBound: start, capacity: bytes.count)
+                return try body(try verifiedRoot(&buffer))
+            }
+        }
+        copies.add()
+        var buffer = ByteBuffer(data: alignedCopy(of: payload))
+        return try body(try verifiedRoot(&buffer))
+    }
+
+    private static func verifiedRoot(_ buffer: inout ByteBuffer) throws -> Cutaway_Wire_Frame {
         do {
             return try getCheckedRoot(
                 byteBuffer: &buffer, fileId: fileIdentifier,
@@ -50,13 +74,10 @@ package enum FrameCodec {
         }
     }
 
-    /// Whether the runtime can read `payload` where it is. A slice keeps its parent's indices,
-    /// and the verifier refuses a scalar whose address is not aligned to its size; a buffer
-    /// that starts at index 0 on an 8-byte boundary has neither problem. Anything else, such
-    /// as a frame sliced out of an archive file, is copied into a buffer of its own.
+    /// Whether `payload`'s first byte lies on an 8-byte boundary. A slice's indices do not
+    /// matter: the buffer is given its first byte's address.
     private static func startsAligned(_ payload: Data) -> Bool {
-        guard payload.startIndex == 0 else { return false }
-        return payload.withUnsafeBytes { bytes in
+        payload.withUnsafeBytes { bytes in
             bytes.baseAddress.map { Int(bitPattern: $0) % 8 == 0 } ?? false
         }
     }
@@ -67,6 +88,21 @@ package enum FrameCodec {
         payload.withUnsafeBytes { bytes in
             bytes.baseAddress.map { Data(bytes: $0, count: bytes.count) } ?? Data()
         }
+    }
+
+    /// How many payloads were copied to be read since the process started. For tests.
+    static var copyCount: Int { copies.value }
+    private static let copies = CopyCounter()
+
+    /// A count that any thread can add to; the lock is Foundation's, which this target is
+    /// limited to.
+    private final class CopyCounter: @unchecked Sendable {
+        private let lock = NSLock()
+        private var count = 0
+
+        var value: Int { lock.withLock { count } }
+
+        func add() { lock.withLock { count += 1 } }
     }
 
     /// Encodes one frame as a plain FlatBuffer carrying the file identifier, without a

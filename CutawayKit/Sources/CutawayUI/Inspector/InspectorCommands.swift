@@ -9,23 +9,24 @@ struct InspectorCommands {
     let store: InspectionStore
     /// Whether the window shows an archive rather than an app (C-ARCH-05).
     let isArchive: Bool
-    /// Whether the connection to the app is gone (C-WIN-03).
-    let isDisconnected: Bool
     /// Whether the keyboard is in text being edited, which keeps the keys it uses (C-ATTR-16).
     let isEditingText: Bool
 
     /// The commands as the store stands now.
     init(store: InspectionStore) {
-        self.init(store: store, isArchive: store.isArchive, isDisconnected: store.connection.isLost)
+        self.init(store: store, isArchive: store.isArchive)
     }
 
     /// Tests say what the window knows.
-    init(store: InspectionStore, isArchive: Bool, isDisconnected: Bool, isEditingText: Bool = false) {
+    init(store: InspectionStore, isArchive: Bool, isEditingText: Bool = false) {
         self.store = store
         self.isArchive = isArchive
-        self.isDisconnected = isDisconnected
         self.isEditingText = isEditingText
     }
+
+    /// Whether the connection to the app is gone (C-WIN-03): the store takes none of the
+    /// commands then, and they show as unavailable.
+    var isDisconnected: Bool { store.connection.isLost }
 
     // MARK: - Asking the app
 
@@ -48,7 +49,7 @@ struct InspectorCommands {
 
     /// C-ARCH-06: a layer whose screenshot can be had, while connected.
     func canExport(_ kind: TextureKey.Kind, of id: UInt64?) -> Bool {
-        guard !isDisconnected, let id else { return false }
+        guard let id else { return false }
         return store.canExportImage(of: id, kind: kind)
     }
 

@@ -55,8 +55,8 @@ extension AttributesViewController {
     private func makeReferenceChips() -> ReferenceChipsView {
         let viewModel = viewModel
         return ReferenceChipsView(
-            chips: { [weak viewModel] in viewModel?.chips(of: $0) ?? [] }, onShowLayer: onShowLayer,
-            onHoverLayer: onHoverLayer)
+            chips: { [weak viewModel] in viewModel?.chips(of: $0) ?? [] }, onShowLayer: actions.showLayer,
+            onHoverLayer: actions.hoverLayer)
     }
 
     /// A compound row whose parts edit their attributes as the attributes' own rows do.

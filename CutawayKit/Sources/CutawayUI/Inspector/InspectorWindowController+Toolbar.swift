@@ -5,7 +5,8 @@ import DeclarativeAppKit
 import DeclarativeCombine
 
 // `modeControl`, `appCapsule`, `appIcon`, `windowTitle` and `followStatus()` are internal
-// only so that this file can set and read them.
+// only so that this file can set and read them; `insertEnvironmentItem()` so that
+// InspectorWindowController.swift can call it.
 extension InspectorWindowController {
     // MARK: - The toolbar's controls
 
@@ -66,6 +67,13 @@ extension InspectorWindowController {
         followStatus()
         return capsule
     }
+
+    /// The Environment button goes in left of 2D / 3D (C-ENV-01).
+    func insertEnvironmentItem() {
+        guard let toolbar = window?.toolbar else { return }
+        let index = toolbar.items.firstIndex { $0.itemIdentifier == Self.modeItem } ?? toolbar.items.count
+        toolbar.insertItem(withItemIdentifier: EnvironmentToolbarController.item, at: index)
+    }
 }
 
 extension InspectorWindowController: NSToolbarDelegate {
@@ -79,7 +87,7 @@ extension InspectorWindowController: NSToolbarDelegate {
 
     public func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
         // The Environment button joins once the app's environment is known (C-ENV-01).
-        toolbarDefaultItemIdentifiers(toolbar) + (isArchive ? [] : [Self.environmentItem])
+        toolbarDefaultItemIdentifiers(toolbar) + (isArchive ? [] : [EnvironmentToolbarController.item])
     }
 
     public func toolbar(
@@ -101,8 +109,8 @@ extension InspectorWindowController: NSToolbarDelegate {
             item.label = localized("toolbar.archive.label")
             item.isBordered = false
             return item
-        case Self.environmentItem:
-            return makeEnvironmentItem()
+        case EnvironmentToolbarController.item:
+            return environment.makeItem()
         case Self.modeItem:
             let item = NSToolbarItem(itemIdentifier: identifier)
             item.view = makeModeControl()

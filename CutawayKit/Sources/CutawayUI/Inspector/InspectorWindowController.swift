@@ -1,12 +1,12 @@
 import AppKit
 import Combine
 import CutawayModel
+import CutawayProjects
 import CutawayScene
 import CutawayTransport
 import CutawayWire
 import DeclarativeAppKit
 import DeclarativeCombine
-import UniformTypeIdentifiers
 
 /// The window that inspects one app (C-WIN-01): the app's name and device in the title, the
 /// 2D / 3D switch and a way to the app list in the toolbar, and the three panes below.
@@ -34,32 +34,26 @@ public final class InspectorWindowController: NSWindowController {
     var modeControl: NSSegmentedControl?
     /// The toolbar's app capsule, once the toolbar has made it (C-WIN-06).
     var appCapsule: AppCapsuleView?
-    /// The toolbar's Environment button and its popover, once there are (C-ENV-01).
-    var environmentButton: NSButton?
-    var environmentPopover: NSPopover?
+    /// The toolbar's Environment button and its popover (C-ENV-01).
+    private(set) lazy var environment: EnvironmentToolbarController = .init(store: store) { [weak self] in
+        self?.insertEnvironmentItem()
+    }
+
     /// The title and subtitle the window is given; the capsule shows them.
     let windowTitle: InspectorWindowTitle
     /// The way to the app's project folder (C-SRC-01 to C-SRC-03).
     let project: ProjectLookup
     /// Where Copy LLDB Command puts its text (C-SRC-06); tests give one of their own.
     var pasteboard = NSPasteboard.general
-    /// Asks for the app's project folder, starting at the one linked now, and calls back with
-    /// the folder chosen; not at all when the user cancels. A folder panel on the window by
-    /// default; tests choose a folder of their own (C-SRC-01).
-    var chooseProjectFolder: @MainActor (NSWindow, String, URL?, @escaping (URL) -> Void) -> Void =
-        ProjectFolderPanel.choose
-    /// Says that the app's folder is gone, offering to choose it again (C-SRC-01). A sheet on
-    /// the window by default; tests record it.
-    var tellOfMissingFolder: @MainActor (NSWindow, String, String, @escaping () -> Void) -> Void =
-        ProjectFolderPanel.tellOfMissingFolder
+    /// The panels of saving, exporting and the project folder; tests answer them themselves.
+    let fileActions: InspectorFileActions
     /// Whether the window has been shown, and the project folder looked at.
     private var hasShown = false
     /// How long the capsule says "Saved" before it goes back (C-WIN-06).
     private let savedNoticeDuration: Duration
     private var savedDismissal: Task<Void, Never>?
-    /// Whether the connection to the app is gone (C-WIN-03), as the store last said: read
-    /// inside the store's own publishing, before the store itself has changed.
-    public private(set) var isDisconnected = false
+    /// Whether the connection to the app is gone (C-WIN-03).
+    public var isDisconnected: Bool { store.connection.isLost }
     /// Called when the user asks for the app list.
     var onShowApps: () -> Void = {}
     /// Called when the window is about to close, however it was closed.
@@ -67,16 +61,19 @@ public final class InspectorWindowController: NSWindowController {
     /// Called when an archive was saved from this window, with its place.
     var onArchiveSaved: (URL) -> Void = { _ in }
     /// Asks where to save an archive, suggesting a name without the extension, and calls back
-    /// with the place chosen; not at all when the user cancels. A save panel on the window by
-    /// default; tests put a place of their own (C-ARCH-02).
-    public var chooseArchiveDestination:
-        @MainActor (NSWindow, String, @escaping (URL) -> Void) -> Void =
-        InspectorWindowController.runSavePanel
+    /// with the place chosen; not at all when the user cancels (C-ARCH-02). The app's tests
+    /// put a place of their own.
+    public var chooseArchiveDestination: @MainActor (NSWindow, String, @escaping (URL) -> Void) -> Void {
+        get { fileActions.chooseArchiveDestination }
+        set { fileActions.chooseArchiveDestination = newValue }
+    }
+
     /// Asks where to export a screenshot, as `chooseArchiveDestination` does (C-ARCH-06).
-    public var chooseScreenshotDestination:
-        @MainActor (NSWindow, String, @escaping (URL) -> Void) -> Void =
-        InspectorWindowController.runPNGSavePanel
-    private let appName: String
+    public var chooseScreenshotDestination: @MainActor (NSWindow, String, @escaping (URL) -> Void) -> Void {
+        get { fileActions.chooseScreenshotDestination }
+        set { fileActions.chooseScreenshotDestination = newValue }
+    }
+
     var cancellables = Set<AnyCancellable>()
 
     /// The window of an app over a connection.
@@ -118,9 +115,9 @@ public final class InspectorWindowController: NSWindowController {
         windowTitle = title
         self.savedNoticeDuration = savedNoticeDuration
         let name = AppEntryPresentation.name(of: info)
-        appName = name
         // An archive's folder is found by the bundle ID it was saved from.
         project = ProjectLookup(bundleID: info?.bundleID, appName: name, sources: projects)
+        fileActions = InspectorFileActions(store: store, project: project, appName: name)
         splitController = InspectorSplitViewController(
             store: store, appName: name, paneWidths: paneWidths, project: project)
         appIcon = icon?.makeImage()
@@ -179,13 +176,14 @@ public final class InspectorWindowController: NSWindowController {
             }
             .store(in: &cancellables)
         // After the panes' own subscriptions: they follow the store before the window does.
+        // The connection is gone: the 2D / 3D switch shows that it can no longer be used
+        // (C-WIN-03).
         store.$connection
             .sink { [weak self] connection in
-                guard case .lost = connection else { return }
-                self?.connectionWasLost()
+                if connection.isLost { self?.modeControl?.isEnabled = false }
             }
             .store(in: &cancellables)
-        followEnvironment()
+        environment.follow()
     }
 
     /// Whether this window shows an archive rather than an app (C-ARCH-05).
@@ -193,9 +191,7 @@ public final class InspectorWindowController: NSWindowController {
 
     /// Which commands can be used now: asked anew each time, so that it reads the store then.
     var commands: InspectorCommands {
-        InspectorCommands(
-            store: store, isArchive: isArchive, isDisconnected: isDisconnected,
-            isEditingText: isEditingText)
+        InspectorCommands(store: store, isArchive: isArchive, isEditingText: isEditingText)
     }
 
     /// Whether the keyboard is in text being edited: a text field's or the attribute panel's
@@ -216,16 +212,6 @@ public final class InspectorWindowController: NSWindowController {
         fitted.size.width = max(min(frame.width, visible.width), minimum.width)
         fitted.size.height = max(min(frame.height, visible.height), minimum.height)
         return fitted
-    }
-
-    /// The connection is gone: the window stays with what it last showed, and its panes say
-    /// so and offer the way back to the app list (C-WIN-03, C-WIN-04).
-    private func connectionWasLost() {
-        guard !isDisconnected else { return }
-        isDisconnected = true
-        modeControl?.isEnabled = false
-        environmentButton?.isEnabled = false
-        environmentPopover?.close()
     }
 
     /// The capsule follows the inspection: the screenshots, a save and the connection
@@ -261,7 +247,7 @@ public final class InspectorWindowController: NSWindowController {
     @objc func refresh(_ sender: Any?) {
         store.refresh()
         // So is the project folder's index, as far as its files changed (C-SRC-02).
-        updateProject()
+        fileActions.updateProject(on: window)
     }
 
     /// The window shows, and the project folder's index is brought up to date (C-SRC-02);
@@ -270,23 +256,14 @@ public final class InspectorWindowController: NSWindowController {
         super.showWindow(sender)
         guard !hasShown else { return }
         hasShown = true
-        updateProject()
-    }
-
-    private func updateProject() {
-        guard case .missing(let path) = project.update(), let bundleID = project.bundleID,
-              project.sources?.shouldTellOfMissingFolder(bundleID: bundleID) == true, let window
-        else { return }
-        tellOfMissingFolder(window, appName, path) { [weak self] in self?.linkProjectFolder(nil) }
+        fileActions.updateProject(on: window)
     }
 
     /// File › Link Project Folder… (C-SRC-01): the folder of the window's app, by its bundle
     /// ID.
     @objc func linkProjectFolder(_ sender: Any?) {
-        guard project.canLink, let window else { return }
-        chooseProjectFolder(window, appName, project.linkedFolder) { [weak self] folder in
-            self?.project.link(folder)
-        }
+        guard let window else { return }
+        fileActions.linkProjectFolder(on: window)
     }
 
     /// Where the selected layer's classes are declared; none once disconnected (C-SRC-03).
@@ -303,25 +280,7 @@ public final class InspectorWindowController: NSWindowController {
     /// Asks where to save, then captures the app into an archive there (C-ARCH-02).
     @objc func saveArchive(_ sender: Any?) {
         guard commands.canSaveArchive, let window else { return }
-        let version = AppVersion.current.version
-        chooseArchiveDestination(
-            window, InspectorWindowTitle.archiveName(appName: appName, at: Date())
-        ) { [weak self] url in
-            guard let self, self.commands.canSaveArchive else { return }
-            self.store.saveArchive(to: url, cutawayVersion: version)
-        }
-    }
-
-    static func runSavePanel(
-        on window: NSWindow, suggesting name: String, then save: @escaping (URL) -> Void
-    ) {
-        let panel = NSSavePanel()
-        panel.allowedContentTypes = [.cutawayArchive]
-        panel.nameFieldStringValue = name
-        panel.beginSheetModal(for: window) { response in
-            guard response == .OK, let url = panel.url else { return }
-            save(url)
-        }
+        fileActions.saveArchive(on: window) { [weak self] in self?.commands.canSaveArchive ?? false }
     }
 
     /// Exports a layer's own screenshot (C-ARCH-06): the layer of the row menu it was chosen
@@ -345,23 +304,7 @@ public final class InspectorWindowController: NSWindowController {
 
     private func exportScreenshot(_ kind: TextureKey.Kind, _ sender: Any?) {
         guard canExport(kind, sender), let id = exportTarget(sender), let window else { return }
-        let name = InspectorWindowTitle.screenshotName(
-            title: store.tree.fileTitle(of: id), layerID: id, kind: kind)
-        chooseScreenshotDestination(window, name) { [weak self] url in
-            self?.store.exportScreenshot(of: id, kind: kind, to: url) { $0.pngData() }
-        }
-    }
-
-    static func runPNGSavePanel(
-        on window: NSWindow, suggesting name: String, then save: @escaping (URL) -> Void
-    ) {
-        let panel = NSSavePanel()
-        panel.allowedContentTypes = [.png]
-        panel.nameFieldStringValue = name
-        panel.beginSheetModal(for: window) { response in
-            guard response == .OK, let url = panel.url else { return }
-            save(url)
-        }
+        fileActions.exportScreenshot(of: id, kind: kind, on: window)
     }
 
     /// Loads the selected layer's subtree again, with its screenshots (C-DET-07).
@@ -472,11 +415,11 @@ extension InspectorWindowController: NSWindowDelegate {
 
     /// The window's undo is the attribute changes (C-ATTR-08): the Edit menu's Undo and Redo
     /// read their titles from it. The panel's fields keep no undo of their own.
-    /// An empty one while nothing can be changed (C-ATTR-04): Undo and Redo are unavailable
-    /// then, rather than failing and losing their step. Nil would not do: the window would use
-    /// an undo manager of its own.
+    /// An empty one while nothing can be changed (C-ATTR-04), as once the connection is gone:
+    /// Undo and Redo are unavailable then, rather than failing and losing their step. Nil would
+    /// not do: the window would use an undo manager of its own.
     public func windowWillReturnUndoManager(_ window: NSWindow) -> UndoManager? {
-        guard !isDisconnected, store.attributes.canEdit else { return idleUndoManager }
+        guard store.attributes.canEdit else { return idleUndoManager }
         return store.attributes.undoManager
     }
 }

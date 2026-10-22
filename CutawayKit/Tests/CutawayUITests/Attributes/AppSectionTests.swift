@@ -88,7 +88,7 @@ final class AppSectionTests: XCTestCase {
             .map { id, tree in LayerSummary(tree, id) }
             .eraseToAnyPublisher()
         let controller = AttributesViewController(
-            store: model.attributes, appName: "Demo", layer: summary, loadingDelay: 0)
+            store: model.attributes, appName: "Demo", inputs: AttributesPanelInputs(layer: summary), loadingDelay: 0)
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 300, height: 900), styleMask: [.titled],
             backing: .buffered, defer: false)

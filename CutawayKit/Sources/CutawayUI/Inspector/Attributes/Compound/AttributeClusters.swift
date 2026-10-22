@@ -13,6 +13,62 @@ enum AttributeClusters {
         case image, indexPath, listCounts
     }
 
+    /// The names of the slots (P-ATTR-12), as the server gives them: what the rows know their
+    /// parts by.
+    enum Slot {
+        // visibility
+        static let hidden = "hidden"
+        static let opacity = "opacity"
+        // corners, shadow
+        static let radius = "radius"
+        static let clip = "clip"
+        // border, shadow
+        static let width = "width"
+        static let color = "color"
+        static let offset = "offset"
+        // geometry
+        static let frame = "frame"
+        static let position = "position"
+        static let anchor = "anchor"
+        static let bounds = "bounds"
+        static let zPosition = "zPosition"
+        static let transform = "transform"
+        // sizing
+        static let huggingHorizontal = "hugging.horizontal"
+        static let huggingVertical = "hugging.vertical"
+        static let compressionHorizontal = "compression.horizontal"
+        static let compressionVertical = "compression.vertical"
+        static let intrinsicWidth = "intrinsic.width"
+        static let intrinsicHeight = "intrinsic.height"
+        // autoLayout
+        static let autoresizing = "autoresizing"
+        static let ambiguous = "ambiguous"
+        // font, image
+        static let name = "name"
+        static let size = "size"
+        static let textStyle = "textStyle"
+        static let scalable = "scalable"
+        // lines
+        static let count = "count"
+        static let lineBreak = "lineBreak"
+        static let drawn = "drawn"
+        static let truncated = "truncated"
+        // state, scrolling
+        static let enabled = "enabled"
+        static let selected = "selected"
+        static let highlighted = "highlighted"
+        static let paging = "paging"
+        // image
+        static let scale = "scale"
+        static let renderingMode = "renderingMode"
+        static let symbolConfiguration = "symbolConfiguration"
+        // indexPath, listCounts
+        static let section = "section"
+        static let item = "item"
+        static let sections = "sections"
+        static let items = "items"
+    }
+
     /// What a part takes.
     private enum Takes {
         case bool, number, color, rect, point, size, transform, string, integer, enumeration
@@ -36,41 +92,43 @@ enum AttributeClusters {
     /// The slots of each cluster, in the order the row shows them. `font`'s `textStyle` and
     /// `scalable` and `lines`' `drawn` and `truncated` are 1.2's (C-ATTR-27).
     private static let slots: [Kind: [(String, Takes)]] = [
-        .visibility: [("hidden", .bool), ("opacity", .number)],
-        .corners: [("radius", .number), ("clip", .bool)],
-        .border: [("width", .number), ("color", .color)],
-        .shadow: [("color", .color), ("opacity", .number), ("radius", .number), ("offset", .size)],
+        .visibility: [(Slot.hidden, .bool), (Slot.opacity, .number)],
+        .corners: [(Slot.radius, .number), (Slot.clip, .bool)],
+        .border: [(Slot.width, .number), (Slot.color, .color)],
+        .shadow: [(Slot.color, .color), (Slot.opacity, .number), (Slot.radius, .number), (Slot.offset, .size)],
         .geometry: [
-            ("frame", .rect), ("position", .point), ("anchor", .point), ("bounds", .rect),
-            ("zPosition", .number), ("transform", .transform),
+            (Slot.frame, .rect), (Slot.position, .point), (Slot.anchor, .point), (Slot.bounds, .rect),
+            (Slot.zPosition, .number), (Slot.transform, .transform),
         ],
         .sizing: [
-            ("hugging.horizontal", .number), ("hugging.vertical", .number),
-            ("compression.horizontal", .number), ("compression.vertical", .number),
-            ("intrinsic.width", .number), ("intrinsic.height", .number),
+            (Slot.huggingHorizontal, .number), (Slot.huggingVertical, .number),
+            (Slot.compressionHorizontal, .number), (Slot.compressionVertical, .number),
+            (Slot.intrinsicWidth, .number), (Slot.intrinsicHeight, .number),
         ],
-        .autoLayout: [("autoresizing", .bool), ("ambiguous", .bool)],
-        .font: [("name", .string), ("size", .number), ("textStyle", .string), ("scalable", .bool)],
-        .lines: [("count", .integer), ("lineBreak", .enumeration), ("drawn", .integer), ("truncated", .bool)],
-        .state: [("enabled", .bool), ("selected", .bool), ("highlighted", .bool)],
-        .scrolling: [("enabled", .bool), ("paging", .bool)],
+        .autoLayout: [(Slot.autoresizing, .bool), (Slot.ambiguous, .bool)],
+        .font: [(Slot.name, .string), (Slot.size, .number), (Slot.textStyle, .string), (Slot.scalable, .bool)],
+        .lines: [
+            (Slot.count, .integer), (Slot.lineBreak, .enumeration), (Slot.drawn, .integer), (Slot.truncated, .bool),
+        ],
+        .state: [(Slot.enabled, .bool), (Slot.selected, .bool), (Slot.highlighted, .bool)],
+        .scrolling: [(Slot.enabled, .bool), (Slot.paging, .bool)],
         .image: [
-            ("name", .string), ("size", .size), ("scale", .number), ("renderingMode", .enumeration),
-            ("symbolConfiguration", .string),
+            (Slot.name, .string), (Slot.size, .size), (Slot.scale, .number), (Slot.renderingMode, .enumeration),
+            (Slot.symbolConfiguration, .string),
         ],
-        .indexPath: [("section", .integer), ("item", .integer)],
-        .listCounts: [("sections", .integer), ("items", .integer)],
+        .indexPath: [(Slot.section, .integer), (Slot.item, .integer)],
+        .listCounts: [(Slot.sections, .integer), (Slot.items, .integer)],
     ]
 
     /// The slots a row writes as text, not in an editor (C-ATTR-27): what the app works out
     /// rather than what is set. One that can be changed has its own row and its editor, so
     /// that putting it in the row takes nothing away.
     private static let textSlots: [Kind: Set<String>] = [
-        .font: ["textStyle"],
-        .lines: ["drawn", "truncated"],
-        .image: ["name", "size", "scale", "symbolConfiguration"],
-        .indexPath: ["section", "item"],
-        .listCounts: ["sections", "items"],
+        .font: [Slot.textStyle],
+        .lines: [Slot.drawn, Slot.truncated],
+        .image: [Slot.name, Slot.size, Slot.scale, Slot.symbolConfiguration],
+        .indexPath: [Slot.section, Slot.item],
+        .listCounts: [Slot.sections, Slot.items],
     ]
 
     /// Whether a row writes the slot as text.

@@ -3,9 +3,10 @@ import CutawayTestSupport
 import Foundation
 
 enum SceneFixtures {
-    /// The nine layers the `hierarchy` fixture had before 1.2 as the scene's input: its
-    /// virtual and excluded nodes (10 to 14) are left out until the scene places them in
-    /// a later change (C-SCENE-13).
+    /// The nine layers the `hierarchy` fixture had before 1.2 as the scene's input. The
+    /// expected positions, depths and hits of these tests were worked out for those nine, so
+    /// the virtual and excluded nodes (10 to 14) are left out; how the scene places them is
+    /// tested on its own (C-SCENE-13).
     static func hierarchyLayers(textures: [UInt64: LayerTextures] = [:]) throws -> [SceneLayer] {
         SceneInput.layers(of: try Fixtures.hierarchyBeforeProtocol12(), textures: textures)
     }

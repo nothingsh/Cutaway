@@ -1,5 +1,6 @@
 import Combine
 import CutawayModel
+import CutawayProjects
 
 /// What the interface says about one layer outside the list: its title and icon, what holds
 /// it, its classes and addresses, and its size.

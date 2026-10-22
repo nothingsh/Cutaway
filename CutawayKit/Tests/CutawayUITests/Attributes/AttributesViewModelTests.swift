@@ -12,6 +12,27 @@ import XCTest
 final class AttributesViewModelTests: XCTestCase {
     private static let client = ClientInfo(name: "Cutaway", version: "0.4.0")
 
+    /// An app whose answer to a change never comes in time.
+    private actor UnansweredChanges: InspectionSource {
+        let session = Session(channel: InertChannel(), client: AttributesViewModelTests.client)
+
+        nonisolated var isLive: Bool { true }
+        var negotiatedVersion: Version? { get async { nil } }
+
+        func hierarchy() async throws -> Hierarchy { try await session.hierarchy() }
+        func subtree(of rootID: UInt64) async throws -> Hierarchy {
+            try await session.subtree(of: rootID)
+        }
+
+        func layerDetails(_ request: GetLayerDetails) async -> LayerDetailsStream {
+            await session.layerDetails(request)
+        }
+
+        func setAttribute(_ request: SetAttribute) async throws -> SetAttributeResult {
+            throw RequestError.timedOut
+        }
+    }
+
     @MainActor
     private func attributesStore() -> AttributesStore {
         AttributesStore(session: Session(channel: InertChannel(), client: Self.client))
@@ -53,23 +74,24 @@ final class AttributesViewModelTests: XCTestCase {
         model.select(3)
         XCTAssertFalse(viewModel.hasEditor(Self.editable), "the model cannot edit yet")
 
-        viewModel.canEdit = true
+        model.setEditingSupported(true)
         XCTAssertTrue(viewModel.hasEditor(Self.editable))
         XCTAssertFalse(viewModel.hasEditor(Self.readOnly))
         var noID = Self.editable
         noID.id = nil
         XCTAssertFalse(viewModel.hasEditor(noID))
 
-        // A lost connection takes every editor away (C-WIN-03).
-        viewModel.isConnected = false
+        // A lost connection takes every editor away (C-WIN-03): the store can edit no more.
+        model.connectionLost()
         XCTAssertFalse(viewModel.offersEditors)
         XCTAssertFalse(viewModel.hasEditor(Self.editable))
     }
 
     @MainActor
     func test_C_ATTR_04_noLayerNoEditorsAndNoKeys() {
-        let viewModel = self.viewModel(for: attributesStore())
-        viewModel.canEdit = true
+        let model = attributesStore()
+        let viewModel = self.viewModel(for: model)
+        model.setEditingSupported(true)
         XCTAssertFalse(viewModel.hasEditor(Self.editable))
         XCTAssertNil(viewModel.key(of: Self.editable))
     }
@@ -93,7 +115,7 @@ final class AttributesViewModelTests: XCTestCase {
         newValue[0].attributes[0].value = .double(0.5)
         XCTAssertEqual(viewModel.shape(of: newValue), shape)
 
-        viewModel.canEdit = true
+        model.setEditingSupported(true)
         XCTAssertNotEqual(viewModel.shape(of: groups), shape, "editors now")
         model.select(4)
         XCTAssertEqual(viewModel.shape(of: groups).layerID, 4)
@@ -103,8 +125,9 @@ final class AttributesViewModelTests: XCTestCase {
     }
 
     @MainActor
-    func test_C_ATTR_06_aRowShowsTheValueOnItsWayOrWhyItFailed() {
-        let model = attributesStore()
+    func test_C_ATTR_06_aRowShowsTheValueOnItsWayOrWhyItFailed() async {
+        let model = AttributesStore(source: UnansweredChanges())
+        model.setEditingSupported(true)
         let viewModel = self.viewModel(for: model)
         model.select(3)
         let key = AttributeKey(layerID: 3, attributeID: "view.alpha")
@@ -112,20 +135,22 @@ final class AttributesViewModelTests: XCTestCase {
             viewModel.rowState(of: Self.editable),
             AttributesViewModel.RowState(value: .double(1), isSending: false, failureText: nil))
 
-        viewModel.edits = [key: .sending(.double(0.5))]
+        model.set(key, to: .double(0.5), continuous: false)
         XCTAssertEqual(
             viewModel.rowState(of: Self.editable),
             AttributesViewModel.RowState(
                 value: .double(0.5), isSending: true, failureText: nil))
 
-        viewModel.edits = [key: .failed(.noAnswer)]
+        let failed = await Wait.untilOnMain { model.edits[key] == .failed(.noAnswer) }
+        XCTAssertTrue(failed)
         XCTAssertEqual(
             viewModel.rowState(of: Self.editable),
             AttributesViewModel.RowState(
                 value: .double(1), isSending: false, failureText: "Demo did not answer in time."))
 
         // Another layer's change says nothing here.
-        viewModel.edits = [AttributeKey(layerID: 4, attributeID: "view.alpha"): .sending(nil)]
+        model.setRegardlessOfSelection(
+            AttributeKey(layerID: 4, attributeID: "view.alpha"), to: nil, continuous: false)
         XCTAssertEqual(viewModel.rowState(of: Self.editable).isSending, false)
     }
 
@@ -139,7 +164,6 @@ final class AttributesViewModelTests: XCTestCase {
         let key = AttributeKey(layerID: 3, attributeID: "view.alpha")
         viewModel.setValue(for: key)(.double(.nan), false)
         XCTAssertEqual(model.edits, [key: .failed(.notFinite)])
-        viewModel.edits = model.edits
         XCTAssertEqual(
             viewModel.rowState(of: Self.editable),
             AttributesViewModel.RowState(value: .double(1), isSending: false, failureText: nil))
@@ -196,16 +220,15 @@ final class AttributesViewModelTests: XCTestCase {
     @MainActor
     func test_C_ATTR_04_editingFollowsTheModelAndTheConnection() {
         let model = attributesStore()
-        let connection = CurrentValueSubject<InspectionStore.Connection, Never>(.live)
-        let viewModel = self.viewModel(for: model, connection: connection)
+        let viewModel = self.viewModel(for: model)
         let editing = Recorder(viewModel.editing)
         XCTAssertEqual(editing.values.map(\.0), [false])
-        XCTAssertEqual(editing.values.map(\.2), [true])
 
         model.setEditingSupported(true)
         XCTAssertEqual(editing.values.map(\.0), [false, true])
-        connection.send(.lost(waiting: false))
-        XCTAssertEqual(editing.values.map(\.2), [true, true, false])
+        // The inspection tells the store when the connection is gone (C-WIN-03).
+        model.connectionLost()
+        XCTAssertEqual(editing.values.map(\.0), [false, true, false])
     }
 
     @MainActor

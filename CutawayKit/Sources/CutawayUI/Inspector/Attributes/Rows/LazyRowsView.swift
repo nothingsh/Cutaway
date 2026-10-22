@@ -32,18 +32,22 @@ final class LazyRowsView: NSView {
     private(set) var allItems: [AttributeClusters.Item]
     /// The items the filter keeps, in their order.
     private(set) var items: [AttributeClusters.Item]
+    /// Where each of `items` is in `allItems`.
+    private var positions: [Int]
     private let make: (AttributeClusters.Item) -> any AttributeListRow
     private let stack = VStack(alignment: .fill, spacing: LazyRowsView.spacing) {}
     private var pages: [Page] = []
     /// What the rows mark in their titles (C-ATTR-14).
     private(set) var highlight: String?
-    /// Compound rows made to know what they say, which a filter looks at: kept, and used
-    /// when their page is built.
+    /// Compound rows made to know what they say, which a filter looks at, by their item's
+    /// place in `allItems`: kept while the filter lists their items, and used when their page
+    /// is built.
     private var madeForMatching: [Int: any AttributeListRow] = [:]
 
     init(items: [AttributeClusters.Item], make: @escaping (AttributeClusters.Item) -> any AttributeListRow) {
         allItems = items
         self.items = items
+        positions = Array(items.indices)
         self.make = make
         super.init(frame: .zero)
         stack.translatesAutoresizingMaskIntoConstraints = false
@@ -86,32 +90,37 @@ final class LazyRowsView: NSView {
     /// new values with the rest.
     func replaceValues(_ items: [AttributeClusters.Item]) {
         allItems = items
-        guard highlight == nil else {
-            // Kept by the filter as before: the same shape keeps the same titles and IDs.
-            self.items = keptItems(for: highlight)
-            return
-        }
-        self.items = items
+        // Kept by the filter as before: the same shape keeps the same titles and IDs.
+        list(kept(for: highlight))
     }
 
     /// Lists the items `filter` keeps, from no page built; nil keeps them all. Returns the
     /// rows taken down.
     @discardableResult
     func apply(filter: String?) -> [any AttributeListRow] {
-        let kept = keptItems(for: filter)
-        guard filter != highlight || kept.count != items.count else { return [] }
+        let kept = kept(for: filter)
+        let changes = filter != highlight || kept.count != items.count
         highlight = filter
-        items = kept
+        list(kept)
+        guard changes else { return [] }
         let removed = pages.flatMap { $0.rows ?? [] }
         makePages()
         return removed
     }
 
-    private func keptItems(for filter: String?) -> [AttributeClusters.Item] {
-        guard let filter else { return allItems }
-        return allItems.enumerated().compactMap { index, item in
-            matches(item, at: index, filter) ? item : nil
-        }
+    /// The places in `allItems` of the items `filter` keeps, in their order.
+    private func kept(for filter: String?) -> [Int] {
+        guard let filter else { return Array(allItems.indices) }
+        return allItems.indices.filter { matches(allItems[$0], at: $0, filter) }
+    }
+
+    /// Lists the items at `kept`, and lets go of the rows made for items no longer listed:
+    /// nothing would build them.
+    private func list(_ kept: [Int]) {
+        positions = kept
+        items = kept.map { allItems[$0] }
+        let listed = Set(kept)
+        madeForMatching = madeForMatching.filter { listed.contains($0.key) }
     }
 
     /// Whether the filter keeps an item, as its row would say (C-ATTR-14): an attribute's
@@ -163,7 +172,7 @@ final class LazyRowsView: NSView {
             let frame = page.holder.convert(page.holder.bounds, to: document)
             if page.rows == nil, frame.intersects(near) {
                 let rows = page.range.map { index in
-                    madeForMatching.removeValue(forKey: index) ?? make(items[index])
+                    madeForMatching.removeValue(forKey: positions[index]) ?? make(items[index])
                 }
                 for row in rows {
                     row.highlight(highlight)

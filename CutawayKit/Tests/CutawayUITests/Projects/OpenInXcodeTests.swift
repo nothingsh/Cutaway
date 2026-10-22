@@ -1,5 +1,6 @@
 import AppKit
 import CutawayModel
+import CutawayProjects
 import CutawayTestSupport
 import CutawayTransport
 import CutawayWire
@@ -148,7 +149,7 @@ final class OpenInXcodeTests: XCTestCase {
         let entry = info.map { AppEntry(id: .simulator(port: 48160), info: $0, status: .ready(.active), icon: nil) }
         let inspector = InspectorWindowController(
             location: .simulator(port: 48160), entry: entry, store: model, projects: sources)
-        inspector.tellOfMissingFolder = { _, _, _, _ in }
+        inspector.fileActions.tellOfMissingFolder = { _, _, _, _ in }
         addTeardownBlock { @MainActor in inspector.close() }
         return inspector
     }

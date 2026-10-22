@@ -150,13 +150,6 @@ final class PreviewPaneViewController: NSViewController {
         viewModel.tags
             .sink { [weak self] tags in self?.previewController.preview?.tags = tags }
             .store(in: &cancellables)
-        // After the panels: they show the loss first, as the store publishes it.
-        store.$connection
-            .sink { [weak self] connection in
-                guard case .lost = connection else { return }
-                self?.connectionWasLost()
-            }
-            .store(in: &cancellables)
     }
 
     /// The failures go under whichever of the notice and the lost connection shows.
@@ -420,18 +413,6 @@ final class PreviewPaneViewController: NSViewController {
     override func viewDidDisappear() {
         super.viewDidDisappear()
         layoutRectObservation = nil
-    }
-
-    /// The connection is gone: the notice and its button have replaced the other panels, and
-    /// the preview takes no more clicks (C-WIN-03).
-    private func connectionWasLost() {
-        // The shield stops new clicks; a press already under way still ends at the preview,
-        // and must neither move nor select anything.
-        previewController.stopTakingInput()
-        // The shield stops clicks; moving the pointer reaches the preview's tracking area
-        // regardless, so the hover is cut off here.
-        previewController.stopHovering()
-        store.hover(nil)
     }
 
     private static func tinted(_ name: String, _ color: NSColor) -> NSImage? {

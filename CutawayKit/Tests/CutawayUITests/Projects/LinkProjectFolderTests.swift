@@ -1,5 +1,6 @@
 import AppKit
 import CutawayModel
+import CutawayProjects
 import CutawayTestSupport
 import CutawayTransport
 import CutawayWire
@@ -62,7 +63,7 @@ final class LinkProjectFolderTests: XCTestCase {
         let inspector = try inspector(sources)
         inspector.showWindow(nil)
         var started: [URL?] = []
-        inspector.chooseProjectFolder = { _, appName, start, link in
+        inspector.fileActions.chooseProjectFolder = { _, appName, start, link in
             XCTAssertEqual(appName, "Demo")
             started.append(start)
             link(project.root)
@@ -85,7 +86,7 @@ final class LinkProjectFolderTests: XCTestCase {
 
     func test_C_SRC_01_anAppWithoutABundleIDCannotLinkAFolder() throws {
         let inspector = try inspector(try sources(), bundleID: nil)
-        inspector.chooseProjectFolder = { _, _, _, _ in XCTFail("asked for a folder") }
+        inspector.fileActions.chooseProjectFolder = { _, _, _, _ in XCTFail("asked for a folder") }
         XCTAssertFalse(inspector.validateMenuItem(linkItem()))
         inspector.linkProjectFolder(nil)
     }
@@ -125,11 +126,11 @@ final class LinkProjectFolderTests: XCTestCase {
         var told: [(String, String)] = []
         var chosen = 0
         let first = try inspector(sources)
-        first.tellOfMissingFolder = { _, appName, path, chooseAgain in
+        first.fileActions.tellOfMissingFolder = { _, appName, path, chooseAgain in
             told.append((appName, path))
             chooseAgain()
         }
-        first.chooseProjectFolder = { _, _, _, _ in chosen += 1 }
+        first.fileActions.chooseProjectFolder = { _, _, _, _ in chosen += 1 }
         first.showWindow(nil)
         XCTAssertEqual(told.map(\.0), ["Demo"])
         XCTAssertEqual(told.map(\.1), [path])
@@ -138,7 +139,7 @@ final class LinkProjectFolderTests: XCTestCase {
 
         // Read as not linked, but kept; told of once since Cutaway opened.
         let second = try inspector(sources)
-        second.tellOfMissingFolder = { _, appName, path, _ in told.append((appName, path)) }
+        second.fileActions.tellOfMissingFolder = { _, appName, path, _ in told.append((appName, path)) }
         second.showWindow(nil)
         second.refresh(nil)
         XCTAssertEqual(told.count, 1)
@@ -175,7 +176,7 @@ final class LinkProjectFolderTests: XCTestCase {
         // Projects page shown.
         let inspector = try inspector(sources)
         inspector.showWindow(nil)
-        inspector.chooseProjectFolder = { _, _, _, link in link(project.root) }
+        inspector.fileActions.chooseProjectFolder = { _, _, _, link in link(project.root) }
         inspector.linkProjectFolder(nil)
         await sources.waitForIndex(bundleID: "dev.cutaway.demo")
         let recorder = LaunchRecorder()

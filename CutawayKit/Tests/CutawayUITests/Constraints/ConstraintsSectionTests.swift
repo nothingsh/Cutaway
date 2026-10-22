@@ -61,9 +61,11 @@ final class ConstraintsSectionTests: XCTestCase {
             .map { id, tree in LayerSummary(tree, id) }
             .eraseToAnyPublisher()
         let controller = AttributesViewController(
-            store: model.attributes, appName: "Demo", layer: layer,
-            tree: model.$tree.eraseToAnyPublisher(),
-            connection: model.$connection.eraseToAnyPublisher(), onShowLayer: shown, loadingDelay: 0)
+            store: model.attributes, appName: "Demo",
+            inputs: AttributesPanelInputs(
+                layer: layer, tree: model.$tree.eraseToAnyPublisher(),
+                connection: model.$connection.eraseToAnyPublisher()),
+            actions: AttributesPanelActions(showLayer: shown), loadingDelay: 0)
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 300, height: 600), styleMask: [.titled],
             backing: .buffered, defer: false)
@@ -274,12 +276,13 @@ final class ConstraintsSectionTests: XCTestCase {
         model.setShowsAllConstraintEnds(true)
         let layer = model.selectedLayerSummary
         let controller = AttributesViewController(
-            store: model.attributes, appName: "Demo", layer: layer,
-            tree: model.$tree.eraseToAnyPublisher(),
-            onShowLayer: { [weak model] in model?.showLayer($0) },
-            onHoverConstraintEnd: { [weak model] end in
-                model?.hoverConstraintEnd(end?.mark, layerID: end?.layerID)
-            },
+            store: model.attributes, appName: "Demo",
+            inputs: AttributesPanelInputs(layer: layer, tree: model.$tree.eraseToAnyPublisher()),
+            actions: AttributesPanelActions(
+                showLayer: { [weak model] in model?.showLayer($0) },
+                hoverConstraintEnd: { [weak model] end in
+                    model?.hoverConstraintEnd(end?.mark, layerID: end?.layerID)
+                }),
             loadingDelay: 0)
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 300, height: 600), styleMask: [.titled],
@@ -320,16 +323,16 @@ final class ConstraintsSectionTests: XCTestCase {
     func test_C_LAYOUT_07_pointingAtARowFillsItAndMarksOnlyItsEnds() async throws {
         let (model, session, server) = try await Self.inspection(answering: [3, 9])
         let controller = AttributesViewController(
-            store: model.attributes, appName: "Demo", layer: model.selectedLayerSummary,
-            tree: model.$tree.eraseToAnyPublisher(),
-            onPointConstraints: { [weak model] pointer in
+            store: model.attributes, appName: "Demo",
+            inputs: AttributesPanelInputs(layer: model.selectedLayerSummary, tree: model.$tree.eraseToAnyPublisher()),
+            actions: AttributesPanelActions(pointConstraints: { [weak model] pointer in
                 switch pointer {
                 case .entered(let indices, let stresses):
                     model?.pointConstraints(indices, stresses: stresses)
                 case .left(let indices):
                     model?.leaveConstraints(indices)
                 }
-            },
+            }),
             loadingDelay: 0)
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 300, height: 600), styleMask: [.titled],
@@ -381,16 +384,16 @@ final class ConstraintsSectionTests: XCTestCase {
     func test_C_LAYOUT_07_onlyTheRowUnderThePointerIsPointedAtAndScrollingPointsAtNothing() async throws {
         let (model, session, server) = try await Self.inspection(answering: [3])
         let controller = AttributesViewController(
-            store: model.attributes, appName: "Demo", layer: model.selectedLayerSummary,
-            tree: model.$tree.eraseToAnyPublisher(),
-            onPointConstraints: { [weak model] pointer in
+            store: model.attributes, appName: "Demo",
+            inputs: AttributesPanelInputs(layer: model.selectedLayerSummary, tree: model.$tree.eraseToAnyPublisher()),
+            actions: AttributesPanelActions(pointConstraints: { [weak model] pointer in
                 switch pointer {
                 case .entered(let indices, let stresses):
                     model?.pointConstraints(indices, stresses: stresses)
                 case .left(let indices):
                     model?.leaveConstraints(indices)
                 }
-            },
+            }),
             loadingDelay: 0)
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 300, height: 600), styleMask: [.titled],

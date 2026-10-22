@@ -6,6 +6,7 @@ import CutawayWire
 import XCTest
 
 @testable import CutawayModel
+@testable import CutawayProjects
 @testable import CutawayUI
 
 /// C-SRC-04, C-SRC-05: what the attribute panel names a colour and a text by, from the app's
@@ -144,8 +145,8 @@ final class SourceNamesTests: XCTestCase {
             .map { id, tree in LayerSummary(tree, id) }
             .eraseToAnyPublisher()
         let controller = AttributesViewController(
-            store: model.attributes, appName: "Demo", layer: layer,
-            projectIndex: index.eraseToAnyPublisher(), loadingDelay: 0)
+            store: model.attributes, appName: "Demo",
+            inputs: AttributesPanelInputs(layer: layer, projectIndex: index.eraseToAnyPublisher()), loadingDelay: 0)
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 300, height: 700), styleMask: [.titled],
             backing: .buffered, defer: false)

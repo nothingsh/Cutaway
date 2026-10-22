@@ -1,9 +1,12 @@
 import CutawayScene
 
+// The public functions are the user's intents: none is taken once the connection is gone
+// (`takesIntents`).
 extension InspectionStore {
     // MARK: - The camera and what the preview shows
 
     public func setPreviewMode(_ mode: PreviewMode) {
+        guard takesIntents else { return }
         if mode != previewMode { previewMode = mode }
     }
 
@@ -12,23 +15,25 @@ extension InspectionStore {
 
     /// Turns the 3D view by a drag (C-PREV-04). The 2D view does not turn.
     public func rotate(byDragOf dx: Double, _ dy: Double) {
-        guard previewMode == .threeD else { return }
+        guard takesIntents, previewMode == .threeD else { return }
         updateCamera { $0.rotated(byDragOf: dx, dy) }
     }
 
     /// Moves the view by (dx, dy) viewport points (C-PREV-06).
     public func pan(by dx: Double, _ dy: Double) {
+        guard takesIntents else { return }
         updateCamera { $0.panned(by: dx, dy) }
     }
 
     /// Zooms the view, keeping what is under `point` where it is (C-PREV-05).
     public func zoom(by factor: Double, about point: ScenePoint, in viewport: Viewport) {
+        guard takesIntents else { return }
         updateCamera { $0.zoomed(by: factor, about: point, in: viewport) }
     }
 
     /// Within `Camera.spacingRange`; the 2D view has no spacing (C-PREV-07).
     public func setLayerSpacing(_ spacing: Double) {
-        guard previewMode == .threeD else { return }
+        guard takesIntents, previewMode == .threeD else { return }
         let range = Camera.spacingRange
         let limited = min(max(spacing, range.lowerBound), range.upperBound)
         updateCamera { camera in
@@ -41,6 +46,7 @@ extension InspectionStore {
     /// Puts the camera of the mode shown back as the inspection started (C-PREV-07,
     /// C-PREF-02).
     public func resetCamera() {
+        guard takesIntents else { return }
         let camera = start.cameras[previewMode]
         updateCamera { _ in camera }
     }
@@ -75,7 +81,7 @@ extension InspectionStore {
     /// Shows or hides the layers that cannot be seen (C-PREV-08). Their screenshots are asked
     /// for while they are shown; turning them off keeps the images already taken.
     public func setShowsHiddenLayers(_ shows: Bool) {
-        guard shows != showsHiddenLayers else { return }
+        guard takesIntents, shows != showsHiddenLayers else { return }
         showsHiddenLayers = shows
         rebuildLayout()
         fetchNext()
@@ -83,6 +89,7 @@ extension InspectionStore {
 
     /// How the layers are outlined (C-PREV-17). Only the drawing changes.
     public func setBorderStyle(_ style: BorderStyle) {
+        guard takesIntents else { return }
         var new = borders
         new.style = style
         setBorders(new)
@@ -90,6 +97,7 @@ extension InspectionStore {
 
     /// Outlines only the app's own classes, or every layer (C-PREV-17).
     public func setOnlyAppClasses(_ only: Bool) {
+        guard takesIntents else { return }
         var new = borders
         new.onlyAppClasses = only
         setBorders(new)
@@ -97,6 +105,7 @@ extension InspectionStore {
 
     /// Turns the borders off, or back to the style they last had (⇧⌘B, C-PREV-17).
     public func toggleBorders() {
+        guard takesIntents else { return }
         var new = borders
         new.toggle()
         setBorders(new)

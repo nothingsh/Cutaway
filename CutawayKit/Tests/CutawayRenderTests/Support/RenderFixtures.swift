@@ -1,4 +1,3 @@
-import CutawayModel
 import CutawayRender
 import CutawayScene
 import CutawayTestSupport
@@ -44,7 +43,7 @@ enum RenderFixtures {
     /// The `hierarchy` fixture's fourteen layers, its virtual nodes (10 to 12) outlined and
     /// its excluded ones (13, 14) hatched (C-REND-11).
     static func hierarchyLayers(textures: [UInt64: LayerTextures]) throws -> [SceneLayer] {
-        try LayerTree(try Fixtures.hierarchy()).sceneLayers(textures: textures)
+        try SceneInput.hierarchyFixture(textures: textures)
     }
 
     /// The layers with every node expanded.

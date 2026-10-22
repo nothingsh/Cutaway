@@ -1,5 +1,6 @@
 import AppKit
 import CutawayModel
+import CutawayProjects
 import CutawayRender
 import CutawayTransport
 import CutawayUI

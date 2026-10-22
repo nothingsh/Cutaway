@@ -1,17 +1,31 @@
 import CutawayModel
+import CutawayWire
 
 /// What the hierarchy list works out from a tree about its rows, without the outline view.
 enum HierarchyOutlineSync {
     /// Whether two trees give the same rows: the same layers, under the same parents, with
     /// the same titles, details and dimming.
+    ///
+    /// Called with every tree that comes, thousands of layers each: the nodes' own fields are
+    /// compared, and the titles the details are made of only when those differ.
     static func sameRows(_ a: LayerTree, _ b: LayerTree) -> Bool {
         guard a.ids == b.ids else { return false }
         return a.ids.allSatisfy { id in
-            a.parent(of: id) == b.parent(of: id) && a.title(of: id) == b.title(of: id)
+            guard let x = a.node(id), let y = b.node(id) else { return false }
+            return x.parentID == y.parentID && a.title(of: id) == b.title(of: id)
                 && a.isDimmed(id) == b.isDimmed(id)
-                && a.viewControllerTitle(of: id) == b.viewControllerTitle(of: id)
-                && a.memberTitles(of: id) == b.memberTitles(of: id)
+                && sameViewControllerTitle(x, y, a, b, id)
+                && (x.memberReferences == y.memberReferences
+                    || a.memberTitles(of: id) == b.memberTitles(of: id))
         }
+    }
+
+    private static func sameViewControllerTitle(
+        _ x: LayerNode, _ y: LayerNode, _ a: LayerTree, _ b: LayerTree, _ id: UInt64
+    ) -> Bool {
+        (x.viewControllerDisplayClassName == y.viewControllerDisplayClassName
+            && x.viewControllerClassName == y.viewControllerClassName)
+            || a.viewControllerTitle(of: id) == b.viewControllerTitle(of: id)
     }
 
     /// The layers among `ids` and inside them that have sublayers, are expanded, and whose

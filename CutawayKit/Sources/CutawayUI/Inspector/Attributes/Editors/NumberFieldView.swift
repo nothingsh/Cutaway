@@ -5,7 +5,7 @@ import DeclarativeAppKit
 
 /// A number that is typed (C-ATTR-05): a field in a rounded box, after the letter of its
 /// component when it has one. It is not dragged: dragging sent values as it went, which sat
-/// badly with the limits (user's decision, 2026-10-13). What is typed outside its limit
+/// badly with the limits. What is typed outside its limit
 /// (C-ATTR-13) is refused; `check` refuses what the whole value would not take.
 ///
 /// A proportion is shown and typed in percent, and sent as a proportion; a number on its own

@@ -13,9 +13,9 @@ import XCTest
 final class ManualClock: PreviewClock {
     var now = 0.0
     private(set) var isRunning = false
-    private var tick: (@MainActor () -> Void)?
+    private var tick: (@MainActor () -> Bool)?
 
-    func start(_ tick: @escaping @MainActor () -> Void) {
+    func start(_ tick: @escaping @MainActor () -> Bool) {
         isRunning = true
         self.tick = tick
     }
@@ -28,7 +28,7 @@ final class ManualClock: PreviewClock {
     /// Moves on by `seconds` and draws a frame if the preview asked for frames.
     func advance(by seconds: Double) {
         now += seconds
-        tick?()
+        if tick?() == false { stop() }
     }
 }
 
@@ -244,6 +244,62 @@ final class PreviewTransitionTests: XCTestCase {
         withExtendedLifetime(window) {}
     }
 
+    /// A preview let go of in the middle of a turn, without going off screen first, does not
+    /// leave its clock ticking.
+    @MainActor
+    func test_C_PREV_11_aPreviewLetGoOfOnTheWayStopsItsClock() throws {
+        let model = try model()
+        let clock = ManualClock()
+        weak var released: PreviewViewController?
+        try autoreleasepool {
+            let (controller, _, window) = try previewInWindow(model, motion: .paced(by: clock))
+            released = controller
+            model.setPreviewMode(.threeD)
+            XCTAssertTrue(controller.isInTransition)
+            XCTAssertTrue(clock.isRunning)
+            window.contentViewController = nil
+        }
+        XCTAssertNil(released, "the preview is gone")
+        clock.advance(by: Self.half)
+        XCTAssertFalse(clock.isRunning)
+    }
+
+    /// The display's clock stops itself with its first frame after what it ticks for, or its
+    /// view, is gone; the display link then lets go of it.
+    @MainActor
+    func test_C_PREV_11_theDisplayClockStopsOnceNobodyIsLeftToSeeIt() {
+        let view = NSView(frame: NSRect(x: 0, y: 0, width: 10, height: 10))
+        let clock = DisplayClock(view: view)
+        var owner: NSObject? = NSObject()
+        var ticks = 0
+        clock.start { [weak owner] in
+            guard owner != nil else { return false }
+            ticks += 1
+            return true
+        }
+        XCTAssertTrue(clock.isRunning)
+        clock.frame()
+        XCTAssertEqual(ticks, 1)
+        XCTAssertTrue(clock.isRunning)
+        owner = nil
+        clock.frame()
+        XCTAssertEqual(ticks, 1)
+        XCTAssertFalse(clock.isRunning)
+
+        weak var released: DisplayClock?
+        autoreleasepool {
+            var view: NSView? = NSView(frame: NSRect(x: 0, y: 0, width: 10, height: 10))
+            let clock = DisplayClock(view: try! XCTUnwrap(view))
+            released = clock
+            clock.start { true }
+            XCTAssertTrue(clock.isRunning)
+            view = nil
+            clock.frame()
+            XCTAssertFalse(clock.isRunning, "its view is gone")
+        }
+        XCTAssertNil(released, "the display link let go of it")
+    }
+
     // MARK: - C-PREV-12
 
     @MainActor
@@ -363,8 +419,9 @@ final class PreviewTransitionTests: XCTestCase {
 
     @MainActor
     func test_C_PREV_12_aChangeOnTheWayStartsFromTheFrameOnScreen() throws {
-        // The nine layers of 1.1: with node 13 of 1.2 the restarted transition frames its
-        // first frame a little apart from the one on screen, a gap that was there before
+        // The nine layers of 1.1. With node 13 of 1.2 the restarted transition frames its
+        // first frame a little apart from the one on screen: a known limitation, older than
+        // 1.2, which this test does not cover.
         let model = try model(Fixtures.hierarchyBeforeProtocol12())
         model.setPreviewMode(.threeD)
         let clock = ManualClock()

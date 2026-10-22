@@ -22,10 +22,11 @@ extension HierarchyViewController {
     }
 
     /// The layer under the pointer in the list, or none: it is the hovered layer, as in the
-    /// preview, and measured with ⌥ held. Not once the connection is gone, as there.
+    /// preview, and measured with ⌥ held. Not once the connection is gone, as there: the
+    /// store takes no hover then, and a list that takes no clicks has no row to measure.
     private func pointerIsOver(_ id: UInt64?) {
-        guard !store.connection.isLost else { return }
         store.hover(id)
+        guard outlineView.isEnabled else { return }
         onPointerOverRow?(id != nil)
     }
 
@@ -51,21 +52,40 @@ extension HierarchyViewController {
         return ids.reversed()
     }
 
+    /// What every row's hover and guides are drawn from: the layers whose rows the selected
+    /// and the hovered rows are inside. Worked out once for all the rows decorated together.
+    struct RowDecoration {
+        let hover: UInt64?
+        let selectedParent: UInt64?
+        let hoveredParent: UInt64?
+    }
+
+    /// The decoration of the rows as the store holds the selection and the hover.
+    func rowDecoration() -> RowDecoration {
+        let hover = store.hoveredLayerID
+        return RowDecoration(
+            hover: hover, selectedParent: shownParent(of: store.selectedLayerID),
+            hoveredParent: shownParent(of: hover))
+    }
+
     /// The hover and the guides of the rows there are views for.
     func decorateRows() {
+        let decoration = rowDecoration()
         outlineView.enumerateAvailableRowViews { [self] view, row in
             guard let view = view as? HierarchyTableRowView else { return }
             let item = outlineView.item(atRow: row)
-            decorate(view, id: layerID(of: item), ancestors: ancestors(of: item))
+            decorate(view, id: layerID(of: item), ancestors: ancestors(of: item), decoration)
         }
         updateSticky()
     }
 
-    func decorate(_ view: HierarchyTableRowView, id: UInt64?, ancestors: [UInt64]) {
-        view.isHovered = id != nil && id == shownHover
+    func decorate(
+        _ view: HierarchyTableRowView, id: UInt64?, ancestors: [UInt64], _ decoration: RowDecoration
+    ) {
+        view.isHovered = id != nil && id == decoration.hover
         view.guides = HierarchyGuide.guides(
-            ancestors: ancestors, selectedParent: shownParent(of: shownSelection),
-            hoveredParent: shownParent(of: shownHover))
+            ancestors: ancestors, selectedParent: decoration.selectedParent,
+            hoveredParent: decoration.hoveredParent)
     }
 
     /// The row a layer's row is inside in the list, if the layer has a row.
@@ -102,6 +122,8 @@ extension HierarchyViewController {
             }
         }
         let scrollX = visible.minX
+        let selected = store.selectedLayerID
+        let hovered = store.hoveredLayerID
         let rows = shown.compactMap { id -> HierarchyStickyView.Row? in
             let row = row(of: id)
             guard row >= 0 else { return nil }
@@ -110,15 +132,16 @@ extension HierarchyViewController {
                 id: id, row: HierarchyRow(tree, id, filter: store.filter),
                 triangleX: outlineView.guideX(level: outlineView.level(forRow: row)).map { $0 - scrollX },
                 cellX: cell.minX - scrollX, cellWidth: cell.width,
-                isSelected: id == shownSelection, isHovered: id == shownHover)
+                isSelected: id == selected, isHovered: id == hovered)
         }
         stickyView.show(rows, more: more, rowHeight: rowPitch)
     }
 
     /// A sticky row was clicked: its layer is selected, and the list scrolls to put its row
-    /// just below its own sticky ancestors.
+    /// just below its own sticky ancestors. A sticky row is a row of the list: it takes no
+    /// clicks while the list takes none.
     func stickyRowWasClicked(_ id: UInt64) {
-        guard !store.connection.isLost else { return }
+        guard outlineView.isEnabled else { return }
         store.select(id)
         let row = row(of: id)
         guard row >= 0 else { return }
