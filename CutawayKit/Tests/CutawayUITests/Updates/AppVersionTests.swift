@@ -3,7 +3,7 @@ import XCTest
 
 @testable import CutawayUI
 
-/// The version and the build: their forms, and the one place they are read from (C-DIST-01).
+/// The forms of the version and the build (C-DIST-01).
 final class AppVersionTests: XCTestCase {
     func test_C_DIST_01_versionsAreSemanticWithAnOptionalBeta() {
         for version in ["1.0.0", "0.1.0", "1.0.0-beta.1", "10.20.30-beta.12"] {
@@ -24,17 +24,5 @@ final class AppVersionTests: XCTestCase {
         for build in ["0", "01", "1.2", "-1", "+1", " 1", "", "١"] {
             XCTAssertFalse(AppVersion.isValid(build: build), build)
         }
-    }
-
-    /// A bundle on disk with only an Info.plist.
-    private func bundle(info: [String: String]) throws -> Bundle {
-        let folder = FileManager.default.temporaryDirectory
-            .appendingPathComponent("AppVersionTests-\(UUID().uuidString).bundle")
-        addTeardownBlock { try? FileManager.default.removeItem(at: folder) }
-        let contents = folder.appendingPathComponent("Contents")
-        try FileManager.default.createDirectory(at: contents, withIntermediateDirectories: true)
-        let data = try PropertyListSerialization.data(fromPropertyList: info, format: .xml, options: 0)
-        try data.write(to: contents.appendingPathComponent("Info.plist"))
-        return try XCTUnwrap(Bundle(url: folder))
     }
 }

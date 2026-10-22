@@ -45,11 +45,20 @@ final class TextureCacheTests: XCTestCase {
         XCTAssertNotNil(textures.texture(for: other))
     }
 
-    func test_C_REND_01_anImageWithoutPixelsIsNotStored() throws {
+    func test_C_REND_01_malformedImagesAreRefusedNotStoredAndCounted() throws {
+        let cases: [(String, TextureImage)] = [
+            ("without pixels", solid(width: 0, height: 0)),
+            ("rows shorter than the width", solid(width: 4, height: 4, bytesPerRow: 8)),
+            ("a byte count that overflows",
+             TextureImage(pixelWidth: 1, pixelHeight: 2, bytesPerRow: .max, bytes: Data(count: 8))),
+        ]
         let textures = try cache()
-        textures.store(solid(width: 0, height: 0), for: key)
-        XCTAssertNil(textures.texture(for: key))
-        XCTAssertEqual(textures.count, 0)
+        for (index, (name, image)) in cases.enumerated() {
+            XCTAssertFalse(textures.store(image, for: key), name)
+            XCTAssertNil(textures.texture(for: key), name)
+            XCTAssertEqual(textures.count, 0, name)
+            XCTAssertEqual(textures.refusedCount, index + 1, name)
+        }
     }
 
     func test_C_REND_05_theLimitIsTheLongestSideOfATextureOnThisGPU() throws {
@@ -71,20 +80,6 @@ final class TextureCacheTests: XCTestCase {
         XCTAssertFalse(textures.store(solid(width: limit + 1, height: 1), for: wide))
         XCTAssertNil(textures.texture(for: wide))
         XCTAssertEqual(textures.refusedCount, 1)
-    }
-
-    func test_C_REND_01_anImageWhoseByteCountOverflowsIsRefused() throws {
-        let cache = try cache()
-        let image = TextureImage(
-            pixelWidth: 1, pixelHeight: 2, bytesPerRow: .max, bytes: Data(count: 8))
-        XCTAssertFalse(cache.store(image, for: key))
-    }
-
-    func test_C_REND_01_everyRefusalIsCounted() throws {
-        let textures = try cache()
-        XCTAssertFalse(textures.store(solid(width: 0, height: 0), for: key))
-        XCTAssertFalse(textures.store(solid(width: 4, height: 4, bytesPerRow: 8), for: key))
-        XCTAssertEqual(textures.refusedCount, 2)
     }
 
     func test_C_REND_01_aPaddedImageIsStoredWithoutItsPadding() throws {

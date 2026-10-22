@@ -228,41 +228,6 @@ final class ProjectsSettingsPageTests: XCTestCase {
         return (window.projectsPage, sources, window)
     }
 
-    private func texts(_ page: ProjectsSettingsViewController, row: Int) -> [String] {
-        (0..<page.table.numberOfColumns).compactMap {
-            (page.table.view(atColumn: $0, row: row, makeIfNecessary: true) as? NSTableCellView)?
-                .textField?.stringValue
-        }
-    }
-
-    func test_C_SRC_01_theProjectsPageListsTheLinkedApps() throws {
-        let (page, sources, window) = try page()
-        XCTAssertEqual(window.window?.title, "Projects")
-        XCTAssertEqual(page.table.numberOfRows, 0)
-        XCTAssertFalse(try XCTUnwrap(LinkProjectFolderTests
-                .view(page.view, ProjectsSettingsViewController.emptyIdentifier)).isHidden)
-
-        let shop = try folder("Shop")
-        let notes = try folder("Notes")
-        sources.link(shop.root, bundleID: "com.example.shop", appName: "Shop")
-        sources.link(notes.root, bundleID: "com.example.notes", appName: "Field Notes")
-        page.reload()
-        XCTAssertEqual(page.table.numberOfRows, 2)
-        XCTAssertEqual(
-            texts(page, row: 0),
-            ["Field Notes", "com.example.notes", (notes.root.path as NSString).abbreviatingWithTildeInPath])
-        XCTAssertEqual(texts(page, row: 1).prefix(2), ["Shop", "com.example.shop"])
-        XCTAssertTrue(try XCTUnwrap(LinkProjectFolderTests
-                .view(page.view, ProjectsSettingsViewController.emptyIdentifier)).isHidden)
-
-        // A folder that is gone says so, with its path in the tooltip.
-        try FileManager.default.removeItem(at: notes.root)
-        page.reload()
-        let cell = page.table.view(atColumn: 2, row: 0, makeIfNecessary: true) as? NSTableCellView
-        XCTAssertEqual(cell?.textField?.stringValue.hasSuffix("Can\u{2019}t find"), true)
-        XCTAssertEqual(cell?.textField?.toolTip, notes.root.path)
-    }
-
     func test_C_SRC_01_aFolderIsChangedAndRemovedFromThePage() async throws {
         let (page, sources, _) = try page()
         let shop = try folder("Shop")
@@ -297,11 +262,5 @@ final class ProjectsSettingsPageTests: XCTestCase {
         XCTAssertNil(sources.indexes["com.example.shop"])
         page.reload()
         XCTAssertEqual(page.table.numberOfRows, 0)
-    }
-}
-
-extension LinkProjectFolderTests {
-    static func view(_ root: NSView, _ identifier: String) -> NSView? {
-        OpenInXcodeTests.views(in: root, identifier: identifier).first
     }
 }

@@ -3,9 +3,9 @@ import CutawayScene
 import Metal
 import XCTest
 
-/// Borders by kind (C-REND-10, C-PREV-17), sampled on the edges of the `hierarchy` fixture's
-/// layers: node 4 (`Demo.CardView`, the app's own class), node 3 (`UILabel`, the system's)
-/// and node 8 (a layer alone).
+/// Borders by kind (C-REND-10, C-PREV-17) on the `hierarchy` fixture's layers, compared with
+/// their baseline: node 4 (`Demo.CardView`, the app's own class), node 3 (`UILabel`, the
+/// system's) and node 8 (a layer alone).
 final class KindBorderRenderTests: XCTestCase {
     /// The kinds' colours in the dark appearance, as the interface gives them (sRGB).
     static let windowColor = RenderStyle.premultiplied(94 / 255, 92 / 255, 230 / 255, 1)
@@ -33,22 +33,11 @@ final class KindBorderRenderTests: XCTestCase {
 
     private var renderer: Renderer!
     private var textures: TextureCache!
-    private let viewport = RenderFixtures.portrait
 
     override func setUpWithError() throws {
         let device = try XCTUnwrap(MTLCreateSystemDefaultDevice())
         renderer = try Renderer(device: device)
         textures = TextureCache(device: device)
-    }
-
-    /// The `hierarchy` layers with the `layer-details` images, layer 6 selected and layer 7
-    /// hovered unless `highlights` is false.
-    private func list(marks: [SceneMark] = [], highlights: Bool = true) throws -> DrawList {
-        let keys = try RenderFixtures.storeDetails(scenario: "layer-details", in: textures)
-        return RenderFixtures.layout(try RenderFixtures.hierarchyLayers(textures: keys))
-            .project(
-                camera: .flat, viewport: viewport, selected: highlights ? 6 : nil,
-                hovered: highlights ? 7 : nil, marks: marks)
     }
 
     /// The picture a person approves (`Baselines/`): the `hierarchy` fixture in 3D, by kind.

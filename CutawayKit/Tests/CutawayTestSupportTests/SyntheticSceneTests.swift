@@ -70,18 +70,4 @@ final class SyntheticSceneTests: XCTestCase {
         await session.close()
         await server.stop()
     }
-
-    /// The hierarchy, then one chunk of every eight layers' details, encoded.
-    private static func frames(of scene: SyntheticScene) -> [Data] {
-        let hierarchy = scene.hierarchy()
-        let details = scene.details()
-        var frames = [FrameCodec.encode(Frame(requestID: 1, body: .hierarchy(hierarchy)))]
-        let ids = hierarchy.nodes.map(\.id)
-        for start in stride(from: 0, to: ids.count, by: 8) {
-            let chunk = LayerDetailsChunk(
-                sequence: 0, details: ids[start..<min(start + 8, ids.count)].compactMap { details[$0] })
-            frames.append(FrameCodec.encode(Frame(requestID: 2, body: .layerDetailsChunk(chunk))))
-        }
-        return frames
-    }
 }

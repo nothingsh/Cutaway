@@ -61,15 +61,8 @@ final class VirtualNodeDetailsTests: XCTestCase {
         XCTAssertFalse(asked.contains { [10, 11, 12].contains($0.layerID) })
         XCTAssertTrue(asked.contains { $0.layerID == 4 }, "the layer that draws them is")
         XCTAssertFalse(model.layout.neededTextures.contains { [10, 11, 12].contains($0.layerID) })
-        await session.close()
-        await server.stop()
-    }
-
-    @MainActor
-    func test_C_DET_11_progressLeavesVirtualNodesOut() async throws {
-        let (model, server, session) = try await Self.inspect()
-        // Fourteen nodes: 5 is hidden, 9 has no area, 10 to 12 are virtual, 13 and 14 are
-        // excluded.
+        // The progress leaves them out. Fourteen nodes: 5 is hidden, 9 has no area, 10 to 12
+        // are virtual, 13 and 14 are excluded.
         XCTAssertEqual(model.detailProgress.total, 7)
         XCTAssertEqual(model.detailProgress.completed, 7)
         await session.close()

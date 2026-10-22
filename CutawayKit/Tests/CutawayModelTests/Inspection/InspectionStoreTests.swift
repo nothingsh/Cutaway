@@ -150,26 +150,6 @@ final class InspectionStoreTests: XCTestCase {
         await server.stop()
     }
 
-    func test_C_CONN_07_aLostConnectionLeavesTheStateAlone() async throws {
-        // The connection ends while the hierarchy is on its way. The app is about to leave
-        // the list, and the inspection with it: no failure is shown.
-        var steps = try MockScript.fixtures("handshake").steps
-        steps += [.expect(.getHierarchy, as: 2), .close]
-        let server = try await MockServer.start(script: MockScript(steps: steps))
-        let session = try await session(to: server)
-        let model = await InspectionStore(session: session, newLayers: .expanded)
-
-        await model.reload()
-        let settled = await Wait.until { await !model.isLoading }
-        XCTAssertTrue(settled, "the request never ended")
-        let state = await model.loadState
-        XCTAssertEqual(state, .loading)
-        let mismatches = await server.mismatches
-        XCTAssertEqual(mismatches, [])
-
-        await server.stop()
-    }
-
     // MARK: - C-HIER-02: expansion and selection
 
     @MainActor
@@ -486,17 +466,10 @@ final class InspectionStoreTests: XCTestCase {
         changes.removeAll()
         model.apply(try changedHierarchy())  // without layer 8
         XCTAssertEqual(changes, [[8]])
-        subscription.cancel()
-    }
-
-    @MainActor
-    func test_C_SCENE_03_reloadingDropsTheImagesOfLayersThatAreGone() async throws {
-        let model = try loadedModel()
-        await model.applyDetails(try Fixtures.layerDetails(scenario: "layer-details-edge"))
-        XCTAssertNotNil(model.images[8])
-        model.apply(try changedHierarchy())  // without layer 8
+        // The images of layers that are gone are dropped (C-SCENE-03); the others stay.
         XCTAssertNil(model.images[8])
         XCTAssertNotNil(model.images[3])
+        subscription.cancel()
     }
 
     @MainActor
@@ -659,17 +632,24 @@ final class InspectionStoreTests: XCTestCase {
     @MainActor
     func test_C_HIER_02_anUnchangedTreeStillStartsANewRound() async throws {
         let model = model()
+        model.rowsWait = .zero
         model.enter()
         // The request for the hierarchy fails at once on this session; then the attributes
-        // know no hierarchy is on its way.
+        // know no hierarchy is on its way. Requests fail at once, and asking stops.
         let settled = await Wait.until { await !model.isLoading }
         XCTAssertTrue(settled)
         model.apply(try Fixtures.hierarchy())
+        let first = await Wait.until { await model.batchesStarted > 0 }
+        XCTAssertTrue(first)
+        try await Task.sleep(for: .milliseconds(100))
+        let batches = model.batchesStarted
         model.select(3)
         let asked = model.attributes.requestsStarted
 
-        model.apply(try Fixtures.hierarchy())
+        model.apply(try Fixtures.hierarchy())  // the same tree again
         XCTAssertEqual(model.attributes.requestsStarted, asked + 1, "the selection is asked for again")
+        let again = await Wait.until { await model.batchesStarted > batches }
+        XCTAssertTrue(again, "a new round asks for screenshots again")
     }
 
     @MainActor

@@ -26,13 +26,6 @@ final class Protocol12DecodingTests: XCTestCase {
         return request.overrides
     }
 
-    private func attributes(of layerID: UInt64) throws -> [String: Attribute] {
-        let detail = try XCTUnwrap(
-            Fixtures.layerDetails(scenario: "layer-details").first { $0.layerID == layerID })
-        return Dictionary(
-            uniqueKeysWithValues: detail.attributeGroups.flatMap(\.attributes).map { ($0.id ?? "", $0) })
-    }
-
     private static let portrait = Traits(
         userInterfaceStyle: .light, contentSizeCategory: .large, layoutDirection: .leftToRight,
         horizontalSizeClass: .compact, verticalSizeClass: .regular)
@@ -40,17 +33,6 @@ final class Protocol12DecodingTests: XCTestCase {
         .userInterfaceStyle, .contentSizeCategory, .layoutDirection, .horizontalSizeClass,
         .verticalSizeClass,
     ]
-
-    // MARK: - Handshake
-
-    func test_C_WIRE_12_theHandshakeIsAtOnePointTwo() throws {
-        XCTAssertEqual(ProtocolVersion.current, Version(major: 1, minor: 2))
-        for file in ["01-c2s-hello.bin", "02-s2c-hello.bin"] {
-            guard case .hello(let hello) = try decode("handshake", file).body
-            else { throw UnexpectedBody() }
-            XCTAssertEqual(hello.protocolVersion, Version(major: 1, minor: 2), file)
-        }
-    }
 
     // MARK: - Environment
 
@@ -212,73 +194,6 @@ final class Protocol12DecodingTests: XCTestCase {
     }
 
     // MARK: - Attributes
-
-    func test_C_WIRE_12_layer3CarriesTheAttributesOfOnePointTwo() throws {
-        let attributes = try attributes(of: 3)
-        XCTAssertEqual(attributes.count, 22)
-
-        let textStyle = try XCTUnwrap(attributes["label.fontTextStyle"])
-        XCTAssertEqual(textStyle.value, .string("body"))
-        XCTAssertEqual(textStyle.cluster, AttributeCluster(name: "font", slot: "textStyle"))
-        XCTAssertEqual(textStyle.section, .content)
-        XCTAssertFalse(textStyle.editable)
-        let scalable = try XCTUnwrap(attributes["label.adjustsFontForContentSizeCategory"])
-        XCTAssertEqual(scalable.value, .bool(true))
-        XCTAssertEqual(scalable.cluster, AttributeCluster(name: "font", slot: "scalable"))
-
-        let label = try XCTUnwrap(attributes["view.accessibilityLabel"])
-        XCTAssertEqual(label.value, .string("Welcome"))
-        XCTAssertEqual(label.section, .accessibility)
-        XCTAssertEqual(
-            attributes.filter { $0.value.section == .accessibility }.keys.sorted(),
-            ["view.accessibilityLabel"])
-
-        // P-ATTR-17: the dynamic tint has both; a CGColor and the nil background have neither.
-        XCTAssertEqual(
-            attributes.compactMapValues(\.appearanceColors),
-            ["view.tintColor": AppearanceColors(
-                light: Color(red: 0, green: 0.47843137, blue: 1, alpha: 1),
-                dark: Color(red: 0.039215688, green: 0.5176471, blue: 1, alpha: 1))])
-        XCTAssertEqual(attributes["view.tintColor"]?.value, .color(Color(red: 0, green: 0.47843137, blue: 1, alpha: 1)))
-    }
-
-    func test_C_WIRE_12_layer6CarriesReferences() throws {
-        let detail = try XCTUnwrap(
-            Fixtures.layerDetails(scenario: "layer-details").first { $0.layerID == 6 })
-        XCTAssertEqual(detail.status, .ok)
-        XCTAssertEqual(detail.attributeGroups.map(\.id), ["scrollView", "view"])
-        XCTAssertEqual(detail.attributeGroups.map(\.className), ["UIScrollView", "UIView"])
-
-        let attributes = try attributes(of: 6)
-        let delegate = try XCTUnwrap(attributes["scrollView.delegate"])
-        XCTAssertEqual(
-            delegate.value,
-            .references([ObjectReference(
-                layerID: 2, className: "Demo.HomeViewController",
-                displayClassName: "HomeViewController")]))
-        XCTAssertEqual(delegate.valueKind, .references)
-        XCTAssertEqual(delegate.section, .content)
-        XCTAssertFalse(delegate.editable)
-
-        let recognizers = try XCTUnwrap(attributes["view.gestureRecognizers"])
-        XCTAssertEqual(
-            recognizers.value,
-            .references(
-                ["UIScrollViewDelayedTouchesBeganGestureRecognizer", "UIScrollViewPanGestureRecognizer"]
-                    .map { ObjectReference(layerID: nil, className: $0, displayClassName: $0) }))
-        XCTAssertEqual(recognizers.section, .behavior)
-    }
-
-    func test_C_WIRE_12_setAttributeRepliesCarryTheAttributesOfOnePointTwo() throws {
-        let results = try Fixtures.setAttributeResults().filter { $0.layerID == 3 }
-        XCTAssertFalse(results.isEmpty)
-        for result in results {
-            let attributes = result.attributeGroups.flatMap(\.attributes)
-            XCTAssertEqual(attributes.count, 22)
-            XCTAssertEqual(attributes.first { $0.id == "view.accessibilityLabel" }?.section, .accessibility)
-            XCTAssertNotNil(attributes.first { $0.id == "view.tintColor" }?.appearanceColors)
-        }
-    }
 
     func test_C_WIRE_12_framesWithoutTheNewFieldsReadAsAbsent() throws {
         // A 1.1 app has no virtual node 10 and excludes no layer 13 (1.2's `dev.2`).

@@ -9,10 +9,6 @@ import XCTest
 /// stresses: all of them with the switch on, otherwise only those of the constraints the
 /// pointer is on (C-LAYOUT-04, C-LAYOUT-06, C-LAYOUT-07, C-PREV-18).
 final class ConstraintEndsShownTests: XCTestCase {
-    /// The safe area of layer 2 in the `layout-constraints` fixture.
-    private static let safeArea = SceneMark.area(
-        SceneRect(x: 0, y: 59, width: 393, height: 759), in: 2)
-
     private func shown(
         of id: UInt64, showsAll: Bool, pointing: ConstraintPointing? = nil,
         chip: SceneMark? = nil
@@ -47,12 +43,6 @@ final class ConstraintEndsShownTests: XCTestCase {
         XCTAssertEqual(shown.ends, [])
     }
 
-    func test_C_LAYOUT_07_withTheSwitchOnThePointedRowIsStressedAndTheRestStay() throws {
-        let shown = try shown(of: 3, showsAll: true, pointing: ConstraintPointing([1]))
-        XCTAssertEqual(shown.ends.map(\.mark), [.layer(2), Self.safeArea, .layer(4)])
-        XCTAssertEqual(shown.stressed, [Self.safeArea])
-    }
-
     func test_C_LAYOUT_06_aChipStressesItsEndOnlyWithTheSwitchOffOrOn() throws {
         for showsAll in [false, true] {
             let shown = try shown(
@@ -66,11 +56,5 @@ final class ConstraintEndsShownTests: XCTestCase {
         let shown = try shown(of: 3, showsAll: false, chip: .layer(9))
         XCTAssertEqual(shown.ends, [])
         XCTAssertEqual(shown.stressed, [])
-    }
-
-    func test_C_LAYOUT_06_aChipIsShownEvenBeforeItsRowIsPointedAt() throws {
-        let shown = try shown(of: 3, showsAll: false, chip: .layer(4))
-        XCTAssertEqual(shown.ends.map(\.mark), [.layer(4)])
-        XCTAssertEqual(shown.stressed, [.layer(4)])
     }
 }

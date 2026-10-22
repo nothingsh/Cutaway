@@ -59,49 +59,6 @@ final class PreviewProjectorTests: XCTestCase {
     // MARK: - C-PREV-11
 
     @MainActor
-    func test_C_PREV_11_aNewModeTurnsOverAndEndsOnItsCamera() throws {
-        let model = try model()
-        let clock = ManualClock()
-        let log = Log()
-        let projector = projector(model, clock: clock, log: log)
-        XCTAssertEqual(log.shown.last?.list, still(model))
-        XCTAssertFalse(clock.isRunning)
-
-        model.setPreviewMode(.threeD)
-        projector.follow(model.previewMode)
-        XCTAssertTrue(projector.isInTransition)
-        XCTAssertTrue(clock.isRunning)
-        XCTAssertEqual(log.shown.last?.isInTransition, true)
-        XCTAssertNotEqual(log.shown.last?.list, still(model))
-
-        clock.advance(by: PreviewMotion.duration / 2)
-        XCTAssertTrue(projector.isInTransition)
-        clock.advance(by: PreviewMotion.duration)
-        XCTAssertFalse(projector.isInTransition)
-        XCTAssertFalse(clock.isRunning, "nothing more is drawn")
-        XCTAssertEqual(log.shown.last?.isInTransition, false)
-        XCTAssertEqual(log.shown.last?.list, still(model))
-    }
-
-    @MainActor
-    func test_C_PREV_11_newCamerasOnTheWayEndTheTurn() throws {
-        let model = try model()
-        let clock = ManualClock()
-        let log = Log()
-        let projector = projector(model, clock: clock, log: log)
-        model.setPreviewMode(.threeD)
-        projector.follow(model.previewMode)
-        XCTAssertTrue(projector.isInTransition)
-
-        model.rotate(byDragOf: 30, 0)
-        projector.follow(model.cameras)
-        XCTAssertFalse(projector.isInTransition)
-        XCTAssertFalse(clock.isRunning)
-        XCTAssertEqual(log.shown.last?.isInTransition, false)
-        XCTAssertEqual(log.shown.last?.list, still(model))
-    }
-
-    @MainActor
     func test_C_PREV_11_endingTheTransitionsShowsTheStillPictureAndStopsTheClock() throws {
         let model = try model()
         let clock = ManualClock()

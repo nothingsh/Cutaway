@@ -137,25 +137,4 @@ final class ExtremeAttributeTests: XCTestCase {
             XCTAssertEqual(sent, [8], "\(start)")
         }
     }
-
-    /// Every one of 1,000 attributes can be scrolled to, and has its row there; most are built
-    /// only then (C-SCALE-03, whose tests time it).
-    @MainActor
-    func test_C_ATTR_09_aThousandAttributesAreShown() async throws {
-        let panel = try await ManyAttributes(groups: ManyAttributes.groups(10, of: 100))
-        let selected = await panel.select()
-        XCTAssertTrue(selected)
-        XCTAssertLessThan(panel.controller.attributeRows.count, 1_000, "built page by page")
-        var seen = Set(panel.titlesInView)
-        var y: CGFloat = 0
-        while y + panel.visible.height < panel.document.frame.height {
-            y += panel.visible.height / 2
-            panel.scroll(to: y)
-            seen.formUnion(panel.titlesInView)
-        }
-        XCTAssertEqual(seen.count, 1_000)
-        XCTAssertEqual(
-            seen, Set((0..<10).flatMap { group in (0..<100).map { "Attribute \(group).\($0)" } }))
-        await panel.close()
-    }
 }

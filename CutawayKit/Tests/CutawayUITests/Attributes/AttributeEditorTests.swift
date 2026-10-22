@@ -432,22 +432,6 @@ final class AttributeEditorTests: XCTestCase {
         XCTAssertNil(field)
     }
 
-    // MARK: - Reported by the user: text, spinner and failures
-
-    /// The nearest box a view sits in.
-    @MainActor
-    private static func box(around view: NSView) -> NSBox? {
-        var current = view.superview
-        while let candidate = current, !(candidate is NSBox) { current = candidate.superview }
-        return current as? NSBox
-    }
-
-    /// The middle of a view, in its window.
-    @MainActor
-    private static func midY(_ view: NSView) -> CGFloat {
-        view.convert(view.bounds, to: nil).midY
-    }
-
     // MARK: - C-SCALE-02
 
     /// An editor that goes, with the panel or a new selection, takes all its controls with it:

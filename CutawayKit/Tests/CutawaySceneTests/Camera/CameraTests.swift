@@ -385,42 +385,29 @@ final class CameraTests: XCTestCase {
         }
     }
 
-    func test_C_PREV_05_zoomKeepsWhatIsUnderThePointerBetweenInsets() throws {
-        let layout = try fixtureLayout()
-        let viewport = Viewport(
-            width: 480, height: 900, insets: Viewport.Insets(top: 52, bottom: 64))
-        for camera in [Camera.flat, Camera.standard3D] {
-            let list = layout.project(
-                camera: camera, viewport: viewport, selected: nil, hovered: nil)
-            let pointer = try XCTUnwrap(list.items.first { $0.layerID == 4 }).points[3]
-            for factor in [0.5, 2, 3.7] {
-                let zoomed = layout.project(
-                    camera: camera.zoomed(by: factor, about: pointer, in: viewport),
-                    viewport: viewport, selected: nil, hovered: nil)
-                let moved = try XCTUnwrap(zoomed.items.first { $0.layerID == 4 }).points[3]
-                XCTAssertEqual(moved.x, pointer.x, accuracy: 0.5, "\(camera) × \(factor)")
-                XCTAssertEqual(moved.y, pointer.y, accuracy: 0.5, "\(camera) × \(factor)")
-            }
-        }
-    }
-
     func test_C_PREV_05_zoomKeepsWhatIsUnderThePointer() throws {
         let layout = try fixtureLayout()
-        for camera in [Camera.flat, Camera.standard3D] {
-            let list = layout.project(
-                camera: camera, viewport: viewport, selected: nil, hovered: nil)
-            // Three corners: of the label, the rotated card, and the scroll view's label.
-            for (id, corner) in [(3, 0), (4, 3), (7, 1)] as [(UInt64, Int)] {
-                let pointer = try XCTUnwrap(list.items.first { $0.layerID == id }).points[corner]
-                for factor in [0.5, 2, 3.7] {
-                    let zoomed = layout.project(
-                        camera: camera.zoomed(by: factor, about: pointer, in: viewport),
-                        viewport: viewport, selected: nil, hovered: nil)
-                    let moved =
-                        try XCTUnwrap(zoomed.items.first { $0.layerID == id }).points[corner]
-                    let what = "\(camera) \(id) × \(factor)"
-                    XCTAssertEqual(moved.x, pointer.x, accuracy: 0.5, what)
-                    XCTAssertEqual(moved.y, pointer.y, accuracy: 0.5, what)
+        let inset = Viewport(
+            width: 480, height: 900, insets: Viewport.Insets(top: 52, bottom: 64))
+        // Without insets and between them.
+        for viewport in [self.viewport, inset] {
+            for camera in [Camera.flat, Camera.standard3D] {
+                let list = layout.project(
+                    camera: camera, viewport: viewport, selected: nil, hovered: nil)
+                // Three corners: of the label, the rotated card, and the scroll view's label.
+                for (id, corner) in [(3, 0), (4, 3), (7, 1)] as [(UInt64, Int)] {
+                    let pointer =
+                        try XCTUnwrap(list.items.first { $0.layerID == id }).points[corner]
+                    for factor in [0.5, 2, 3.7] {
+                        let zoomed = layout.project(
+                            camera: camera.zoomed(by: factor, about: pointer, in: viewport),
+                            viewport: viewport, selected: nil, hovered: nil)
+                        let moved =
+                            try XCTUnwrap(zoomed.items.first { $0.layerID == id }).points[corner]
+                        let what = "\(viewport) \(camera) \(id) × \(factor)"
+                        XCTAssertEqual(moved.x, pointer.x, accuracy: 0.5, what)
+                        XCTAssertEqual(moved.y, pointer.y, accuracy: 0.5, what)
+                    }
                 }
             }
         }

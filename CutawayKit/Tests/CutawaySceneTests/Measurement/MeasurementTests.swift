@@ -105,13 +105,11 @@ final class MeasurementTests: XCTestCase {
         XCTAssertEqual(measurement.boxes[1].maxY, bottom, accuracy: 1e-9)
     }
 
-    func test_C_SCENE_09_aLayerHasNoDistanceToItself() throws {
-        XCTAssertNil(try fixtureLayout().measurement(from: 3, to: 3))
-    }
-
-    func test_C_SCENE_09_anUnknownLayerHasNoMeasurement() throws {
-        XCTAssertNil(try fixtureLayout().measurement(from: 3, to: 99))
-        XCTAssertNil(try fixtureLayout().measurement(from: 99, to: 3))
+    func test_C_SCENE_09_noMeasurementToItselfOrAnUnknownLayer() throws {
+        let layout = try fixtureLayout()
+        XCTAssertNil(layout.measurement(from: 3, to: 3), "itself")
+        XCTAssertNil(layout.measurement(from: 3, to: 99), "to an unknown layer")
+        XCTAssertNil(layout.measurement(from: 99, to: 3), "from an unknown layer")
     }
 
     func test_C_SCENE_09_layersThatTouchHaveOnlyTheSameSideDistances() {
@@ -224,33 +222,46 @@ final class MeasurementTests: XCTestCase {
         XCTAssertEqual(tick.to.y - tick.from.y, 6, accuracy: 1e-9)
     }
 
+    /// In 2D, and in 3D (C-SCENE-12) measuring to node 2, a level below the selection.
+    private static let cameras: [(Camera, other: UInt64)] = [(.flat, 8), (.standard3D, 2)]
+
     func test_C_SCENE_09_onlyTwoDifferentLayersInThePictureAreMeasured() throws {
         let layout = try fixtureLayout()
-        func measured(_ layout: SceneLayout, _ selected: UInt64?, _ other: UInt64?) -> Bool {
-            layout.project(
-                camera: .flat, viewport: Self.portrait, selected: selected, hovered: other,
-                measuring: other
-            ).measurement != nil
+        for (camera, other) in Self.cameras {
+            func measured(_ layout: SceneLayout, _ selected: UInt64?, _ other: UInt64?) -> Bool {
+                layout.project(
+                    camera: camera, viewport: Self.portrait, selected: selected, hovered: other,
+                    measuring: other
+                ).measurement != nil
+            }
+            let label = "\(camera)"
+            XCTAssertTrue(measured(layout, 3, other), label)
+            XCTAssertFalse(measured(layout, 3, 3), "the selection itself, \(label)")
+            XCTAssertFalse(measured(layout, nil, other), "nothing selected, \(label)")
+            XCTAssertFalse(measured(layout, 3, nil), "nothing to measure to, \(label)")
+            // Node 5 is hidden.
+            XCTAssertFalse(measured(layout, 5, 3), "a hidden selection, \(label)")
+            XCTAssertTrue(
+                measured(try fixtureLayout(showsHidden: true), 5, 3), "shown as a ghost, \(label)")
+            // Focused on node 4, node 3 is outside.
+            XCTAssertFalse(
+                measured(try fixtureLayout(focus: 4), 3, 4), "outside the focus, \(label)")
         }
-        XCTAssertTrue(measured(layout, 3, 8))
-        XCTAssertFalse(measured(layout, 3, 3), "the selection itself")
-        XCTAssertFalse(measured(layout, nil, 8), "nothing selected")
-        XCTAssertFalse(measured(layout, 3, nil), "nothing to measure to")
-        // Node 5 is hidden.
-        XCTAssertFalse(measured(layout, 5, 3), "a hidden selection")
-        XCTAssertTrue(measured(try fixtureLayout(showsHidden: true), 5, 3), "shown as a ghost")
-        // Focused on node 4, node 3 is outside.
-        XCTAssertFalse(measured(try fixtureLayout(focus: 4), 3, 4), "outside the focus")
     }
 
-    func test_C_SCENE_09_measuringChangesNeitherHitTestingNorFraming() throws {
+    func test_C_SCENE_09_measuringChangesNeitherTheLayersNorTheMarks() throws {
         let layout = try fixtureLayout()
-        let plain = layout.project(
-            camera: .flat, viewport: Self.portrait, selected: 3, hovered: 8)
-        let measuring = layout.project(
-            camera: .flat, viewport: Self.portrait, selected: 3, hovered: 8, measuring: 8)
-        XCTAssertNil(plain.measurement)
-        XCTAssertEqual(measuring.items, plain.items)
-        XCTAssertEqual(measuring.marks, plain.marks)
+        for (camera, other) in Self.cameras {
+            let plain = layout.project(
+                camera: camera, viewport: Self.portrait, selected: 3, hovered: other,
+                marks: [.layer(4)])
+            let measuring = layout.project(
+                camera: camera, viewport: Self.portrait, selected: 3, hovered: other,
+                marks: [.layer(4)], measuring: other)
+            XCTAssertNil(plain.measurement, "\(camera)")
+            XCTAssertNotNil(measuring.measurement, "\(camera)")
+            XCTAssertEqual(measuring.items, plain.items, "\(camera)")
+            XCTAssertEqual(measuring.marks, plain.marks, "\(camera)")
+        }
     }
 }

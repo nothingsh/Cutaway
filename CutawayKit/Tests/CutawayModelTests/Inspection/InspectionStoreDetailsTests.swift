@@ -442,6 +442,8 @@ final class InspectionStoreDetailsTests: XCTestCase {
 
     @MainActor
     func test_C_CONN_07_aClosedConnectionEndsTheHierarchyLoading() async throws {
+        // The connection ends while the hierarchy is on its way. The app is about to leave
+        // the list, and the inspection with it: no failure is shown.
         var steps = try MockScript.fixtures("handshake").steps
         steps += [.expect(.getHierarchy, as: 2), .close]
         let server = try await MockServer.start(script: MockScript(steps: steps))
@@ -454,6 +456,8 @@ final class InspectionStoreDetailsTests: XCTestCase {
         XCTAssertTrue(settled, "the request never ended")
         XCTAssertFalse(model.attributes.isTreeLoading)
         XCTAssertEqual(model.loadState, .loading, "no failure is shown (C-CONN-07)")
+        let mismatches = await server.mismatches
+        XCTAssertEqual(mismatches, [])
 
         await server.stop()
     }
@@ -462,10 +466,14 @@ final class InspectionStoreDetailsTests: XCTestCase {
 
     @MainActor
     func test_C_DET_02_leavingCancelsTheScreenshotsAndComingBackAsksAgain() async throws {
+        // Coming back, a new list reports its rows as soon as it is built, before the
+        // hierarchy it asked for has arrived. No screenshots of the old tree are asked for in
+        // between.
         var steps = try MockScript.fixtures(
             "handshake", "hierarchy", "layer-details-cancelled").steps
         steps += [
             .expect(.getHierarchy, as: 60),
+            .pause(.milliseconds(100)),
             .send(Frame(requestID: 60, body: .hierarchy(try Fixtures.hierarchy()))),
             .expect(.getLayerDetails, as: 61),
         ]
@@ -483,8 +491,10 @@ final class InspectionStoreDetailsTests: XCTestCase {
         XCTAssertTrue(cancelled)
 
         model.enter()
-        let again = await Wait.until { await server.receivedFrames.count == 6 }
+        model.setVisibleLayers([])  // what a new list reports before it has rows
+        let again = await Wait.until { await server.receivedFrames.count >= 6 }
         XCTAssertTrue(again)
+        try await Task.sleep(for: .milliseconds(200))
         let frames = await server.receivedFrames
         XCTAssertEqual(
             frames.map { MessageKind($0.body) },
@@ -855,45 +865,6 @@ final class InspectionStoreDetailsTests: XCTestCase {
         try await Task.sleep(for: .milliseconds(200))
         XCTAssertNil(model.images[4])
         XCTAssertEqual(model.detailProgress, DetailProgress(completed: 0, total: 7))
-
-        await session.close()
-        await server.stop()
-    }
-
-    @MainActor
-    func test_C_DET_02_comingBackAsksForTheTreeBeforeAnyScreenshot() async throws {
-        // A new list reports its rows as soon as it is built, before the hierarchy it asked
-        // for has arrived. No screenshots of the old tree are asked for in between.
-        var steps = try MockScript.fixtures(
-            "handshake", "hierarchy", "layer-details-cancelled").steps
-        steps += [
-            .expect(.getHierarchy, as: 60),
-            .pause(.milliseconds(100)),
-            .send(Frame(requestID: 60, body: .hierarchy(try Fixtures.hierarchy()))),
-            .expect(.getLayerDetails, as: 61),
-        ]
-        let server = try await MockServer.start(script: MockScript(steps: steps))
-        let session = try await Self.session(to: server)
-        let model = InspectionStore(session: session, newLayers: .expanded)
-
-        model.enter()
-        let first = await Wait.until { await model.images[2] != nil }
-        XCTAssertTrue(first)
-        model.leave()
-        let cancelled = await Wait.until {
-            await server.receivedFrames.contains { MessageKind($0.body) == .cancel }
-        }
-        XCTAssertTrue(cancelled)
-
-        model.enter()
-        model.setVisibleLayers([])  // what a new list reports before it has rows
-        let again = await Wait.until { await Self.detailRequests(server).count >= 2 }
-        XCTAssertTrue(again)
-        try await Task.sleep(for: .milliseconds(200))
-        let kinds = await server.receivedFrames.map { MessageKind($0.body) }
-        XCTAssertEqual(
-            kinds,
-            [.hello, .getHierarchy, .getLayerDetails, .cancel, .getHierarchy, .getLayerDetails])
 
         await session.close()
         await server.stop()

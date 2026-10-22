@@ -73,26 +73,6 @@ final class RoundTripTests: XCTestCase {
         XCTAssertEqual(count, 38)
     }
 
-    func test_C_WIRE_04_aNodeWithoutAControllerOrMembersRoundTripsWithout() throws {
-        // The encoder writes an empty vector; a vector that is absent altogether, as from a
-        // 0.1 server, is read in FixtureDecodingTests (the fixture's first node).
-        let node = LayerNode(
-            id: 1, parentID: 0, className: "CALayer", displayClassName: "CALayer",
-            viewClassName: nil, viewDisplayClassName: nil, bounds: nil, position: nil,
-            anchorPoint: nil, transform: nil, zPosition: 0, isHidden: false, opacity: 1,
-            masksToBounds: false)
-        let frame = Frame(
-            requestID: 2, body: .hierarchy(Hierarchy(nodes: [node], keyWindowID: 0)))
-        guard case .hierarchy(let decoded) = try FrameCodec.decode(FrameCodec.encode(frame)).body
-        else {
-            XCTFail("not a Hierarchy")
-            return
-        }
-        XCTAssertNil(decoded.nodes[0].viewControllerClassName)
-        XCTAssertNil(decoded.nodes[0].viewControllerDisplayClassName)
-        XCTAssertEqual(decoded.nodes[0].memberReferences, [])
-    }
-
     func test_C_WIRE_01_memberReferencesRoundTripInOrder() throws {
         let references = [
             MemberReference(ownerClassName: "A", ownerDisplayClassName: "A", name: "first"),

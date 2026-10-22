@@ -36,15 +36,20 @@ final class LazyRowsTests: XCTestCase {
         await more.close()
     }
 
+    /// Every one of 1,000 attributes can be scrolled to and has its row there (C-ATTR-09), in
+    /// the list's order.
     func test_C_SCALE_03_scrollingShowsEveryItemInItsOrderWithoutJumps() async throws {
         let panel = try await ManyAttributes(groups: ManyAttributes.groups(10, of: 100))
         let selected = await panel.select()
         XCTAssertTrue(selected)
+        XCTAssertLessThan(panel.controller.attributeRows.count, 1_000, "built page by page")
         let order = Self.titles(10, of: 100)
+        var seen = Set<String>()
         var lastIndex = 0
         var y: CGFloat = 0
         while y + panel.visible.height < panel.document.frame.height {
             let titles = panel.titlesInView
+            seen.formUnion(titles)
             let first = try XCTUnwrap(titles.first, "nothing in view at \(y)")
             let index = try XCTUnwrap(order.firstIndex(of: first))
             // What is in view is a run of the list, in its order.
@@ -57,6 +62,8 @@ final class LazyRowsTests: XCTestCase {
             panel.scroll(to: y)
         }
         XCTAssertGreaterThan(lastIndex, 950)
+        seen.formUnion(panel.titlesInView)
+        XCTAssertEqual(seen, Set(order), "every attribute was in view")
         await panel.close()
     }
 

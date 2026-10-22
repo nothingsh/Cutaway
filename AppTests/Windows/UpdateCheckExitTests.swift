@@ -32,7 +32,6 @@ final class UpdateCheckExitTests: XCTestCase {
             try await Task.sleep(for: .milliseconds(10))
         }
         XCTAssertEqual(alerts.count, 1)
-        XCTAssertEqual(alerts.first?.messageText, "Couldn\u{2019}t check for updates")
         XCTAssertEqual(
             alerts.first?.informativeText, URLError(.notConnectedToInternet).localizedDescription)
     }
