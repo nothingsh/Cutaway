@@ -10,7 +10,7 @@ Every release is on [GitHub Releases](https://github.com/nothingsh/Cutaway/relea
 
 Cutaway 1.2.0 speaks protocol 1.2. It works with apps that include CutawayServer 1.0 or 1.1; the features marked below need [CutawayServer 1.2.0](https://github.com/nothingsh/CutawayServer/releases/tag/1.2.0).
 
-[Cutaway 1.2.0 on GitHub](https://github.com/nothingsh/Cutaway/releases/tag/v1.2.0) <Badge type="info" text="the links work once 1.2.0 is released" />
+[Cutaway 1.2.0 on GitHub](https://github.com/nothingsh/Cutaway/releases/tag/v1.2.0)
 
 **Environment** (needs CutawayServer 1.2)
 

@@ -10,7 +10,7 @@ description: Cutaway 每个版本的变化，以及下载的链接。
 
 Cutaway 1.2.0 使用协议 1.2。它能与集成了 CutawayServer 1.0 或 1.1 的 App 一起使用；下面标出的功能需要 [CutawayServer 1.2.0](https://github.com/nothingsh/CutawayServer/releases/tag/1.2.0)。
 
-[GitHub 上的 Cutaway 1.2.0](https://github.com/nothingsh/Cutaway/releases/tag/v1.2.0) <Badge type="info" text="1.2.0 发布后链接才可用" />
+[GitHub 上的 Cutaway 1.2.0](https://github.com/nothingsh/Cutaway/releases/tag/v1.2.0)
 
 **环境**（需要 CutawayServer 1.2）
 
