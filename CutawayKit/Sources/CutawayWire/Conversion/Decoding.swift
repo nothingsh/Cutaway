@@ -196,13 +196,29 @@ extension EncodedImage {
         self.init(
             encoding: ImageEncoding(wire.encoding), pixelWidth: wire.pixelWidth,
             pixelHeight: wire.pixelHeight, bytesPerRow: wire.bytesPerRow, scale: wire.scale,
-            data: data ?? Data())
+            data: data ?? Data(), digest: checkedDigest(Array(wire.digest)))
     }
 }
 
+extension DetailImage {
+    /// An unchanged image's other fields are at their defaults and are not looked at (P-IMG-05).
+    init(_ wire: Cutaway_Wire_Image) {
+        self = wire.unchanged
+            ? .unchanged(digest: Data(wire.digest)) : .full(EncodedImage(wire))
+    }
+}
+
+/// A digest as P-IMG-04 has it, 1 to 32 bytes; anything else is taken as none, since it can
+/// only be compared and nothing of this length can match.
+private func checkedDigest(_ bytes: [UInt8]) -> Data? {
+    (1...32).contains(bytes.count) ? Data(bytes) : nil
+}
+
 extension AppIcon {
+    /// An icon sent as unchanged has no pixels and stands for nothing the Client holds: no
+    /// request gives the icon's digest (P-IMG-05).
     init(_ wire: Cutaway_Wire_AppIcon) {
-        self.init(image: wire.image.map { EncodedImage($0) })
+        self.init(image: wire.image.flatMap { $0.unchanged ? nil : EncodedImage($0) })
     }
 }
 
@@ -282,7 +298,9 @@ extension LayerDetailRequest {
     init(_ wire: Cutaway_Wire_LayerDetailRequest) {
         self.init(
             layerID: wire.layerId, wantSolo: wire.wantSolo, wantGroup: wire.wantGroup,
-            wantAttributes: wire.wantAttributes, wantConstraints: wire.wantConstraints)
+            wantAttributes: wire.wantAttributes, wantConstraints: wire.wantConstraints,
+            knownSoloDigest: checkedDigest(Array(wire.knownSoloDigest)),
+            knownGroupDigest: checkedDigest(Array(wire.knownGroupDigest)))
     }
 }
 
@@ -471,7 +489,7 @@ extension LayerDetail {
     init(_ wire: Cutaway_Wire_LayerDetail) {
         self.init(
             layerID: wire.layerId, status: DetailStatus(wire.status),
-            solo: wire.solo.map { EncodedImage($0) }, group: wire.group.map { EncodedImage($0) },
+            solo: wire.solo.map { DetailImage($0) }, group: wire.group.map { DetailImage($0) },
             attributeGroups: wire.attributeGroups.map { AttributeGroup($0) },
             constraints: wire.constraints.map { LayoutConstraint($0) })
     }

@@ -122,8 +122,10 @@ public struct MockResponder: Sendable {
         var chunks: [[LayerDetail]] = [[]]
         var pixels = 0
         for detail in answer(request) {
-            let size = [detail.solo, detail.group].reduce(0) { sum, image in
-                sum + (image.map { Int($0.bytesPerRow) * Int($0.pixelHeight) } ?? 0)
+            // An unchanged image has no pixels and counts as none (P-DET-06).
+            let size = [detail.solo, detail.group].reduce(0) { (sum: Int, image: DetailImage?) in
+                guard let image = image?.fullImage else { return sum }
+                return sum + Int(image.bytesPerRow) * Int(image.pixelHeight)
             }
             if !chunks[chunks.count - 1].isEmpty, pixels + size > Self.chunkPixelLimit {
                 chunks.append([])

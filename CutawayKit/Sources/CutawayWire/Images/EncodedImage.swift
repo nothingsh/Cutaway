@@ -12,10 +12,13 @@ public struct EncodedImage: Equatable, Sendable {
     /// Pixels per point.
     public var scale: Float
     public var data: Data
+    /// Identifies the image's content on this connection (P-IMG-04). Nil when absent (a 1.2
+    /// peer, the app icon) or not 1 to 32 bytes. Protocol 1.3.
+    public var digest: Data?
 
     public init(
         encoding: ImageEncoding, pixelWidth: UInt32, pixelHeight: UInt32, bytesPerRow: UInt32,
-        scale: Float, data: Data
+        scale: Float, data: Data, digest: Data? = nil
     ) {
         self.encoding = encoding
         self.pixelWidth = pixelWidth
@@ -23,6 +26,7 @@ public struct EncodedImage: Equatable, Sendable {
         self.bytesPerRow = bytesPerRow
         self.scale = scale
         self.data = data
+        self.digest = digest
     }
 }
 

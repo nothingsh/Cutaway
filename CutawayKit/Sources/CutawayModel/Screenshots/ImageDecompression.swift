@@ -9,14 +9,16 @@ enum ImageDecompression {
         var group: Bitmap?
     }
 
-    /// Decompresses the images of the `ok` details, all at once, away from the main thread.
+    /// Decompresses the images of the `ok` details, all at once, away from the main thread. An
+    /// unchanged image has nothing to decompress and is left out like one that fails: no
+    /// request gives a digest yet (C-DET-12), so it can stand for no image held (P-IMG-06).
     nonisolated static func decompress(
         _ details: [LayerDetail], using decode: @escaping @Sendable (EncodedImage) throws -> Bitmap
     ) async -> [DecompressedDetail] {
         var images: [Int: EncodedImage] = [:]
         for (index, detail) in details.enumerated() where detail.status == .ok {
-            images[2 * index] = detail.solo
-            images[2 * index + 1] = detail.group
+            images[2 * index] = detail.solo?.fullImage
+            images[2 * index + 1] = detail.group?.fullImage
         }
         let pixels = await decompress(images, using: decode)
         return details.enumerated().map { index, detail in

@@ -192,7 +192,23 @@ extension EncodedImage {
         object.bytesPerRow = bytesPerRow
         object.scale = scale
         object.data = [UInt8](data)
+        // The object API writes an absent digest as an empty vector; a reader takes it as none.
+        object.digest = digest.map { [UInt8]($0) } ?? []
         return object
+    }
+}
+
+extension DetailImage {
+    func makeObject() -> Cutaway_Wire_ImageT {
+        switch self {
+        case .full(let image):
+            return image.makeObject()
+        case .unchanged(let digest):
+            let object = Cutaway_Wire_ImageT()
+            object.digest = [UInt8](digest)
+            object.unchanged = true
+            return object
+        }
     }
 }
 
@@ -290,23 +306,24 @@ extension Hierarchy {
 }
 
 extension LayerDetailRequest {
-    func makeObject() -> Cutaway_Wire_LayerDetailRequestT {
-        let object = Cutaway_Wire_LayerDetailRequestT()
-        object.layerId = layerID
-        object.wantSolo = wantSolo
-        object.wantGroup = wantGroup
-        object.wantAttributes = wantAttributes
-        object.wantConstraints = wantConstraints
-        return object
+    /// By hand rather than with the object API, which writes a digest not given as an empty
+    /// vector: P-DET-11 leaves it to be absent.
+    func pack(_ builder: inout FlatBufferBuilder) -> Offset {
+        let solo = knownSoloDigest.map { builder.createVector(bytes: $0) } ?? Offset()
+        let group = knownGroupDigest.map { builder.createVector(bytes: $0) } ?? Offset()
+        return Cutaway_Wire_LayerDetailRequest.createLayerDetailRequest(
+            &builder, layerId: layerID, wantSolo: wantSolo, wantGroup: wantGroup,
+            wantAttributes: wantAttributes, wantConstraints: wantConstraints,
+            knownSoloDigestVectorOffset: solo, knownGroupDigestVectorOffset: group)
     }
 }
 
 extension GetLayerDetails {
-    func makeObject() -> Cutaway_Wire_GetLayerDetailsT {
-        let object = Cutaway_Wire_GetLayerDetailsT()
-        object.requests = requests.map { $0.makeObject() }
-        object.maxTextureDimension = maxTextureDimension
-        return object
+    func pack(_ builder: inout FlatBufferBuilder) -> Offset {
+        let requests = requests.map { $0.pack(&builder) }
+        let vector = builder.createVector(ofOffsets: requests)
+        return Cutaway_Wire_GetLayerDetails.createGetLayerDetails(
+            &builder, requestsVectorOffset: vector, maxTextureDimension: maxTextureDimension)
     }
 }
 
@@ -535,8 +552,8 @@ extension Body {
             return Cutaway_Wire_BodyUnion(Cutaway_Wire_GetHierarchyT(), type: .gethierarchy)
         case .hierarchy(let hierarchy):
             return Cutaway_Wire_BodyUnion(hierarchy.makeObject(), type: .hierarchy)
-        case .getLayerDetails(let request):
-            return Cutaway_Wire_BodyUnion(request.makeObject(), type: .getlayerdetails)
+        case .getLayerDetails:
+            preconditionFailure("Frame.pack packs GetLayerDetails itself")
         case .layerDetailsChunk(let chunk):
             return Cutaway_Wire_BodyUnion(chunk.makeObject(), type: .layerdetailschunk)
         case .streamEnd(let end):
@@ -570,11 +587,19 @@ extension Body {
 }
 
 extension Frame {
-    func makeObject() -> Cutaway_Wire_FrameT {
-        let object = Cutaway_Wire_FrameT()
-        object.requestId = requestID
-        object.body = body?.makeUnion()
-        return object
+    func pack(_ builder: inout FlatBufferBuilder) -> Offset {
+        guard let body else {
+            return Cutaway_Wire_Frame.createFrame(&builder, requestId: requestID)
+        }
+        let type: Cutaway_Wire_Body, offset: Offset
+        if case .getLayerDetails(let request) = body {
+            (type, offset) = (.getlayerdetails, request.pack(&builder))
+        } else {
+            let union = body.makeUnion()
+            (type, offset) = (union.type, union.pack(builder: &builder))
+        }
+        return Cutaway_Wire_Frame.createFrame(
+            &builder, requestId: requestID, bodyType: type, bodyOffset: offset)
     }
 }
 

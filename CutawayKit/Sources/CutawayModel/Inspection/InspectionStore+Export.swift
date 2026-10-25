@@ -64,7 +64,8 @@ enum ScreenshotExporter {
         case .excluded: throw .excluded
         case .ok: break
         }
-        let image = kind == .solo ? detail.solo ?? detail.group : detail.group
+        let image = kind == .solo
+            ? detail.solo?.fullImage ?? detail.group?.fullImage : detail.group?.fullImage
         guard let image, let bitmap = await ImageDecompression.decompress([0: image], using: decode)[0]
         else { throw .notCaptured }
         return bitmap

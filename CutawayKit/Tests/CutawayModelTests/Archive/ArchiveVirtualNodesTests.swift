@@ -63,7 +63,7 @@ final class ArchiveVirtualNodesTests: XCTestCase {
     func test_C_ARCH_07_anArchiveWithVirtualExcludedAndEnvironmentRoundTrips() async throws {
         let (archive, _) = try await Self.saved(in: directory)
         let decoder = try ArchiveDecoder(archive)
-        XCTAssertEqual(decoder.manifest.protocolVersion, Version(major: 1, minor: 2))
+        XCTAssertEqual(decoder.manifest.protocolVersion, Version(major: 1, minor: 3))
         let source = ArchiveSource(decoder: decoder)
 
         let hierarchy = try await source.hierarchy()

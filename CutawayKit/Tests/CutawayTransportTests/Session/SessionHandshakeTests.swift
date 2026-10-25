@@ -19,7 +19,7 @@ final class SessionHandshakeTests: XCTestCase {
 
         let outcome = try await session.handshake()
         XCTAssertEqual(
-            outcome, .ready(Harness.demoApp, negotiated: Version(major: 1, minor: 2)))
+            outcome, .ready(Harness.demoApp, negotiated: Version(major: 1, minor: 3)))
 
         // What the client sent is exactly the fixture's Hello.
         let received = await server.receivedFrames

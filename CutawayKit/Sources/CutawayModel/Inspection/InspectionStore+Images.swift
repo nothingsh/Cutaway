@@ -39,14 +39,14 @@ extension InspectionStore {
             }
             var layerImages = images[id] ?? LayerImages()
             var layerChanged = false
-            if let image = detail.solo, let bitmap = item.solo {
+            if let image = detail.solo?.fullImage, let bitmap = item.solo {
                 let revision = takeRevision()
                 layerImages.solo = RevisionedImage(revision: revision, image: image)
                 pixels[TextureKey(layerID: id, kind: .solo, revision: revision)] = bitmap
                 fetcher.scheduler.received(.solo, for: id)
                 layerChanged = true
             }
-            if let image = detail.group, let bitmap = item.group {
+            if let image = detail.group?.fullImage, let bitmap = item.group {
                 let revision = takeRevision()
                 layerImages.group = RevisionedImage(revision: revision, image: image)
                 pixels[TextureKey(layerID: id, kind: .group, revision: revision)] = bitmap

@@ -263,7 +263,7 @@ final class PreviewScreenshotMemoryTests: XCTestCase {
         XCTAssertEqual(ids.count, 8)
         let chunk = ids.map {
             LayerDetail(
-                layerID: $0, status: .ok, solo: image, group: nil, attributeGroups: [])
+                layerID: $0, status: .ok, solo: .full(image), group: nil, attributeGroups: [])
         }
 
         let watch = MainThreadWatch()
