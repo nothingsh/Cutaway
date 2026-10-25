@@ -103,6 +103,6 @@ extension Frame {
         return Frame(requestID: requestID, body: .layerDetailsChunk(LayerDetailsChunk(
             sequence: sequence,
             details: [LayerDetail(
-                layerID: layerID, status: .ok, solo: image, group: nil, attributeGroups: [])])))
+                layerID: layerID, status: .ok, solo: .full(image), group: nil, attributeGroups: [])])))
     }
 }

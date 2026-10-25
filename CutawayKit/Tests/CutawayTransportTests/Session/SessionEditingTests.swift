@@ -112,7 +112,7 @@ final class SessionEditingTests: XCTestCase {
         let server = try await MockServer.start(script: try .fixtures("handshake", "subtree"))
         let session = try await Harness.readySession(for: server)
         let negotiated = await session.negotiatedVersion
-        XCTAssertEqual(negotiated, Version(major: 1, minor: 2))
+        XCTAssertEqual(negotiated, Version(major: 1, minor: 3))
 
         let subtree = try await session.subtree(of: 4)
         XCTAssertEqual(subtree.nodes.map(\.id), [4, 10, 11, 12, 5])

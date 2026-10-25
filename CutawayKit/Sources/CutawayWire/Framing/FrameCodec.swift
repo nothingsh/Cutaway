@@ -100,8 +100,7 @@ package enum FrameCodec {
     /// length prefix.
     package static func encode(_ frame: Frame) -> Data {
         var builder = FlatBufferBuilder(initialSize: 1024)
-        var object = frame.makeObject()
-        let root = Cutaway_Wire_Frame.pack(&builder, obj: &object)
+        let root = frame.pack(&builder)
         builder.finish(offset: root, fileId: fileIdentifier)
         return builder.data
     }

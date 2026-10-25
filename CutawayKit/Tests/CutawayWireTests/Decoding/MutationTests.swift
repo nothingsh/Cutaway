@@ -38,7 +38,7 @@ final class MutationTests: XCTestCase {
         switch frame.body {
         case .appIcon(let icon): [icon.image].compactMap { $0 }
         case .layerDetailsChunk(let chunk):
-            chunk.details.flatMap { [$0.solo, $0.group].compactMap { $0 } }
+            chunk.details.flatMap { [$0.solo, $0.group].compactMap { $0?.fullImage } }
         default: []
         }
     }
@@ -153,7 +153,7 @@ final class MutationTests: XCTestCase {
                     }
                 }
                 for detail in (try? decoder.chunk(at: index).details) ?? [] {
-                    for image in [detail.solo, detail.group].compactMap({ $0 }) {
+                    for image in [detail.solo, detail.group].compactMap({ $0?.fullImage }) {
                         do {
                             _ = try image.decoded()
                         } catch {
