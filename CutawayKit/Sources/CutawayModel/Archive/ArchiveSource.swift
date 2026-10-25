@@ -101,7 +101,7 @@ public actor ArchiveSource: InspectionSource {
             decoded.append(entry)
             return entry.details
         }
-        let details = try decoder.chunk(at: index).details
+        let details = try decoder.chunk(at: index).details.map { $0.withoutDigests() }
         decodedChunkCount += 1
         let byLayer = Dictionary(details.map { ($0.layerID, $0) }, uniquingKeysWith: { first, _ in first })
         decoded.append((index, byLayer))
@@ -111,6 +111,21 @@ public actor ArchiveSource: InspectionSource {
 }
 
 extension LayerDetail {
+    /// As an archive gives it (C-ARCH-08): a digest means something only on the connection
+    /// it came on, so the images have none; an unchanged image, which no archive should hold,
+    /// stands for nothing and is left out.
+    func withoutDigests() -> LayerDetail {
+        func full(_ image: DetailImage?) -> DetailImage? {
+            guard var image = image?.fullImage else { return nil }
+            image.digest = nil
+            return .full(image)
+        }
+        var detail = self
+        detail.solo = full(solo)
+        detail.group = full(group)
+        return detail
+    }
+
     /// Only the parts a request asks for (P-DET-04).
     func trimmed(to request: LayerDetailRequest) -> LayerDetail {
         var detail = self

@@ -8,7 +8,8 @@ extension InspectionStore {
 
     /// Takes the images that came with layer details. A layer that is not in the tree is
     /// skipped. An `ok` detail replaces the kinds of image it brings and leaves the others;
-    /// an image that does not decompress counts as not brought. A layer whose detail did not
+    /// an image that does not decompress counts as not brought. An unchanged image keeps the
+    /// image held, which is not drawn again (C-DET-13). A layer whose detail did not
     /// succeed has no image afterwards. A layer the app excludes from images is marked so in
     /// the tree with what is below it, and no longer asked for (C-DET-11). The images are decompressed away from the
     /// main thread
@@ -39,19 +40,33 @@ extension InspectionStore {
             }
             var layerImages = images[id] ?? LayerImages()
             var layerChanged = false
-            if let image = detail.solo?.fullImage, let bitmap = item.solo {
-                let revision = takeRevision()
-                layerImages.solo = RevisionedImage(revision: revision, image: image)
-                pixels[TextureKey(layerID: id, kind: .solo, revision: revision)] = bitmap
-                fetcher.scheduler.received(.solo, for: id)
-                layerChanged = true
-            }
-            if let image = detail.group?.fullImage, let bitmap = item.group {
-                let revision = takeRevision()
-                layerImages.group = RevisionedImage(revision: revision, image: image)
-                pixels[TextureKey(layerID: id, kind: .group, revision: revision)] = bitmap
-                fetcher.scheduler.received(.group, for: id)
-                layerChanged = true
+            for (kind, image, bitmap) in [
+                (TextureKey.Kind.solo, detail.solo, item.solo), (.group, detail.group, item.group),
+            ] {
+                switch image {
+                case .full(let image):
+                    guard let bitmap else { continue }
+                    let revision = takeRevision()
+                    layerImages[kind] = RevisionedImage(revision: revision, image: image)
+                    pixels[TextureKey(layerID: id, kind: kind, revision: revision)] = bitmap
+                    fetcher.scheduler.received(kind, for: id)
+                    layerChanged = true
+                case .unchanged(let digest):
+                    // The image whose digest the request gave, if it is still the one held
+                    // (P-IMG-06); otherwise this one is not brought, and is asked for next round.
+                    let need = TextureNeed(layerID: id, kind: kind)
+                    guard let held = layerImages.held(answering: need), held.image.digest == digest
+                    else { continue }
+                    if layerImages[kind] != held {
+                        // A solo given the digest of the group held (P-DET-04): the same
+                        // picture, under a key of its own.
+                        layerImages[kind] = RevisionedImage(revision: takeRevision(), image: held.image)
+                        layerChanged = true
+                    }
+                    fetcher.scheduler.received(kind, for: id)
+                case nil:
+                    continue
+                }
             }
             if layerChanged {
                 changedIDs.append(id)
@@ -92,6 +107,11 @@ extension InspectionStore {
             held[key] = images[key.layerID]?.image(for: key)
         }
         return await ImageDecompression.decompress(held, using: decodeImage)
+    }
+
+    /// The image held whose digest a request for `need` gives (C-DET-12).
+    func heldImage(answering need: TextureNeed) -> RevisionedImage? {
+        images[need.layerID]?.held(answering: need)
     }
 
     private func takeRevision() -> UInt64 {

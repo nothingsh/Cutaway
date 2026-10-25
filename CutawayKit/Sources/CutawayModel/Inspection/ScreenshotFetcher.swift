@@ -1,6 +1,7 @@
 import CutawayScene
 import CutawayTransport
 import CutawayWire
+import Foundation
 
 /// What the fetcher asks of the inspection, and tells it. What a failed batch means for what
 /// is shown is the inspection's to decide; the fetcher only asks for the batches.
@@ -14,6 +15,9 @@ protocol ScreenshotFetcherDelegate: AnyObject {
     var activeGeneration: UInt64 { get }
     /// Decompresses one image, away from the main thread (C-DET-09).
     var decodeImage: @Sendable (EncodedImage) throws -> Bitmap { get }
+    /// The digest of the image held for a need, to give with its request (C-DET-12); nil when
+    /// there is none to give.
+    func knownDigest(for need: TextureNeed) -> Data?
     /// A chunk of a batch, decompressed.
     func fetcher(_ fetcher: ScreenshotFetcher, took details: [ImageDecompression.DecompressedDetail])
     /// How far the round got may have changed.
@@ -115,10 +119,13 @@ final class ScreenshotFetcher {
         else { return false }
         batchesStarted += 1
         let request = GetLayerDetails(
-            requests: batch.needs.map {
-                LayerDetailRequest(
-                    layerID: $0.layerID, wantSolo: $0.kind == .solo, wantGroup: $0.kind == .group,
-                    wantAttributes: false)
+            requests: batch.needs.map { need in
+                let digest = delegate.knownDigest(for: need)
+                return LayerDetailRequest(
+                    layerID: need.layerID, wantSolo: need.kind == .solo,
+                    wantGroup: need.kind == .group, wantAttributes: false,
+                    knownSoloDigest: need.kind == .solo ? digest : nil,
+                    knownGroupDigest: need.kind == .group ? digest : nil)
             },
             maxTextureDimension: maxTextureDimension)
         let task = Task { [weak self, source] in

@@ -1,3 +1,4 @@
+import CryptoKit
 import CutawayWire
 import Foundation
 
@@ -257,6 +258,13 @@ public struct SyntheticScene: Sendable {
             0xFFD0_5090, 0xFF80_8080, 0xFF20_60C0, 0xFFC0_9060, 0xFF50_7030, 0xFFE0_E0E0,
         ]
 
+        /// A digest as a Server gives one (P-IMG-04): the same for the same picture. A solid
+        /// image is wholly described by its size, colour and scale, so those are what is hashed.
+        private static func digest(of key: ImageKey, scale: Float) -> Data {
+            let text = "\(key.width)x\(key.height) \(palette[key.colour]) @\(scale.bitPattern)"
+            return Data(SHA256.hash(data: Data(text.utf8)).prefix(16))
+        }
+
         mutating func image(for layer: Layer, colour index: Int) -> EncodedImage? {
             let width: Int, height: Int, scale: Float
             switch pixels {
@@ -270,14 +278,11 @@ public struct SyntheticScene: Sendable {
                 scale = Float(s)
             }
             let key = ImageKey(width: width, height: height, colour: index % Self.palette.count)
-            if var image = made[key] {
-                image.scale = scale
-                return image
-            }
-            var image = EncodedImage.solid(
+            var image = made[key] ?? EncodedImage.solid(
                 pixelWidth: width, pixelHeight: height, bgra: Self.palette[key.colour])
-            image.scale = scale
             made[key] = image
+            image.scale = scale
+            image.digest = Self.digest(of: key, scale: scale)
             return image
         }
     }
