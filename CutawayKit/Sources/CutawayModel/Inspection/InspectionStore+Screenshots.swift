@@ -1,5 +1,7 @@
+import CutawayScene
 import CutawayTransport
 import CutawayWire
+import Foundation
 
 extension InspectionStore {
     // MARK: - Screenshots
@@ -35,6 +37,11 @@ extension InspectionStore: ScreenshotFetcherDelegate {
     /// its rows, and nothing may go out over the connection that ended.
     var mayFetchScreenshots: Bool {
         isOpen && takesIntents && !loader.isLoading && changesOnTheirWay == 0
+    }
+
+    func knownDigest(for need: TextureNeed) -> Data? {
+        guard reusesImages else { return nil }
+        return heldImage(answering: need)?.image.digest
     }
 
     func fetcher(_ fetcher: ScreenshotFetcher, took details: [ImageDecompression.DecompressedDetail]) {

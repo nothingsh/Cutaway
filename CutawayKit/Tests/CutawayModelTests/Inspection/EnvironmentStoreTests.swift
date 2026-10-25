@@ -163,7 +163,9 @@ final class EnvironmentStoreTests: XCTestCase {
     /// not change until ⌘R. Every screenshot is to be taken again once the answer is in.
     @MainActor
     func test_C_ENV_02_everyScreenshotIsTakenAgainAfterTheAnswer() async throws {
-        let server = try await MockServer.start(script: try Self.responding())
+        // An app in Dark draws every image anew: none is unchanged (C-DET-13).
+        let server = try await MockServer.start(
+            script: try Self.responding { $0.answersUnchanged = false })
         let session = try await Self.session(to: server)
         let model = await Self.model(session)
         let total = model.detailProgress.total

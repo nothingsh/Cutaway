@@ -10,8 +10,7 @@ enum ImageDecompression {
     }
 
     /// Decompresses the images of the `ok` details, all at once, away from the main thread. An
-    /// unchanged image has nothing to decompress and is left out like one that fails: no
-    /// request gives a digest yet (C-DET-12), so it can stand for no image held (P-IMG-06).
+    /// unchanged image has nothing to decompress (C-DET-13).
     nonisolated static func decompress(
         _ details: [LayerDetail], using decode: @escaping @Sendable (EncodedImage) throws -> Bitmap
     ) async -> [DecompressedDetail] {

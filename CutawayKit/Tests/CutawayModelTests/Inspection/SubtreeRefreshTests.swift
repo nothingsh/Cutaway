@@ -94,7 +94,7 @@ final class SubtreeRefreshTests: XCTestCase {
         let requests = await InspectionStoreDetailsTests.detailRequests(server)
         XCTAssertEqual(
             requests.last?.requests,
-            [InspectionStoreDetailsTests.request(4, .solo)])
+            [InspectionStoreDetailsTests.request(4, .solo, heldBy: model)])
         XCTAssertEqual(model.detailProgress, DetailProgress(completed: 6, total: 7))
         let mismatches = await server.mismatches
         XCTAssertEqual(mismatches, [])
@@ -129,7 +129,8 @@ final class SubtreeRefreshTests: XCTestCase {
         }
         XCTAssertTrue(asked)
         let requests = await InspectionStoreDetailsTests.detailRequests(server)
-        XCTAssertEqual(requests.last?.requests, [InspectionStoreDetailsTests.request(2, .group)])
+        XCTAssertEqual(
+            requests.last?.requests, [InspectionStoreDetailsTests.request(2, .group, heldBy: model)])
 
         await session.close()
         await server.stop()
@@ -162,8 +163,8 @@ final class SubtreeRefreshTests: XCTestCase {
         let requests = await InspectionStoreDetailsTests.detailRequests(server)
         XCTAssertEqual(
             requests.last?.requests,
-            [InspectionStoreDetailsTests.request(4, .solo),
-             InspectionStoreDetailsTests.request(5, .group)])
+            [InspectionStoreDetailsTests.request(4, .solo, heldBy: model),
+             InspectionStoreDetailsTests.request(5, .group, heldBy: model)])
 
         await session.close()
         await server.stop()

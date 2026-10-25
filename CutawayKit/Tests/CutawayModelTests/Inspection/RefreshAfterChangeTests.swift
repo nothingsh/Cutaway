@@ -77,8 +77,11 @@ final class RefreshAfterChangeTests: XCTestCase {
         await server.receivedFrames.map { MessageKind($0.body) }
     }
 
-    private static func request(_ id: UInt64, _ kind: TextureKey.Kind) -> LayerDetailRequest {
-        InspectionStoreDetailsTests.request(id, kind)
+    @MainActor
+    private static func request(
+        _ id: UInt64, _ kind: TextureKey.Kind, heldBy model: InspectionStore
+    ) -> LayerDetailRequest {
+        InspectionStoreDetailsTests.request(id, kind, heldBy: model)
     }
 
     // MARK: - What is asked for
@@ -101,7 +104,8 @@ final class RefreshAfterChangeTests: XCTestCase {
         XCTAssertTrue(frames.contains { $0.body == .getSubtree(GetSubtree(rootID: 1)) })
         // Layer 3 is a leaf: its group. Its ancestors are expanded and draw their solo.
         let requests = await Self.requests(server)
-        XCTAssertEqual(requests.last?.requests, [Self.request(3, .group)])
+        XCTAssertEqual(requests.last?.requests, [Self.request(3, .group, heldBy: model)])
+        XCTAssertNotNil(requests.last?.requests.first?.knownGroupDigest, "the image held is named")
         try await Task.sleep(for: .milliseconds(100))
         let all = await Self.requests(server)
         XCTAssertEqual(all.count, 2, "the selected layer's attributes are the answer's; nothing more")
@@ -136,7 +140,10 @@ final class RefreshAfterChangeTests: XCTestCase {
         let requests = await Self.requests(server)
         XCTAssertEqual(
             requests.last?.requests,
-            [Self.request(3, .group), Self.request(6, .solo), Self.request(20, .group)])
+            [
+                Self.request(3, .group, heldBy: model), Self.request(6, .solo, heldBy: model),
+                Self.request(20, .group, heldBy: model),
+            ])
         XCTAssertFalse(model.tree.contains(8))
         XCTAssertNil(model.images[8])
 
@@ -164,7 +171,7 @@ final class RefreshAfterChangeTests: XCTestCase {
         let asked = await Wait.until { await Self.requests(server).count == 3 }
         XCTAssertTrue(asked)
         let requests = await Self.requests(server)
-        XCTAssertEqual(requests.last?.requests, [Self.request(2, .group)])
+        XCTAssertEqual(requests.last?.requests, [Self.request(2, .group, heldBy: model)])
 
         await session.close()
         await server.stop()
@@ -377,7 +384,9 @@ final class RefreshAfterChangeTests: XCTestCase {
         let back = await Wait.until { await Self.requests(server).count == 3 }
         XCTAssertTrue(back)
         let requests = await Self.requests(server)
-        XCTAssertEqual(requests.last?.requests, [Self.request(3, .group), Self.request(8, .group)])
+        XCTAssertEqual(
+            requests.last?.requests,
+            [Self.request(3, .group, heldBy: model), Self.request(8, .group, heldBy: model)])
 
         await session.close()
         await server.stop()
@@ -404,7 +413,9 @@ final class RefreshAfterChangeTests: XCTestCase {
         let asked = await Wait.until { await Self.requests(server).count == 2 }
         XCTAssertTrue(asked)
         let requests = await Self.requests(server)
-        XCTAssertEqual(requests.last?.requests, [Self.request(3, .group), Self.request(4, .group)])
+        XCTAssertEqual(
+            requests.last?.requests,
+            [Self.request(3, .group, heldBy: model), Self.request(4, .group, heldBy: model)])
 
         await session.close()
         await server.stop()

@@ -39,7 +39,8 @@ final class ArchiveSourceTests: XCTestCase {
             ],
             maxTextureDimension: 4096)
         let answer = try await details(request, from: source)
-        XCTAssertEqual(answer, responder.answer(request))
+        // As the app answered, without the digests (C-ARCH-08).
+        XCTAssertEqual(answer, responder.answer(request).map { $0.withoutDigests() })
         XCTAssertEqual(answer.map(\.status), [.ok, .ok, .layerNotFound])
         XCTAssertNotNil(answer[0].solo)
         XCTAssertEqual(answer[1].constraints.count, 4)

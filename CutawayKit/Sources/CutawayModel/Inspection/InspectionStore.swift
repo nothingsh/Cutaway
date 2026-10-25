@@ -211,6 +211,9 @@ public final class InspectionStore {
     /// The layout without images.
     var geometry = SceneLayout(layers: [], expanded: [])
     var nextImageRevision: UInt64 = 1
+    /// Whether requests give the digests of the images held (C-DET-12). Set once the
+    /// capabilities are known; nothing is held before then.
+    var reusesImages = false
     /// Changes sent and not yet answered. No batch of screenshots starts meanwhile: it would
     /// go ahead of the next one on the server (P-REQ-06).
     var changesOnTheirWay = 0
@@ -294,6 +297,7 @@ public final class InspectionStore {
             // The handshake is long over when an inspection opens, so this is the final word.
             guard let capabilities = await source.capabilities else { return }
             self?.canRefreshSubtrees = capabilities.canRefreshSubtrees
+            self?.reusesImages = capabilities.canReuseImages
             self?.attributes.setCapabilities(capabilities)
         }
     }

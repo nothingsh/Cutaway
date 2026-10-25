@@ -5,9 +5,8 @@ import XCTest
 
 @testable import CutawayModel
 
-/// C-WIRE-13, the part of protocol 1.3's `dev.1` the model meets before it keeps digests
-/// (C-DET-12): it gives none, and an unchanged image stands for nothing it holds,
-/// so that image is not received (P-IMG-06).
+/// C-WIRE-13, the part of protocol 1.3's `dev.1` the model meets: nothing held, no digests
+/// given, and an unchanged image that stands for nothing held is not received (P-IMG-06).
 final class Protocol13DetailsTests: XCTestCase {
     private static let client = ClientInfo(name: "Cutaway", version: "0.1.0")
 
@@ -75,7 +74,7 @@ final class Protocol13DetailsTests: XCTestCase {
     }
 
     @MainActor
-    func test_C_WIRE_13_requestsCarryNoDigests() async throws {
+    func test_C_WIRE_13_theFirstRequestsCarryNoDigests() async throws {
         let server = try await Self.server(try MockResponder.demo())
         let session = try await Self.session(to: server)
         let negotiated = await session.negotiatedVersion
@@ -85,18 +84,11 @@ final class Protocol13DetailsTests: XCTestCase {
         model.enter()
         let first = await Self.roundDone(model)
         XCTAssertTrue(first)
-        // The images that came carry their digests; no request gives them yet (C-DET-12).
+        // The images that came carry their digests; the requests after a refresh give them
+        // (C-DET-12).
         XCTAssertNotNil(model.images[4]?.solo?.image.digest)
-        let firstCount = await Self.detailRequests(server).count
-
-        model.refresh()
-        let refreshed = await Wait.until { await Self.detailRequests(server).count > firstCount }
-        XCTAssertTrue(refreshed)
-        let second = await Self.roundDone(model)
-        XCTAssertTrue(second)
-
         let requests = await Self.detailRequests(server)
-        XCTAssertGreaterThan(requests.count, firstCount)
+        XCTAssertFalse(requests.isEmpty)
         XCTAssertTrue(requests.allSatisfy { $0.knownSoloDigest == nil && $0.knownGroupDigest == nil })
 
         await session.close()
