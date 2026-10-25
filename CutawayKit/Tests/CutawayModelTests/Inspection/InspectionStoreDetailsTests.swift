@@ -36,6 +36,18 @@ final class InspectionStoreDetailsTests: XCTestCase {
             layerID: id, wantSolo: kind == .solo, wantGroup: kind == .group, wantAttributes: false)
     }
 
+    /// The same, giving the digest of the image `model` holds for it, as a request over 1.3
+    /// does (C-DET-12).
+    @MainActor
+    static func request(
+        _ id: UInt64, _ kind: TextureKey.Kind, heldBy model: InspectionStore
+    ) -> LayerDetailRequest {
+        var request = request(id, kind)
+        let digest = model.knownDigest(for: TextureNeed(layerID: id, kind: kind))
+        if kind == .solo { request.knownSoloDigest = digest } else { request.knownGroupDigest = digest }
+        return request
+    }
+
     /// The `hierarchy` fixture fully expanded, in tree order (SceneLayoutTests). The virtual
     /// nodes 10 to 12 have no images, and 13 and 14 are excluded from them (C-DET-11).
     static let fixtureRequests: [LayerDetailRequest] = [

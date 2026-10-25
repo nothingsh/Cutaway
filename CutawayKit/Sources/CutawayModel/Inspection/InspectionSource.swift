@@ -14,13 +14,18 @@ public struct InspectionCapabilities: Equatable, Sendable {
     /// `GetEnvironment` and `SetEnvironment`: only an app, and from protocol 1.2 on
     /// (C-WIRE-12, C-ENV-01).
     public var canOverrideEnvironment: Bool
+    /// Giving the digests of the images held, to have unchanged ones not sent again: only an
+    /// app, and from protocol 1.3 on (C-DET-12).
+    public var canReuseImages: Bool
 
     public init(
-        canRefreshSubtrees: Bool, canEditAttributes: Bool, canOverrideEnvironment: Bool = false
+        canRefreshSubtrees: Bool, canEditAttributes: Bool, canOverrideEnvironment: Bool = false,
+        canReuseImages: Bool = false
     ) {
         self.canRefreshSubtrees = canRefreshSubtrees
         self.canEditAttributes = canEditAttributes
         self.canOverrideEnvironment = canOverrideEnvironment
+        self.canReuseImages = canReuseImages
     }
 
     /// The capabilities of an app that negotiated `version`, or of an archive, which can only
@@ -29,6 +34,7 @@ public struct InspectionCapabilities: Equatable, Sendable {
         canRefreshSubtrees = isLive
         canEditAttributes = isLive
         canOverrideEnvironment = isLive && version.minor >= 2
+        canReuseImages = isLive && version.minor >= 3
     }
 }
 

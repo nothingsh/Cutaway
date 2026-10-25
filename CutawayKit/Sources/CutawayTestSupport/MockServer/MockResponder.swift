@@ -32,6 +32,9 @@ public struct MockResponder: Sendable {
     /// a layer missing here is `LayerNotFound`.
     public var details: [UInt64: LayerDetail]
     public var editing = Editing.refuse
+    /// Whether an image whose digest the request gives is sent as unchanged (P-IMG-05), as a
+    /// Server may. Change an image in `details` to have it redrawn.
+    public var answersUnchanged = true
     /// Where layers missing from `details` are looked up: an archive being replayed.
     var archived: ArchivedDetails?
     /// Before answering the nth `GetLayerDetails` of a connection (from 1), wait at the gate.
@@ -107,10 +110,20 @@ public struct MockResponder: Sendable {
             }
             if !asked.wantSolo { detail.solo = nil }
             if !asked.wantGroup { detail.group = nil }
+            if answersUnchanged {
+                detail.solo = Self.unchanged(detail.solo, ifKnownAs: asked.knownSoloDigest)
+                detail.group = Self.unchanged(detail.group, ifKnownAs: asked.knownGroupDigest)
+            }
             if !asked.wantAttributes { detail.attributeGroups = [] }
             if !asked.wantConstraints { detail.constraints = [] }
             return detail
         }
+    }
+
+    /// The image as unchanged when the request gave its digest.
+    private static func unchanged(_ image: DetailImage?, ifKnownAs known: Data?) -> DetailImage? {
+        guard let known, let digest = image?.fullImage?.digest, digest == known else { return image }
+        return .unchanged(digest: known)
     }
 
     /// The most decompressed pixels one chunk carries (P-DET-06).

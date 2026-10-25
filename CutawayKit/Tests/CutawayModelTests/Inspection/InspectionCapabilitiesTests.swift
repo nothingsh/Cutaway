@@ -22,7 +22,8 @@ final class InspectionCapabilitiesTests: XCTestCase {
         XCTAssertEqual(
             current,
             InspectionCapabilities(
-                canRefreshSubtrees: true, canEditAttributes: true, canOverrideEnvironment: true))
+                canRefreshSubtrees: true, canEditAttributes: true, canOverrideEnvironment: true,
+                canReuseImages: true))
 
         let older = try await capabilities(try MockScript.fixtures("handshake").asProtocol11())
         XCTAssertEqual(

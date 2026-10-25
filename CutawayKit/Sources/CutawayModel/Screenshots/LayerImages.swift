@@ -30,6 +30,20 @@ public struct LayerImages: Equatable, Sendable {
 
     public var isEmpty: Bool { solo == nil && group == nil }
 
+    /// One kind of image.
+    subscript(kind: TextureKey.Kind) -> RevisionedImage? {
+        get { kind == .solo ? solo : group }
+        set {
+            if kind == .solo { solo = newValue } else { group = newValue }
+        }
+    }
+
+    /// The image a request for one kind compares with: that kind, or for a solo not held, the
+    /// group, which is the same picture when the layer has no sublayers (P-DET-04, P-IMG-06).
+    func held(answering need: TextureNeed) -> RevisionedImage? {
+        need.kind == .solo ? solo ?? group : group
+    }
+
     /// The keys the scene and the texture cache know these images by.
     public func textures(layerID: UInt64) -> LayerTextures {
         LayerTextures(
