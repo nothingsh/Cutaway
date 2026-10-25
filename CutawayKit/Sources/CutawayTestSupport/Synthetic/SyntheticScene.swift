@@ -88,7 +88,7 @@ public struct SyntheticScene: Sendable {
         var details: [UInt64: LayerDetail] = [:]
         details.reserveCapacity(layers.count)
         for (index, layer) in layers.enumerated() {
-            let image = images.image(for: layer, colour: index)
+            let image = images.image(for: layer, colour: index).map(DetailImage.full)
             details[layer.node.id] = LayerDetail(
                 layerID: layer.node.id, status: .ok, solo: image, group: image,
                 attributeGroups: attributes ? Self.attributeGroups(of: layer) : [],

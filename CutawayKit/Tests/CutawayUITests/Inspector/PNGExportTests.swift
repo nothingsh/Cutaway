@@ -12,7 +12,7 @@ final class PNGExportTests: XCTestCase {
     private func image(_ scenario: String, layer: UInt64, solo: Bool = false) throws -> Bitmap {
         let detail = try XCTUnwrap(
             try Fixtures.layerDetails(scenario: scenario).first { $0.layerID == layer })
-        return try XCTUnwrap(solo ? detail.solo : detail.group).decoded()
+        return try XCTUnwrap((solo ? detail.solo : detail.group)?.fullImage).decoded()
     }
 
     private func icon() throws -> Bitmap {

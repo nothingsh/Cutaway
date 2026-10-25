@@ -510,7 +510,7 @@ final class PreviewViewTests: XCTestCase {
             encoding: .bgra8PremultipliedLzfse, pixelWidth: UInt32(width), pixelHeight: 1,
             bytesPerRow: UInt32(width * 4), scale: 1, data: compressed)
         try Wait.running { await model.applyDetails([LayerDetail(
-            layerID: 8, status: .ok, solo: nil, group: wide, attributeGroups: [])]) }
+            layerID: 8, status: .ok, solo: nil, group: .full(wide), attributeGroups: [])]) }
         XCTAssertEqual(preview.textures.refusedCount, refusedBefore + 1)
 
         // Another image arrives; the refused one is not offered to the cache again.

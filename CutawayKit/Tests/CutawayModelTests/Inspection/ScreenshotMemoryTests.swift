@@ -59,8 +59,8 @@ final class ScreenshotMemoryTests: XCTestCase {
     /// The fixture's images: layer 3's group and layer 4's solo (`layer-details`).
     private static func fixtureImages() throws -> (three: EncodedImage, four: EncodedImage) {
         let details = try Fixtures.layerDetails(scenario: "layer-details")
-        let three = try XCTUnwrap(details.first { $0.layerID == 3 }?.group)
-        let four = try XCTUnwrap(details.first { $0.layerID == 4 }?.solo)
+        let three = try XCTUnwrap(details.first { $0.layerID == 3 }?.group?.fullImage)
+        let four = try XCTUnwrap(details.first { $0.layerID == 4 }?.solo?.fullImage)
         return (three, four)
     }
 

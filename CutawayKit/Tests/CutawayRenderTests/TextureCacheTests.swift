@@ -86,7 +86,7 @@ final class TextureCacheTests: XCTestCase {
         // layer-details-edge, layer 8: 60 × 30 orange, 256 bytes a row (P-IMG-02).
         let detail = try XCTUnwrap(
             try Fixtures.layerDetails(scenario: "layer-details-edge").first { $0.layerID == 8 })
-        let bitmap = try XCTUnwrap(detail.group).decoded()
+        let bitmap = try XCTUnwrap(detail.group?.fullImage).decoded()
         XCTAssertEqual(bitmap.bytesPerRow, 256)
         let textures = try cache()
         textures.store(

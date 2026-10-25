@@ -25,12 +25,12 @@ final class FixtureDecodingTests: XCTestCase {
         XCTAssertEqual(
             try decode("handshake", "01-c2s-hello.bin"),
             Frame(requestID: 0, body: .hello(Hello(
-                protocolVersion: Version(major: 1, minor: 2), role: .client,
+                protocolVersion: Version(major: 1, minor: 3), role: .client,
                 client: Self.cutawayClient, app: nil))))
         XCTAssertEqual(
             try decode("handshake", "02-s2c-hello.bin"),
             Frame(requestID: 0, body: .hello(Hello(
-                protocolVersion: Version(major: 1, minor: 2), role: .server,
+                protocolVersion: Version(major: 1, minor: 3), role: .server,
                 client: nil, app: Self.demoApp))))
         XCTAssertEqual(
             try decode("handshake", "03-s2c-app-state.bin"),
@@ -250,7 +250,7 @@ final class FixtureDecodingTests: XCTestCase {
         XCTAssertEqual(layer3.layerID, 3)
         XCTAssertEqual(layer3.status, .ok)
         XCTAssertNil(layer3.solo)
-        let red = try XCTUnwrap(layer3.group)
+        let red = try XCTUnwrap(layer3.group?.fullImage)
         XCTAssertEqual([red.pixelWidth, red.pixelHeight, red.bytesPerRow], [200, 24, 800])
         XCTAssertEqual(red.scale, 1)
         XCTAssertEqual(red.data.count, 164)
@@ -267,7 +267,7 @@ final class FixtureDecodingTests: XCTestCase {
         XCTAssertEqual(chunk1.details.map(\.layerID), [4, 99, 6, 10, 13])
         let layer4 = chunk1.details[0]
         XCTAssertEqual(layer4.status, .ok)
-        for image in [try XCTUnwrap(layer4.solo), try XCTUnwrap(layer4.group)] {
+        for image in [try XCTUnwrap(layer4.solo?.fullImage), try XCTUnwrap(layer4.group?.fullImage)] {
             XCTAssertEqual([image.pixelWidth, image.pixelHeight, image.bytesPerRow], [300, 180, 1200])
             XCTAssertEqual(image.data.count, 275)
         }
@@ -313,7 +313,7 @@ final class FixtureDecodingTests: XCTestCase {
         XCTAssertNotNil(chunk.details[0].group)
 
         // Layer 8: rows padded to 256 bytes.
-        let padded = try XCTUnwrap(chunk.details[1].group)
+        let padded = try XCTUnwrap(chunk.details[1].group?.fullImage)
         XCTAssertEqual([padded.pixelWidth, padded.pixelHeight, padded.bytesPerRow], [60, 30, 256])
 
         // Layer 9: capture failed, attributes still present.
@@ -354,7 +354,7 @@ final class FixtureDecodingTests: XCTestCase {
             XCTFail("not a chunk")
             return
         }
-        let blue = try XCTUnwrap(body.details.first?.group)
+        let blue = try XCTUnwrap(body.details.first?.group?.fullImage)
         XCTAssertEqual([blue.pixelWidth, blue.pixelHeight, blue.bytesPerRow], [393, 852, 1572])
 
         XCTAssertEqual(

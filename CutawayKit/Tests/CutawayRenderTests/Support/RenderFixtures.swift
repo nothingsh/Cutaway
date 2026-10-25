@@ -25,12 +25,12 @@ enum RenderFixtures {
         var keys: [UInt64: LayerTextures] = [:]
         for detail in try Fixtures.layerDetails(scenario: scenario) where detail.status == .ok {
             var entry = LayerTextures()
-            if let solo = detail.solo {
+            if let solo = detail.solo?.fullImage {
                 let key = TextureKey(layerID: detail.layerID, kind: .solo, revision: 1)
                 textures.store(textureImage(try solo.decoded()), for: key)
                 entry.solo = key
             }
-            if let group = detail.group {
+            if let group = detail.group?.fullImage {
                 let key = TextureKey(layerID: detail.layerID, kind: .group, revision: 1)
                 textures.store(textureImage(try group.decoded()), for: key)
                 entry.group = key
@@ -90,10 +90,10 @@ enum RenderFixtures {
         let red = TextureKey(layerID: 1, kind: .group, revision: 1)
         let blue = TextureKey(layerID: 2, kind: .group, revision: 1)
         let redImage = try XCTUnwrap(
-            try Fixtures.layerDetails(scenario: "layer-details").first { $0.layerID == 3 }?.group)
+            try Fixtures.layerDetails(scenario: "layer-details").first { $0.layerID == 3 }?.group?.fullImage)
         let blueImage = try XCTUnwrap(
             try Fixtures.layerDetails(scenario: "layer-details-cancelled")
-                .first { $0.layerID == 2 }?.group)
+                .first { $0.layerID == 2 }?.group?.fullImage)
         textures.store(textureImage(try redImage.decoded()), for: red)
         textures.store(textureImage(try blueImage.decoded()), for: blue)
         return (red, blue)

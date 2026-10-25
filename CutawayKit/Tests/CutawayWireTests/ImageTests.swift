@@ -49,7 +49,7 @@ final class ImageTests: XCTestCase {
 
     func test_C_WIRE_03_paddedRowsKeepTheirPaddingOutOfTheWay() throws {
         let image = try XCTUnwrap(
-            try details("layer-details-edge", "02-s2c-chunk-0.bin")[1].group)
+            try details("layer-details-edge", "02-s2c-chunk-0.bin")[1].group?.fullImage)
         let bitmap = try image.decoded()
         XCTAssertEqual(bitmap.pixelWidth, 60)
         XCTAssertEqual(bitmap.pixelHeight, 30)
@@ -61,16 +61,16 @@ final class ImageTests: XCTestCase {
     }
 
     func test_C_WIRE_03_solidLayerImagesDecode() throws {
-        let red = try XCTUnwrap(try details("layer-details", "02-s2c-chunk-0.bin")[0].group)
+        let red = try XCTUnwrap(try details("layer-details", "02-s2c-chunk-0.bin")[0].group?.fullImage)
         assertSolid(try red.decoded(), [0x00, 0x00, 0xFF, 0xFF])
 
         let layer4 = try details("layer-details", "03-s2c-chunk-1.bin")[0]
-        assertSolid(try XCTUnwrap(layer4.solo).decoded(), [0x00, 0xFF, 0x00, 0xFF])
-        assertSolid(try XCTUnwrap(layer4.group).decoded(), [0x00, 0xFF, 0x00, 0xFF])
+        assertSolid(try XCTUnwrap(layer4.solo?.fullImage).decoded(), [0x00, 0xFF, 0x00, 0xFF])
+        assertSolid(try XCTUnwrap(layer4.group?.fullImage).decoded(), [0x00, 0xFF, 0x00, 0xFF])
 
         // Half-transparent blue, premultiplied.
         let blue = try XCTUnwrap(
-            try details("layer-details-cancelled", "02-s2c-chunk-0.bin")[0].group)
+            try details("layer-details-cancelled", "02-s2c-chunk-0.bin")[0].group?.fullImage)
         let bitmap = try blue.decoded()
         XCTAssertEqual(bitmap.bytesPerRow, 1572)
         assertSolid(bitmap, [0x80, 0x00, 0x00, 0x80])
