@@ -58,7 +58,11 @@ extension InspectionStore {
     /// subtree makes some images due again in the round under way (C-DET-06, C-DET-07). The
     /// attributes start a new round too, except after a change: the changed layer's are the
     /// change's answer, and the others were dropped then.
-    private func install(_ newTree: LayerTree, renewing: Renewal, renewsAttributes: Bool = true) {
+    /// `root` is the subtree taken again, nil for the whole tree: what changed is looked for
+    /// there (C-LIVE-05).
+    private func install(
+        _ newTree: LayerTree, renewing: Renewal, renewsAttributes: Bool = true, root: UInt64? = nil
+    ) {
         // An archive's state is taken in before the tree is laid out: the expansion, the
         // focus and the hidden layers each laid a tree of thousands of layers out again. The
         // rest of it follows once the tree is in.
@@ -87,6 +91,7 @@ extension InspectionStore {
         // An equal tree has the same layers, expansion and geometry: laying it out again
         // and publishing it would only make the list reload. The new round goes on.
         let treeChanged = newTree != tree
+        markChanges(from: tree, to: newTree, within: root)
         if treeChanged || restoring != nil {
             layOut(newTree)
             tree = newTree
@@ -205,16 +210,16 @@ extension InspectionStore: HierarchyLoaderDelegate {
                     install(
                         newTree,
                         renewing: .needs(LayerTree.needsAfterChanges(changed, in: id, from: tree, to: newTree)),
-                        renewsAttributes: false)
+                        renewsAttributes: false, root: id)
                 case .asked:
-                    install(newTree, renewing: .needs(LayerTree.needs(ofSubtree: id, in: newTree)))
+                    install(newTree, renewing: .needs(LayerTree.needs(ofSubtree: id, in: newTree)), root: id)
                 case .automatic:
                     // The selection's attributes only when it lies in the subtree; the others
                     // and any edit under way are left alone (C-LIVE-02).
                     let selectionInside = selectedLayerID.map { tree.path(to: $0).contains(id) } ?? false
                     install(
                         newTree, renewing: .needs(LayerTree.needs(ofSubtree: id, in: newTree)),
-                        renewsAttributes: selectionInside)
+                        renewsAttributes: selectionInside, root: id)
                 }
             } catch {
                 // The layers moved in a way a subtree cannot say: only the whole tree is

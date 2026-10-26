@@ -217,7 +217,7 @@ public struct MockResponder: Sendable {
 
     /// A layer and all its descendants, as `GetSubtree` answers (P-HIER-10). Nil for a layer
     /// that is not in the hierarchy.
-    func subtree(of id: UInt64) -> Hierarchy? {
+    public func subtree(of id: UInt64) -> Hierarchy? {
         guard let start = hierarchy.nodes.firstIndex(where: { $0.id == id }) else { return nil }
         var inside: Set<UInt64> = [id]
         var nodes = [hierarchy.nodes[start]]

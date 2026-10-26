@@ -379,6 +379,8 @@ final class PreviewTransitionTests: XCTestCase {
         ]
         for (name, change) in changes {
             let model = try model()
+            // Another tree would be marked, and its marks fade on the clock (C-REND-12).
+            model.setHighlightsChanges(false)
             model.setPreviewMode(.threeD)
             let clock = ManualClock()
             let (controller, preview, window) = try previewInWindow(model, motion: .paced(by: clock))

@@ -184,11 +184,7 @@ public final class Renderer {
             closed: 1)
         encoder.setVertexBytes(&lines, length: MemoryLayout<LineSettings>.stride, index: 1)
         encoder.setFragmentSamplerState(sampler, index: 0)
-        // The borders step back while something is pointed out (C-PREV-17).
-        let receding = !list.marks.isEmpty || list.measurement != nil
-        encodeItems(
-            list.items, textures: textures, style: style, receding: receding,
-            pixelsPerPoint: pixelsPerPoint, into: encoder)
+        encodeItems(of: list, textures: textures, style: style, pixelsPerPoint: pixelsPerPoint, into: encoder)
         let marksStart = list.items.count * Self.verticesPerItem
         var markLines = lines
         markLines.halfWidth = style.markLineWidth * pixelsPerPoint / 2
@@ -224,11 +220,15 @@ public final class Renderer {
 
     /// The layers' images (or an excluded layer's stripes), fills and borders, whose vertices
     /// come first. A virtual node has no image and a dashed border unless highlighted
-    /// (C-REND-11).
+    /// (C-REND-11). What the last refresh did to a layer goes under its highlight: its tint
+    /// before the highlight's, its edge only on a layer not highlighted, over the plain border
+    /// (C-REND-12).
     private func encodeItems(
-        _ items: [DrawItem], textures: TextureCache, style: RenderStyle, receding: Bool,
-        pixelsPerPoint: Float, into encoder: any MTLRenderCommandEncoder
+        of list: DrawList, textures: TextureCache, style: RenderStyle, pixelsPerPoint: Float,
+        into encoder: any MTLRenderCommandEncoder
     ) {
+        // The borders step back while something is pointed out (C-PREV-17).
+        let receding = !list.marks.isEmpty || list.measurement != nil
         // The state is set only when it changes: with thousands of layers, setting it for
         // each one costs more than drawing them.
         var current: (any MTLRenderPipelineState)?
@@ -237,7 +237,7 @@ public final class Renderer {
             encoder.setRenderPipelineState(pipeline)
             current = pipeline
         }
-        for (index, item) in items.enumerated() {
+        for (index, item) in list.items.enumerated() {
             let first = index * Self.verticesPerItem
             if let key = item.texture, let texture = textures.texture(for: key) {
                 use(texturePipeline)
@@ -253,6 +253,12 @@ public final class Renderer {
                 encoder.setFragmentBytes(&hatch, length: MemoryLayout<HatchSettings>.stride, index: 0)
                 encoder.drawPrimitives(type: .triangleStrip, vertexStart: first, vertexCount: 4)
             }
+            let change = style.change(for: item, strength: list.changeStrength)
+            if var fill = change?.fill {
+                use(colorPipeline)
+                encoder.setFragmentBytes(&fill, length: MemoryLayout<SIMD4<Float>>.size, index: 0)
+                encoder.drawPrimitives(type: .triangleStrip, vertexStart: first, vertexCount: 4)
+            }
             if var fill = style.fill(for: item) {
                 use(colorPipeline)
                 encoder.setFragmentBytes(&fill, length: MemoryLayout<SIMD4<Float>>.size, index: 0)
@@ -260,6 +266,12 @@ public final class Renderer {
             }
             if var border = style.border(for: item, receding: receding) {
                 use(item.content == .drawnByParent && item.highlight == .none ? dashPipeline : linePipeline)
+                encoder.setFragmentBytes(
+                    &border, length: MemoryLayout<SIMD4<Float>>.size, index: 0)
+                Self.drawLines(from: first + 4, count: 4, into: encoder)
+            }
+            if var border = change?.border, item.highlight == .none {
+                use(linePipeline)
                 encoder.setFragmentBytes(
                     &border, length: MemoryLayout<SIMD4<Float>>.size, index: 0)
                 Self.drawLines(from: first + 4, count: 4, into: encoder)

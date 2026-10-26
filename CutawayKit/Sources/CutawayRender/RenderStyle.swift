@@ -40,6 +40,14 @@ public struct RenderStyle: Equatable, Sendable {
     /// has marks or a measurement, so that the marks stand out (C-PREV-17).
     public var bordersRecede = false
     public static let recedingFactor: Float = 0.35
+    /// What the last refresh changed (C-REND-12): a new layer's tint and edge in green, a
+    /// changed layer's in yellow, sRGB #30D158 and #FFD60A. Yellow rather than orange, which
+    /// the layers that cannot be seen already take. On the light background a darker green
+    /// and yellow, #1F9D45 and #B88A00. Each is scaled by the list's `changeStrength`.
+    public var addedFill = premultiplied(48 / 255, 209 / 255, 88 / 255, 0.22)
+    public var addedBorder = premultiplied(48 / 255, 209 / 255, 88 / 255, 0.95)
+    public var changedFill = premultiplied(255 / 255, 214 / 255, 10 / 255, 0.22)
+    public var changedBorder = premultiplied(255 / 255, 214 / 255, 10 / 255, 0.95)
     /// How wide every line is, in viewport points: the borders, the marks and the
     /// measurement. A point is two pixels on a Retina display: a line that wide has a pixel
     /// it wholly covers wherever it falls, so that it does not pulse as it moves.
@@ -119,6 +127,10 @@ public struct RenderStyle: Equatable, Sendable {
             style.measure = premultiplied(224 / 255, 35 / 255, 78 / 255, 1)
             style.hatch = premultiplied(212 / 255, 212 / 255, 216 / 255, 1)
             style.hatchAlternate = premultiplied(196 / 255, 196 / 255, 201 / 255, 1)
+            style.addedFill = premultiplied(31 / 255, 157 / 255, 69 / 255, 0.2)
+            style.addedBorder = premultiplied(31 / 255, 157 / 255, 69 / 255, 0.95)
+            style.changedFill = premultiplied(184 / 255, 138 / 255, 0, 0.2)
+            style.changedBorder = premultiplied(184 / 255, 138 / 255, 0, 0.95)
         }
         return style
     }
@@ -135,6 +147,17 @@ public struct RenderStyle: Equatable, Sendable {
         case .none: item.isGhost ? ghostFill : nil
         case .hovered: hoveredFill
         case .selected: selectedFill
+        }
+    }
+
+    /// The tint and the edge of what the last refresh did to the item, at `strength`; nil for
+    /// an item it did not touch or once the marks faded (C-REND-12).
+    func change(for item: DrawItem, strength: Double) -> (fill: SIMD4<Float>, border: SIMD4<Float>)? {
+        guard let change = item.change, strength > 0 else { return nil }
+        let scale = Float(min(strength, 1))
+        return switch change {
+        case .added: (addedFill * scale, addedBorder * scale)
+        case .changed: (changedFill * scale, changedBorder * scale)
         }
     }
 

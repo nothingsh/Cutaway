@@ -5681,6 +5681,41 @@
         }
       }
     },
+    "capsule.removed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ removed"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "移除 %@ 个"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "移除 %@ 個"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 件を削除"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@개 제거됨"
+          }
+        }
+      }
+    },
     "capsule.saved" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -12189,6 +12224,76 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "이 설정은 새로운 검사가 시작되는 방식을 결정합니다. 이미 열려 있는 윈도우는 그대로 유지되며, 다시 연결된 검사는 해당 윈도우의 보기를 유지합니다."
+          }
+        }
+      }
+    },
+    "settings.highlightsChanges" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mark what changed after a refresh"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "刷新后标出变了的图层"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重新整理後標出變了的圖層"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更新後に変わったレイヤーを表示"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "새로 고침 후 바뀐 레이어 표시"
+          }
+        }
+      }
+    },
+    "settings.highlightsChanges.help" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New layers are marked green, changed ones yellow, for a moment. This applies to the open window at once."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "新出现的图层短暂标成绿色，变了的标成黄色。对已开着的窗口立刻生效。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "新出現的圖層短暫標成綠色，變了的標成黃色。對已開啟的視窗立即生效。"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "新しいレイヤーは緑、変わったレイヤーは黄色で一時的に示されます。開いているウインドウにもすぐに適用されます。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "새 레이어는 초록색, 바뀐 레이어는 노란색으로 잠시 표시됩니다. 열려 있는 윈도우에도 바로 적용됩니다."
           }
         }
       }

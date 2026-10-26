@@ -17,6 +17,9 @@ protocol PreviewClock: AnyObject {
 /// How the preview goes from one picture to the next (C-PREV-11, C-PREV-12).
 @MainActor
 struct PreviewMotion {
+    /// How long what a refresh changed stays marked in the list and the preview, in seconds
+    /// (C-LIVE-05).
+    nonisolated static let changeFade = 1.5
     /// How long a transition takes, in seconds.
     nonisolated static let duration = 0.3
 
