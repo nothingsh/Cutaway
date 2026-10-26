@@ -44,6 +44,11 @@ struct InspectorCommands {
         canAskTheApp && store.canRefreshSubtrees && store.selectedLayerID != nil
     }
 
+    /// C-LIVE-01: an app that can report its changes.
+    var canAutoRefresh: Bool { canAskTheApp && store.canAutoRefresh }
+
+    var isAutoRefreshing: Bool { store.autoRefresh }
+
     /// C-ARCH-02.
     var canSaveArchive: Bool { canAskTheApp }
 

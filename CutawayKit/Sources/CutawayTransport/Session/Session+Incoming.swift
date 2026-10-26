@@ -68,12 +68,19 @@ extension Session {
         }
         switch body {
         case .hello, .getAppIcon, .getHierarchy, .getLayerDetails, .cancel, .setAttribute,
-             .getSubtree, .getEnvironment, .setEnvironment:
+             .getSubtree, .getEnvironment, .setEnvironment, .watchHierarchy:
             // C-CONN-10: a second Hello, or a message only a client sends.
             violation("the server sent \(Self.name(of: body))")
         case .appStateChanged(let state):
             eventContinuation.yield(.appStateChanged(state))
-        case .appIcon, .hierarchy, .setAttributeResult, .environment:
+        case .hierarchyChanged(let change):
+            // C-CONN-14: a peer below 1.3 has no such event.
+            guard let negotiatedVersion, negotiatedVersion.minor >= 3 else {
+                violation("the server sent HierarchyChanged below protocol 1.3")
+                return
+            }
+            eventContinuation.yield(.hierarchyChanged(change))
+        case .appIcon, .hierarchy, .setAttributeResult, .environment, .watchHierarchyResult:
             complete(frame.requestID, with: Received(body: body, payload: payload))
         case .error(let error):
             fail(frame.requestID, with: error)
@@ -91,7 +98,8 @@ extension Session {
             let matches: Bool
             switch (request.expects, body) {
             case (.appIcon, .appIcon), (.hierarchy, .hierarchy),
-                 (.setAttributeResult, .setAttributeResult), (.environment, .environment):
+                 (.setAttributeResult, .setAttributeResult), (.environment, .environment),
+                 (.watchHierarchyResult, .watchHierarchyResult):
                 matches = true
             default: matches = false
             }
@@ -202,6 +210,9 @@ extension Session {
         case .getEnvironment: return "GetEnvironment"
         case .setEnvironment: return "SetEnvironment"
         case .environment: return "Environment"
+        case .watchHierarchy: return "WatchHierarchy"
+        case .watchHierarchyResult: return "WatchHierarchyResult"
+        case .hierarchyChanged: return "HierarchyChanged"
         }
     }
 }

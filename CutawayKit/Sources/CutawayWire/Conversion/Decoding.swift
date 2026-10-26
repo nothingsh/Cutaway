@@ -660,6 +660,15 @@ extension Frame {
                 let overridable = wire.body(type: RawEnvironment.self)?.overridable ?? []
                 return .environment(Environment(environment, overridable: overridable))
             }
+        case .watchhierarchy:
+            body = wire.body(type: Cutaway_Wire_WatchHierarchy.self)
+                .map { .watchHierarchy(WatchHierarchy(enabled: $0.enabled)) }
+        case .watchhierarchyresult:
+            body = wire.body(type: Cutaway_Wire_WatchHierarchyResult.self)
+                .map { .watchHierarchyResult(WatchHierarchyResult(enabled: $0.enabled)) }
+        case .hierarchychanged:
+            body = wire.body(type: Cutaway_Wire_HierarchyChanged.self)
+                .map { .hierarchyChanged(HierarchyChanged(roots: Array($0.roots), whole: $0.whole)) }
         }
         self.init(requestID: wire.requestId, body: body)
     }

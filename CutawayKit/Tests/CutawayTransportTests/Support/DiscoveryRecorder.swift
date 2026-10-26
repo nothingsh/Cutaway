@@ -7,6 +7,7 @@ actor DiscoveryRecorder {
     enum Seen: Equatable {
         case found(AppLocation, AppInfo)
         case stateChanged(AppLocation, AppState)
+        case hierarchyChanged(AppLocation, HierarchyChanged)
         case incompatible(AppLocation, AppInfo?, local: Version, remote: Version)
         case lost(AppLocation)
     }
@@ -34,6 +35,8 @@ actor DiscoveryRecorder {
             seen.append(.found(location, app))
         case .stateChanged(let location, let state):
             seen.append(.stateChanged(location, state))
+        case .hierarchyChanged(let location, let change):
+            seen.append(.hierarchyChanged(location, change))
         case .incompatible(let location, let app, let local, let remote):
             seen.append(.incompatible(location, app, local: local, remote: remote))
         case .lost(let location):

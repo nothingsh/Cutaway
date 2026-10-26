@@ -58,7 +58,8 @@ extension InspectionStore {
             previewMode: previewMode,
             cameras: focusedLayerID == nil ? cameras : PreviewCameras.fitted(cameras),
             showsHiddenLayers: showsHiddenLayers, borders: borders,
-            showsConstraintEnds: showsAllConstraintEnds, searchText: searchText, start: start)
+            showsConstraintEnds: showsAllConstraintEnds, autoRefresh: autoRefresh,
+            searchText: searchText, start: start)
     }
 
     /// Takes over what an inspection of the same app over an earlier connection showed
@@ -69,6 +70,7 @@ extension InspectionStore {
         setShowsHiddenLayers(settings.showsHiddenLayers)
         setBorders(settings.borders)
         setShowsAllConstraintEnds(settings.showsConstraintEnds)
+        setAutoRefresh(settings.autoRefresh)
         setSearchText(settings.searchText)
     }
 

@@ -6,7 +6,7 @@ import XCTest
 final class RoundTripTests: XCTestCase {
     func test_C_WIRE_01_everyFixtureFrameSurvivesARoundTrip() throws {
         let scenarios = try Fixtures.scenarios()
-        XCTAssertEqual(scenarios.count, 17)
+        XCTAssertEqual(scenarios.count, 18)
         var count = 0
         for scenario in scenarios {
             for fixture in try Fixtures.frames(scenario: scenario) {
@@ -17,7 +17,7 @@ final class RoundTripTests: XCTestCase {
                 count += 1
             }
         }
-        XCTAssertEqual(count, 94)
+        XCTAssertEqual(count, 110)
     }
 
     func test_C_WIRE_04_aFrameWithoutABodyRoundTrips() throws {
@@ -70,8 +70,9 @@ final class RoundTripTests: XCTestCase {
         // SetAttribute x2 outside the limits, x1 for the layer's attribute of a pair and x1 for
         // the layer's background; protocol 1.2: GetSubtree x1 of a virtual node, SetAttribute
         // x1 of the host app's attribute and x1 of a view attribute on a virtual node; protocol
-        // 1.3: GetLayerDetails x3, without and with the digests held.
-        XCTAssertEqual(count, 41)
+        // 1.3: GetLayerDetails x3, without and with the digests held; GetHierarchy, WatchHierarchy
+        // x2, GetSubtree x2 and GetLayerDetails x1 of watch-hierarchy.
+        XCTAssertEqual(count, 47)
     }
 
     func test_C_WIRE_01_memberReferencesRoundTripInOrder() throws {

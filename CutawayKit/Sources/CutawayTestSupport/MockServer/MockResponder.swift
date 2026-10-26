@@ -35,6 +35,11 @@ public struct MockResponder: Sendable {
     /// Whether an image whose digest the request gives is sent as unchanged (P-IMG-05), as a
     /// Server may. Change an image in `details` to have it redrawn.
     public var answersUnchanged = true
+    /// Before answering the nth `GetHierarchy` or `GetSubtree` of a connection (from 1), wait at
+    /// the gate.
+    public var holdBeforeTreeRequest: (Int, MockGate)?
+    /// When set, a `WatchHierarchy` is answered with this error instead (C-LIVE-01).
+    public var watchFailure: ErrorCode?
     /// Where layers missing from `details` are looked up: an archive being replayed.
     var archived: ArchivedDetails?
     /// Before answering the nth `GetLayerDetails` of a connection (from 1), wait at the gate.

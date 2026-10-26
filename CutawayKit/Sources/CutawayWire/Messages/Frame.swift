@@ -38,4 +38,8 @@ public enum Body: Equatable, Sendable {
     case getEnvironment
     case setEnvironment(SetEnvironment)
     case environment(Environment)
+    // Protocol 1.3
+    case watchHierarchy(WatchHierarchy)
+    case watchHierarchyResult(WatchHierarchyResult)
+    case hierarchyChanged(HierarchyChanged)
 }

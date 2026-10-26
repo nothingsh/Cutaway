@@ -105,18 +105,21 @@ public struct InspectionStart: Equatable, Sendable {
     public var borders = BorderOptions()
     /// Whether every end of the selected layer's constraints is marked (C-PREV-18).
     public var showsConstraintEnds = false
+    /// Whether the inspection refreshes when the app reports changes (C-LIVE-01).
+    public var autoRefresh = true
 
     public init() {}
 
     public init(
         previewMode: PreviewMode, layerSpacing: Double, showsHiddenLayers: Bool,
-        borders: BorderOptions, showsConstraintEnds: Bool = false
+        borders: BorderOptions, showsConstraintEnds: Bool = false, autoRefresh: Bool = true
     ) {
         self.previewMode = previewMode
         self.layerSpacing = layerSpacing
         self.showsHiddenLayers = showsHiddenLayers
         self.borders = borders
         self.showsConstraintEnds = showsConstraintEnds
+        self.autoRefresh = autoRefresh
     }
 
     /// The cameras the inspection starts with, and that Reset View goes back to (C-PREV-07).
@@ -135,6 +138,7 @@ struct InspectionSettings: Equatable, Sendable {
     var showsHiddenLayers: Bool
     var borders: BorderOptions
     var showsConstraintEnds: Bool
+    var autoRefresh: Bool
     var searchText: String
     /// Where Reset View goes: the earlier inspection's start, not the settings' (C-PREF-02).
     var start: InspectionStart

@@ -110,6 +110,8 @@ struct MainMenuBuilder {
             localized("menu.view.refreshSelectedSubtree"),
             #selector(InspectorWindowController.refreshSelectedSubtree(_:)), key: "r",
             modifiers: [.command, .shift], to: view)
+        // No shortcut of its own: ⌘R is Refresh (C-LIVE-01).
+        add(localized("menu.view.autoRefresh"), #selector(InspectorWindowController.toggleAutoRefresh(_:)), to: view)
         view.addItem(.separator())
         addPreviewItems(to: view)
         view.addItem(.separator())
