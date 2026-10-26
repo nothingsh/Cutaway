@@ -178,4 +178,24 @@ final class AppSettingsTests: XCTestCase {
         defaults.set("yes", forKey: AppSettings.Key.showsConstraintEnds)
         XCTAssertFalse(self.settings().showsConstraintEnds)
     }
+
+    func test_C_LIVE_01_theAutoRefreshSwitchIsOnKeptReadBackAndRestored() {
+        XCTAssertTrue(settings().autoRefresh)
+        XCTAssertTrue(settings().inspectionStart.autoRefresh)
+        let settings = settings()
+        settings.autoRefresh = false
+        XCTAssertEqual(defaults.object(forKey: AppSettings.Key.autoRefresh) as? Bool, false)
+        XCTAssertFalse(settings.isShowingPreviewDefaults)
+        XCTAssertFalse(self.settings().autoRefresh)
+        XCTAssertFalse(self.settings().inspectionStart.autoRefresh)
+
+        settings.restorePreviewDefaults()
+        XCTAssertTrue(settings.autoRefresh)
+        XCTAssertNil(defaults.object(forKey: AppSettings.Key.autoRefresh))
+        XCTAssertTrue(settings.isShowingPreviewDefaults)
+
+        // Kept wrongly, it reads as on.
+        defaults.set("no", forKey: AppSettings.Key.autoRefresh)
+        XCTAssertTrue(self.settings().autoRefresh)
+    }
 }

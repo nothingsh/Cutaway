@@ -101,6 +101,7 @@ extension InspectionStore {
         // round's progress for a moment.
         if notice != nil { notice = nil }
         if loadState != .loaded { loadState = .loaded }
+        startWatchingIfDue()
         if let restoring {
             pendingRestore = nil
             applyView(restoring)
@@ -145,6 +146,7 @@ extension InspectionStore: HierarchyLoaderDelegate {
 
     func loaderWillLoad(_ loader: HierarchyLoader, wholeTree: Bool) {
         attributes.setTreeLoading(true)
+        reportedChanges.cover(wholeTree ? nil : loader.loadingSubtree, in: tree)
         // A tree that is already shown stays shown until the new one arrives.
         if wholeTree, loadState != .loaded { loadState = .loading }
     }
@@ -191,20 +193,28 @@ extension InspectionStore: HierarchyLoaderDelegate {
     }
 
     func loader(
-        _ loader: HierarchyLoader, finishedSubtree id: UInt64, changed: Set<UInt64>?,
+        _ loader: HierarchyLoader, finishedSubtree id: UInt64, load: SubtreeLoad,
         result: Result<Hierarchy, any Error>, outOfDate: Bool
     ) {
         switch result {
         case .success(let answer):
             do {
                 let newTree = try tree.replacingSubtree(with: answer)
-                if let changed {
+                switch load {
+                case .afterChanges(let changed):
                     install(
                         newTree,
                         renewing: .needs(LayerTree.needsAfterChanges(changed, in: id, from: tree, to: newTree)),
                         renewsAttributes: false)
-                } else {
+                case .asked:
                     install(newTree, renewing: .needs(LayerTree.needs(ofSubtree: id, in: newTree)))
+                case .automatic:
+                    // The selection's attributes only when it lies in the subtree; the others
+                    // and any edit under way are left alone (C-LIVE-02).
+                    let selectionInside = selectedLayerID.map { tree.path(to: $0).contains(id) } ?? false
+                    install(
+                        newTree, renewing: .needs(LayerTree.needs(ofSubtree: id, in: newTree)),
+                        renewsAttributes: selectionInside)
                 }
             } catch {
                 // The layers moved in a way a subtree cannot say: only the whole tree is
@@ -212,31 +222,41 @@ extension InspectionStore: HierarchyLoaderDelegate {
                 loader.reloadAgain = true
             }
         case .failure(let error):
-            switch error as? RequestError {
-            case .layerNotFound where changed != nil:
+            switch (error as? RequestError, load) {
+            case (.layerNotFound, .afterChanges):
                 // The window went away with the change: only the whole tree is right.
                 loader.reloadAgain = true
-            case .layerNotFound:
+            case (.layerNotFound, .automatic(retry: false)):
+                // The root went after the app's check: its parent holds the change, or failing
+                // that the whole tree, and nothing is said (C-LIVE-02).
+                if let parent = tree.parent(of: id) {
+                    loader.queuedAutomatic.insert((parent, true), at: 0)
+                } else {
+                    loader.reloadAgain = true
+                }
+            case (.layerNotFound, .automatic(retry: true)):
+                loader.reloadAgain = true
+            case (.layerNotFound, .asked):
                 // The tree stays; the whole tree is a refresh away (C-DET-07).
                 notice = .layerGone
-            case .appNotActive where outOfDate && isOpen:
+            case (.appNotActive, _) where outOfDate && isOpen:
                 // The app became active after this request went out, and that news came
                 // first (C-DET-04). Asked again rather than shown.
-                if let changed {
-                    loader.changedLayers.formUnion(changed)
-                } else {
-                    loader.queuedSubtrees.insert(id, at: 0)
+                switch load {
+                case .afterChanges(let changed): loader.changedLayers.formUnion(changed)
+                case .asked: loader.queuedSubtrees.insert(id, at: 0)
+                case .automatic(let retry): loader.queuedAutomatic.insert((id, retry), at: 0)
                 }
-            case .appNotActive:
+            case (.appNotActive, _):
                 // As for a whole reload: the tree stays, screenshots stop, and the app
                 // coming back loads everything again (C-DET-04).
                 fetcher.stopOnFailure()
                 fetcher.cancel()
                 notice = .appNotActive
-            case .disconnected:
+            case (.disconnected, _):
                 // The app is about to leave the list, and this inspection with it (C-CONN-07).
                 loader.dropQueued()
-            case .unsupported:
+            case (.unsupported, _):
                 // Not asked for when the source cannot send subtrees (an archive); if it
                 // happens anyway, the whole tree does the same job.
                 loader.reloadAgain = true
@@ -252,6 +272,7 @@ extension InspectionStore: HierarchyLoaderDelegate {
     func loaderDidSettle(_ loader: HierarchyLoader) {
         attributes.setTreeLoading(loader.isLoading)
         fetchNext()
+        refreshAutomaticallyIfDue()
     }
 }
 

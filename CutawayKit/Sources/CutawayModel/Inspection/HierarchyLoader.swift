@@ -1,6 +1,17 @@
 import CutawayTransport
 import CutawayWire
 
+/// Why a subtree is taken again.
+enum SubtreeLoad: Equatable {
+    /// The user asked for it (C-DET-07).
+    case asked
+    /// A refresh after a change, of the changed layers' window (C-DET-06).
+    case afterChanges(Set<UInt64>)
+    /// The app reported a change in it (C-LIVE-02). `retry` when it is the parent of a root
+    /// the app no longer has.
+    case automatic(retry: Bool)
+}
+
 /// What the loader asks of the inspection, and tells it. What a tree that came, or did not,
 /// means for what is shown is the inspection's to decide; the loader only sequences the
 /// requests.
@@ -21,10 +32,9 @@ protocol HierarchyLoaderDelegate: AnyObject {
         _ loader: HierarchyLoader, finishedWholeLoad result: Result<Hierarchy, any Error>,
         outOfDate: Bool
     )
-    /// A subtree came, or did not. `changed` is nil for a subtree the user asked for
-    /// (C-DET-07), and the changed layers for a refresh after a change (C-DET-06).
+    /// A subtree came, or did not, loaded for the reason `load` gives.
     func loader(
-        _ loader: HierarchyLoader, finishedSubtree id: UInt64, changed: Set<UInt64>?,
+        _ loader: HierarchyLoader, finishedSubtree id: UInt64, load: SubtreeLoad,
         result: Result<Hierarchy, any Error>, outOfDate: Bool
     )
     /// The loads that waited were started or dropped; `isLoading` says whether one is on its
@@ -34,8 +44,8 @@ protocol HierarchyLoaderDelegate: AnyObject {
 
 /// Asks the app for its layers: the whole tree (C-DET-05) or a subtree (C-DET-07, C-DET-06),
 /// one request at a time. Asked while one is on its way, it remembers what to ask next: a
-/// whole reload first, then a refresh after changes, then the subtrees in order. A whole
-/// reload takes the place of every subtree that waits.
+/// whole reload first, then a refresh after changes, then the subtrees in order, then those
+/// the app reported (C-LIVE-02). A whole reload takes the place of every subtree that waits.
 @MainActor
 final class HierarchyLoader {
     private let source: any InspectionSource
@@ -53,8 +63,10 @@ final class HierarchyLoader {
     /// Layers whose attributes changed since the last refresh after a change started; their
     /// windows are taken again once the load under way ends (C-DET-06).
     var changedLayers: Set<UInt64> = []
-    /// The changed layers the load under way refreshes, when it is a refresh after a change.
-    private(set) var refreshingChanges: Set<UInt64>?
+    /// Why the subtree under way is loaded, when the load under way is a subtree.
+    private(set) var loadingKind: SubtreeLoad?
+    /// Subtrees the app reported changed, to load after the rest, in order (C-LIVE-02).
+    var queuedAutomatic: [(id: UInt64, retry: Bool)] = []
 
     init(source: any InspectionSource, delegate: any HierarchyLoaderDelegate) {
         self.source = source
@@ -65,7 +77,9 @@ final class HierarchyLoader {
     var isLoadingWholeTree: Bool { isLoading && loadingSubtree == nil }
 
     /// Whether no load waits for the one under way to end.
-    var hasNothingQueued: Bool { !reloadAgain && changedLayers.isEmpty && queuedSubtrees.isEmpty }
+    var hasNothingQueued: Bool {
+        !reloadAgain && changedLayers.isEmpty && queuedSubtrees.isEmpty && queuedAutomatic.isEmpty
+    }
 
     // MARK: - The whole tree
 
@@ -77,6 +91,7 @@ final class HierarchyLoader {
             reloadAgain = true
             // The whole tree holds every subtree that waits.
             queuedSubtrees.removeAll()
+            queuedAutomatic.removeAll()
             return
         }
         isLoading = true
@@ -109,14 +124,25 @@ final class HierarchyLoader {
     /// already on its way or waiting is not asked for twice, nor while a whole reload waits.
     func requestSubtree(_ id: UInt64) {
         guard !isLoading else {
-            if !reloadAgain, loadingSubtree != id || refreshingChanges != nil,
+            if !reloadAgain, loadingSubtree != id || loadingKind != .asked,
                !queuedSubtrees.contains(id)
             {
                 queuedSubtrees.append(id)
             }
             return
         }
-        loadSubtree(id)
+        loadSubtree(id, as: .asked)
+    }
+
+    /// Takes the subtrees the app reported changed again, one after another, after whatever is
+    /// on its way or waits (C-LIVE-02). `retry` for the parent of a root the app no longer has.
+    func refreshAutomatically(_ ids: [UInt64], retry: Bool = false) {
+        guard !reloadAgain else { return }
+        for id in ids where !queuedAutomatic.contains(where: { $0.id == id }) {
+            queuedAutomatic.append((id, retry))
+        }
+        guard !isLoading, let delegate else { return }
+        startNext(delegate)
     }
 
     /// An attribute of the layer changed (C-DET-06). Its window is taken again once nothing
@@ -141,16 +167,14 @@ final class HierarchyLoader {
         }
         let changed = changedLayers.filter { tree.path(to: $0).first == root }
         changedLayers.subtract(changed)
-        loadSubtree(root, after: changed)
+        loadSubtree(root, as: .afterChanges(changed))
     }
 
-    /// `changed` is nil for a subtree the user asked for (C-DET-07), and the changed layers
-    /// for a refresh after a change (C-DET-06).
-    private func loadSubtree(_ id: UInt64, after changed: Set<UInt64>? = nil) {
+    private func loadSubtree(_ id: UInt64, as kind: SubtreeLoad) {
         guard let delegate else { return }
         isLoading = true
         loadingSubtree = id
-        refreshingChanges = changed
+        loadingKind = kind
         delegate.loaderWillLoad(self, wholeTree: false)
         let generation = delegate.activeGeneration
         Task { [weak self, source] in
@@ -169,12 +193,12 @@ final class HierarchyLoader {
     ) {
         isLoading = false
         loadingSubtree = nil
-        let changed = refreshingChanges
-        refreshingChanges = nil
+        let kind = loadingKind ?? .asked
+        loadingKind = nil
         // Held for the whole answer: what the delegate does may let go of it.
         guard let delegate else { return }
         delegate.loader(
-            self, finishedSubtree: id, changed: changed, result: result,
+            self, finishedSubtree: id, load: kind, result: result,
             outOfDate: generation != delegate.activeGeneration)
         startNext(delegate)
     }
@@ -182,7 +206,8 @@ final class HierarchyLoader {
     // MARK: - What waits
 
     /// After a load ended: a whole reload that waits goes first, then a refresh after changes
-    /// (C-DET-06), then the subtrees that wait, in order. A whole reload does not take the
+    /// (C-DET-06), then the subtrees that wait, in order, then those the app reported; one of
+    /// those no longer in the tree takes the whole tree (C-LIVE-02). A whole reload does not take the
     /// place of changes: its answer may be older than they are. Subtrees of a tree that is
     /// not loaded, such as one the last whole load refused, are dropped: only a whole load
     /// can bring it back.
@@ -190,15 +215,26 @@ final class HierarchyLoader {
         if reloadAgain {
             reloadAgain = false
             queuedSubtrees.removeAll()
+            queuedAutomatic.removeAll()
             reload()
         } else if !delegate.hasLoadedTree {
             queuedSubtrees.removeAll()
             changedLayers.removeAll()
+            queuedAutomatic.removeAll()
         } else {
             if delegate.isOpen, !changedLayers.isEmpty { startRefreshAfterChanges() }
             while !isLoading, !queuedSubtrees.isEmpty {
                 let next = queuedSubtrees.removeFirst()
-                if delegate.isOpen, delegate.tree.contains(next) { loadSubtree(next) }
+                if delegate.isOpen, delegate.tree.contains(next) { loadSubtree(next, as: .asked) }
+            }
+            while !isLoading, !queuedAutomatic.isEmpty, delegate.isOpen {
+                let next = queuedAutomatic.removeFirst()
+                if delegate.tree.contains(next.id) {
+                    loadSubtree(next.id, as: .automatic(retry: next.retry))
+                } else {
+                    queuedAutomatic.removeAll()
+                    reload()
+                }
             }
         }
         delegate.loaderDidSettle(self)
@@ -210,5 +246,6 @@ final class HierarchyLoader {
         reloadAgain = false
         queuedSubtrees.removeAll()
         changedLayers.removeAll()
+        queuedAutomatic.removeAll()
     }
 }

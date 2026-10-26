@@ -24,11 +24,17 @@ public actor MockServer {
     /// How many `GetEnvironment` requests the script did not expect and the server answered
     /// on its own (`MockScript.unscriptedEnvironment`). They are not in `receivedFrames`.
     public private(set) var unscriptedEnvironmentRequests = 0
+    /// How many `WatchHierarchy` requests the script did not expect and the server answered on
+    /// its own, as asked. They are not in `receivedFrames`.
+    public private(set) var unscriptedWatchRequests = 0
     /// How many connections ended because the client closed them.
     public private(set) var clientCloseCount = 0
     /// Bytes whose sending completed: handed to the system's send buffer, across all
     /// connections. A client that does not read stops it growing (C-CONN-12).
     public private(set) var writtenByteCount = 0
+    /// Whether the last `WatchHierarchy` a `MockResponder` answered turned notifications on
+    /// (P-WATCH-01).
+    public private(set) var isWatching = false
 
     private let listener: NWListener
     private let script: MockScript
@@ -158,6 +164,13 @@ public actor MockServer {
         }
     }
 
+    /// Sends a `HierarchyChanged` on the latest connection now, between whatever frames the
+    /// server is sending (P-WATCH-04). It does not check that notifications are on.
+    public func sendEvent(_ change: HierarchyChanged) async throws {
+        guard let channel = channels.last else { return }
+        try await send(Frame(requestID: 0, body: .hierarchyChanged(change)), on: channel)
+    }
+
     private func record(_ frame: Frame) {
         receivedFrameCount += 1
         if records { receivedFrames.append(frame) }
@@ -181,19 +194,17 @@ public actor MockServer {
         var detailRequests = 0
         var heldOnce = false
         var setEnvironmentRequests = 0
+        var treeRequests = 0
         while let frame = try await nextFrame(from: channel, reader: &reader) {
             record(frame)
             let id = frame.requestID
             switch frame.body {
             case .getAppIcon:
                 try await send(Frame(requestID: id, body: .appIcon(responder.icon)), on: channel)
-            case .getHierarchy:
-                try await send(
-                    Frame(requestID: id, body: .hierarchy(responder.hierarchy)), on: channel)
-            case .getSubtree(let request):
-                let body: Body = responder.subtree(of: request.rootID).map { .hierarchy($0) }
-                    ?? .error(ServerError(code: .layerNotFound, message: nil))
-                try await send(Frame(requestID: id, body: body), on: channel)
+            case .getHierarchy, .getSubtree:
+                treeRequests += 1
+                let root: UInt64? = if case .getSubtree(let request) = frame.body { request.rootID } else { nil }
+                try await answerTree(of: root, id: id, count: treeRequests, with: responder, on: channel)
             case .setAttribute(let request):
                 try await send(Frame(requestID: id, body: responder.edit(request)), on: channel)
             case .getLayerDetails(let request):
@@ -247,6 +258,8 @@ public actor MockServer {
                     await closeGracefully(channel, reader: &reader)
                     return
                 }
+            case .watchHierarchy(let request):
+                try await answer(request, id: id, with: responder, on: channel)
             case .cancel:
                 // Every stream ended before the next frame was read.
                 continue
@@ -256,6 +269,39 @@ public actor MockServer {
         }
         clientCloseCount += 1
         channel.close()
+    }
+
+    /// Answers the `count`th `GetHierarchy` or `GetSubtree` of the connection: the whole tree
+    /// for a nil `root`, else its subtree, or `LayerNotFound` for a root the scene lacks.
+    private func answerTree(
+        of root: UInt64?, id: UInt32, count: Int, with responder: MockResponder,
+        on channel: ConnectionChannel
+    ) async throws {
+        if let (held, gate) = responder.holdBeforeTreeRequest, held == count {
+            await gate.wait()
+        }
+        let body: Body = if let root {
+            responder.subtree(of: root).map { .hierarchy($0) }
+                ?? .error(ServerError(code: .layerNotFound, message: nil))
+        } else {
+            .hierarchy(responder.hierarchy)
+        }
+        try await send(Frame(requestID: id, body: body), on: channel)
+    }
+
+    /// Answers a `WatchHierarchy` with the state it asks for, or the responder's failure.
+    private func answer(
+        _ request: WatchHierarchy, id: UInt32, with responder: MockResponder,
+        on channel: ConnectionChannel
+    ) async throws {
+        let body: Body
+        if let code = responder.watchFailure {
+            body = .error(ServerError(code: code, message: nil))
+        } else {
+            isWatching = request.enabled
+            body = .watchHierarchyResult(WatchHierarchyResult(enabled: request.enabled))
+        }
+        try await send(Frame(requestID: id, body: body), on: channel)
     }
 
     /// Answers the `count`th `SetEnvironment` of the connection as the responder says.
@@ -282,16 +328,29 @@ public actor MockServer {
 
     /// The next frame for the script: a `GetEnvironment` the script does not expect here is
     /// answered as an app that can override nothing, and passed over. A 1.2 client
-    /// asks for it at the start of every inspection, which most scripts leave out.
+    /// asks for it at the start of every inspection, which most scripts leave out. So is a
+    /// `WatchHierarchy`, answered as asked: a 1.3 client sends it after its first tree
+    /// (C-LIVE-01). The server sends no events unless the script does.
     private func nextScriptedFrame(
         from channel: ConnectionChannel, reader: inout FrameReader, expecting kind: MessageKind?
     ) async throws -> Frame? {
         while let frame = try await nextFrame(from: channel, reader: &reader) {
-            guard case .getEnvironment = frame.body, kind != .getEnvironment else { return frame }
-            unscriptedEnvironmentRequests += 1
-            try await send(
-                Frame(requestID: frame.requestID, body: .environment(MockScript.unscriptedEnvironment)),
-                on: channel)
+            switch frame.body {
+            case .getEnvironment where kind != .getEnvironment:
+                unscriptedEnvironmentRequests += 1
+                try await send(
+                    Frame(requestID: frame.requestID, body: .environment(MockScript.unscriptedEnvironment)),
+                    on: channel)
+            case .watchHierarchy(let request) where kind != .watchHierarchy:
+                unscriptedWatchRequests += 1
+                isWatching = request.enabled
+                try await send(
+                    Frame(requestID: frame.requestID, body: .watchHierarchyResult(
+                        WatchHierarchyResult(enabled: request.enabled))),
+                    on: channel)
+            default:
+                return frame
+            }
         }
         return nil
     }

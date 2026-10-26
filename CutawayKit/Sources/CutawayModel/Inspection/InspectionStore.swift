@@ -103,6 +103,11 @@ public final class InspectionStore {
     /// Whether every end of the selected layer's constraints is marked, or only those pointed
     /// at (C-PREV-18).
     @StoreState public internal(set) var showsAllConstraintEnds = false
+    /// Whether the inspection refreshes when the app reports changes (C-LIVE-01).
+    @StoreState public internal(set) var autoRefresh = true
+    /// Whether the app can report changes: a connection at 1.3 or later (C-LIVE-01). False
+    /// until the source has told, which `enter()` asks it.
+    @StoreState public internal(set) var canAutoRefresh = false
     /// The layer under the pointer in the preview (C-PREV-03).
     @StoreState public private(set) var hoveredLayerID: UInt64?
     @StoreState public internal(set) var previewMode: PreviewMode = .twoD
@@ -214,6 +219,18 @@ public final class InspectionStore {
     /// Whether requests give the digests of the images held (C-DET-12). Set once the
     /// capabilities are known; nothing is held before then.
     var reusesImages = false
+    /// The changes the app reported that are not refreshed yet (C-LIVE-02).
+    var reportedChanges = ReportedChanges()
+    /// What holds automatic refreshes back now (C-LIVE-03).
+    var autoRefreshHolds: Set<AutoRefreshHold> = []
+    /// What the last `WatchHierarchy` asked for; nil before any.
+    var watchSent: Bool?
+    /// Whether the app answered that it tells of changes, and the switch is still on.
+    var watchIsOn = false
+    /// Requests that turn the telling off and are not answered yet: events still count until then.
+    var turningWatchOff = 0
+    /// The last `WatchHierarchy` on its way; the next waits for it.
+    var watchRequest: Task<Void, Never>?
     /// Changes sent and not yet answered. No batch of screenshots starts meanwhile: it would
     /// go ahead of the next one on the server (P-REQ-06).
     var changesOnTheirWay = 0
@@ -262,6 +279,7 @@ public final class InspectionStore {
         showsHiddenLayers = start.showsHiddenLayers
         borders = start.borders
         showsAllConstraintEnds = start.showsConstraintEnds
+        autoRefresh = start.autoRefresh
         self.maxTextureDimension = maxTextureDimension
         self.attributes = AttributesStore(source: source, undoActionName: text.undoActionName)
         attributes.delegate = self
@@ -298,6 +316,8 @@ public final class InspectionStore {
             guard let capabilities = await source.capabilities else { return }
             self?.canRefreshSubtrees = capabilities.canRefreshSubtrees
             self?.reusesImages = capabilities.canReuseImages
+            self?.canAutoRefresh = capabilities.canWatchHierarchy
+            self?.startWatchingIfDue()
             self?.attributes.setCapabilities(capabilities)
         }
     }
@@ -325,6 +345,7 @@ public final class InspectionStore {
         cancelEnvironmentSettle()
         // A reload queued for the visit that ends is not wanted: entering again reloads.
         loader.dropQueued()
+        reportedChanges = ReportedChanges()
         fetcher.cancelWaitForRows()
         fetcher.cancel()
         cancelArchiveSave()

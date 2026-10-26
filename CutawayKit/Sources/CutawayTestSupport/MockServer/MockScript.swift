@@ -28,6 +28,7 @@ public enum MessageKind: Equatable, Sendable {
     case layerDetailsChunk, streamEnd, cancel, error, appStateChanged
     case setAttribute, setAttributeResult, getSubtree
     case getEnvironment, setEnvironment, environment
+    case watchHierarchy, watchHierarchyResult, hierarchyChanged
 
     public init(_ body: Body?) {
         switch body {
@@ -49,6 +50,9 @@ public enum MessageKind: Equatable, Sendable {
         case .getEnvironment: self = .getEnvironment
         case .setEnvironment: self = .setEnvironment
         case .environment: self = .environment
+        case .watchHierarchy: self = .watchHierarchy
+        case .watchHierarchyResult: self = .watchHierarchyResult
+        case .hierarchyChanged: self = .hierarchyChanged
         }
     }
 }

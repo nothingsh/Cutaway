@@ -18,6 +18,7 @@ public final class AppSettings: ObservableObject {
         public static let borderStyle = "Settings.borderStyle"
         public static let onlyAppClasses = "Settings.onlyAppClasses"
         public static let showsConstraintEnds = "Settings.showsConstraintEnds"
+        public static let autoRefresh = "Settings.autoRefresh"
         public static let page = "Settings.page"
         public static let appearance = "Settings.appearance"
     }
@@ -80,6 +81,11 @@ public final class AppSettings: ObservableObject {
         didSet { store(showsConstraintEnds, at: Key.showsConstraintEnds) }
     }
 
+    /// Whether a new inspection refreshes when the app reports changes (C-LIVE-01).
+    @Published public var autoRefresh: Bool {
+        didSet { store(autoRefresh, at: Key.autoRefresh) }
+    }
+
     /// The settings window's page last shown, by its index; the first one at first. Not a
     /// setting: Restore Defaults leaves it.
     public var page: Int {
@@ -120,6 +126,7 @@ public final class AppSettings: ObservableObject {
             ?? start.borders.onlyAppClasses
         showsConstraintEnds = Self.bool(defaults.object(forKey: Key.showsConstraintEnds))
             ?? start.showsConstraintEnds
+        autoRefresh = Self.bool(defaults.object(forKey: Key.autoRefresh)) ?? start.autoRefresh
         appearance = (defaults.object(forKey: Key.appearance) as? String)
             .flatMap(Appearance.init(rawValue:)) ?? .system
         isShowingPreviewDefaults = computeIsShowingPreviewDefaults()
@@ -131,7 +138,7 @@ public final class AppSettings: ObservableObject {
             previewMode: newInspectionMode, layerSpacing: layerSpacing,
             showsHiddenLayers: showsHiddenLayers,
             borders: BorderOptions(style: borderStyle, onlyAppClasses: onlyAppClasses),
-            showsConstraintEnds: showsConstraintEnds)
+            showsConstraintEnds: showsConstraintEnds, autoRefresh: autoRefresh)
     }
 
     /// Puts every value of the Preview page back to its default and forgets what was kept.
@@ -144,10 +151,11 @@ public final class AppSettings: ObservableObject {
             borderStyle = start.borders.style
             onlyAppClasses = start.borders.onlyAppClasses
             showsConstraintEnds = start.showsConstraintEnds
+            autoRefresh = start.autoRefresh
         }
         for key in [
             Key.newInspectionMode, Key.layerSpacing, Key.showsHiddenLayers, Key.showsBorders,
-            Key.borderStyle, Key.onlyAppClasses, Key.showsConstraintEnds,
+            Key.borderStyle, Key.onlyAppClasses, Key.showsConstraintEnds, Key.autoRefresh,
         ] {
             defaults.removeObject(forKey: key)
         }

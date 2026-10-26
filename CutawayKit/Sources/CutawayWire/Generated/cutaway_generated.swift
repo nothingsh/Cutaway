@@ -468,8 +468,11 @@ internal enum Cutaway_Wire_Body: UInt8, FlatbuffersVectorInitializable, UnionEnu
   case getenvironment = 15
   case setenvironment = 16
   case environment = 17
+  case watchhierarchy = 18
+  case watchhierarchyresult = 19
+  case hierarchychanged = 20
 
-  internal static var max: Cutaway_Wire_Body { return .environment }
+  internal static var max: Cutaway_Wire_Body { return .hierarchychanged }
   internal static var min: Cutaway_Wire_Body { return .none_ }
 }
 
@@ -534,6 +537,15 @@ internal struct Cutaway_Wire_BodyUnion {
     case .environment:
       var __obj = value as? Cutaway_Wire_EnvironmentT
       return Cutaway_Wire_Environment.pack(&builder, obj: &__obj)
+    case .watchhierarchy:
+      var __obj = value as? Cutaway_Wire_WatchHierarchyT
+      return Cutaway_Wire_WatchHierarchy.pack(&builder, obj: &__obj)
+    case .watchhierarchyresult:
+      var __obj = value as? Cutaway_Wire_WatchHierarchyResultT
+      return Cutaway_Wire_WatchHierarchyResult.pack(&builder, obj: &__obj)
+    case .hierarchychanged:
+      var __obj = value as? Cutaway_Wire_HierarchyChangedT
+      return Cutaway_Wire_HierarchyChanged.pack(&builder, obj: &__obj)
     default: return Offset()
     }
   }
@@ -5376,6 +5388,220 @@ internal class Cutaway_Wire_EnvironmentT: NativeObject {
   internal func serialize() -> ByteBuffer { return serialize(type: Cutaway_Wire_Environment.self) }
 
 }
+internal struct Cutaway_Wire_WatchHierarchy: FlatBufferTable, FlatbuffersVectorInitializable, Verifiable, ObjectAPIPacker {
+
+  static func validateVersion() { FlatBuffersVersion_25_12_19() }
+  internal var __buffer: ByteBuffer! { return _accessor.bb }
+  private var _accessor: Table
+
+  internal static var id: String { "CTWY" } 
+  internal static func finish(_ fbb: inout FlatBufferBuilder, end: Offset, prefix: Bool = false) { fbb.finish(offset: end, fileId: Cutaway_Wire_WatchHierarchy.id, addPrefix: prefix) }
+  private init(_ t: Table) { _accessor = t }
+  internal init(_ bb: ByteBuffer, o: Int32) { _accessor = Table(bb: bb, position: o) }
+
+  private enum VTOFFSET: VOffset {
+    case enabled = 4
+    var v: Int32 { Int32(self.rawValue) }
+    var p: VOffset { self.rawValue }
+  }
+
+  internal var enabled: Bool { let o = _accessor.offset(VTOFFSET.enabled.v); return o == 0 ? false : _accessor.readBuffer(of: Bool.self, at: o) }
+  internal static func startWatchHierarchy(_ fbb: inout FlatBufferBuilder) -> UOffset { fbb.startTable(with: 1) }
+  internal static func add(enabled: Bool, _ fbb: inout FlatBufferBuilder) { fbb.add(element: enabled, def: false,
+   at: VTOFFSET.enabled.p) }
+  internal static func endWatchHierarchy(_ fbb: inout FlatBufferBuilder, start: UOffset) -> Offset { let end = Offset(offset: fbb.endTable(at: start)); return end }
+  internal static func createWatchHierarchy(
+    _ fbb: inout FlatBufferBuilder,
+    enabled: Bool = false
+  ) -> Offset {
+    let __start = Cutaway_Wire_WatchHierarchy.startWatchHierarchy(&fbb)
+    Cutaway_Wire_WatchHierarchy.add(enabled: enabled, &fbb)
+    return Cutaway_Wire_WatchHierarchy.endWatchHierarchy(&fbb, start: __start)
+  }
+
+  internal func unpack() -> Cutaway_Wire_WatchHierarchyT {
+    return Cutaway_Wire_WatchHierarchyT(self)
+  }
+  internal static func pack(_ builder: inout FlatBufferBuilder, obj: inout Cutaway_Wire_WatchHierarchyT?) -> Offset {
+    guard var obj = obj else { return Offset() }
+    return pack(&builder, obj: &obj)
+  }
+
+  internal static func pack(_ builder: inout FlatBufferBuilder, obj: inout Cutaway_Wire_WatchHierarchyT) -> Offset {
+    let __root = Cutaway_Wire_WatchHierarchy.startWatchHierarchy(&builder)
+    Cutaway_Wire_WatchHierarchy.add(enabled: obj.enabled, &builder)
+    return Cutaway_Wire_WatchHierarchy.endWatchHierarchy(&builder, start: __root)
+  }
+
+  internal static func verify<T>(_ verifier: inout Verifier, at position: Int, of type: T.Type) throws where T: Verifiable {
+    var _v = try verifier.visitTable(at: position)
+    try _v.visit(field: VTOFFSET.enabled.p, fieldName: "enabled", required: false, type: Bool.self)
+    _v.finish()
+  }
+}
+
+internal class Cutaway_Wire_WatchHierarchyT: NativeObject {
+
+  internal var enabled: Bool
+
+  internal init(_ _t: borrowing Cutaway_Wire_WatchHierarchy) {
+    enabled = _t.enabled
+  }
+
+  internal init() {
+    enabled = false
+  }
+
+  internal func serialize() -> ByteBuffer { return serialize(type: Cutaway_Wire_WatchHierarchy.self) }
+
+}
+internal struct Cutaway_Wire_WatchHierarchyResult: FlatBufferTable, FlatbuffersVectorInitializable, Verifiable, ObjectAPIPacker {
+
+  static func validateVersion() { FlatBuffersVersion_25_12_19() }
+  internal var __buffer: ByteBuffer! { return _accessor.bb }
+  private var _accessor: Table
+
+  internal static var id: String { "CTWY" } 
+  internal static func finish(_ fbb: inout FlatBufferBuilder, end: Offset, prefix: Bool = false) { fbb.finish(offset: end, fileId: Cutaway_Wire_WatchHierarchyResult.id, addPrefix: prefix) }
+  private init(_ t: Table) { _accessor = t }
+  internal init(_ bb: ByteBuffer, o: Int32) { _accessor = Table(bb: bb, position: o) }
+
+  private enum VTOFFSET: VOffset {
+    case enabled = 4
+    var v: Int32 { Int32(self.rawValue) }
+    var p: VOffset { self.rawValue }
+  }
+
+  internal var enabled: Bool { let o = _accessor.offset(VTOFFSET.enabled.v); return o == 0 ? false : _accessor.readBuffer(of: Bool.self, at: o) }
+  internal static func startWatchHierarchyResult(_ fbb: inout FlatBufferBuilder) -> UOffset { fbb.startTable(with: 1) }
+  internal static func add(enabled: Bool, _ fbb: inout FlatBufferBuilder) { fbb.add(element: enabled, def: false,
+   at: VTOFFSET.enabled.p) }
+  internal static func endWatchHierarchyResult(_ fbb: inout FlatBufferBuilder, start: UOffset) -> Offset { let end = Offset(offset: fbb.endTable(at: start)); return end }
+  internal static func createWatchHierarchyResult(
+    _ fbb: inout FlatBufferBuilder,
+    enabled: Bool = false
+  ) -> Offset {
+    let __start = Cutaway_Wire_WatchHierarchyResult.startWatchHierarchyResult(&fbb)
+    Cutaway_Wire_WatchHierarchyResult.add(enabled: enabled, &fbb)
+    return Cutaway_Wire_WatchHierarchyResult.endWatchHierarchyResult(&fbb, start: __start)
+  }
+
+  internal func unpack() -> Cutaway_Wire_WatchHierarchyResultT {
+    return Cutaway_Wire_WatchHierarchyResultT(self)
+  }
+  internal static func pack(_ builder: inout FlatBufferBuilder, obj: inout Cutaway_Wire_WatchHierarchyResultT?) -> Offset {
+    guard var obj = obj else { return Offset() }
+    return pack(&builder, obj: &obj)
+  }
+
+  internal static func pack(_ builder: inout FlatBufferBuilder, obj: inout Cutaway_Wire_WatchHierarchyResultT) -> Offset {
+    let __root = Cutaway_Wire_WatchHierarchyResult.startWatchHierarchyResult(&builder)
+    Cutaway_Wire_WatchHierarchyResult.add(enabled: obj.enabled, &builder)
+    return Cutaway_Wire_WatchHierarchyResult.endWatchHierarchyResult(&builder, start: __root)
+  }
+
+  internal static func verify<T>(_ verifier: inout Verifier, at position: Int, of type: T.Type) throws where T: Verifiable {
+    var _v = try verifier.visitTable(at: position)
+    try _v.visit(field: VTOFFSET.enabled.p, fieldName: "enabled", required: false, type: Bool.self)
+    _v.finish()
+  }
+}
+
+internal class Cutaway_Wire_WatchHierarchyResultT: NativeObject {
+
+  internal var enabled: Bool
+
+  internal init(_ _t: borrowing Cutaway_Wire_WatchHierarchyResult) {
+    enabled = _t.enabled
+  }
+
+  internal init() {
+    enabled = false
+  }
+
+  internal func serialize() -> ByteBuffer { return serialize(type: Cutaway_Wire_WatchHierarchyResult.self) }
+
+}
+internal struct Cutaway_Wire_HierarchyChanged: FlatBufferTable, FlatbuffersVectorInitializable, Verifiable, ObjectAPIPacker {
+
+  static func validateVersion() { FlatBuffersVersion_25_12_19() }
+  internal var __buffer: ByteBuffer! { return _accessor.bb }
+  private var _accessor: Table
+
+  internal static var id: String { "CTWY" } 
+  internal static func finish(_ fbb: inout FlatBufferBuilder, end: Offset, prefix: Bool = false) { fbb.finish(offset: end, fileId: Cutaway_Wire_HierarchyChanged.id, addPrefix: prefix) }
+  private init(_ t: Table) { _accessor = t }
+  internal init(_ bb: ByteBuffer, o: Int32) { _accessor = Table(bb: bb, position: o) }
+
+  private enum VTOFFSET: VOffset {
+    case roots = 4
+    case whole = 6
+    var v: Int32 { Int32(self.rawValue) }
+    var p: VOffset { self.rawValue }
+  }
+
+  internal var roots: FlatbufferVector<UInt64> { return _accessor.vector(at: VTOFFSET.roots.v, byteSize: 8) }
+  internal func withUnsafePointerToRoots<T>(_ body: (UnsafeRawBufferPointer, Int) throws -> T) rethrows -> T? { return try _accessor.withUnsafePointerToSlice(at: VTOFFSET.roots.v, body: body) }
+  internal var whole: Bool { let o = _accessor.offset(VTOFFSET.whole.v); return o == 0 ? false : _accessor.readBuffer(of: Bool.self, at: o) }
+  internal static func startHierarchyChanged(_ fbb: inout FlatBufferBuilder) -> UOffset { fbb.startTable(with: 2) }
+  internal static func addVectorOf(roots: Offset, _ fbb: inout FlatBufferBuilder) { fbb.add(offset: roots, at: VTOFFSET.roots.p) }
+  internal static func add(whole: Bool, _ fbb: inout FlatBufferBuilder) { fbb.add(element: whole, def: false,
+   at: VTOFFSET.whole.p) }
+  internal static func endHierarchyChanged(_ fbb: inout FlatBufferBuilder, start: UOffset) -> Offset { let end = Offset(offset: fbb.endTable(at: start)); return end }
+  internal static func createHierarchyChanged(
+    _ fbb: inout FlatBufferBuilder,
+    rootsVectorOffset roots: Offset = Offset(),
+    whole: Bool = false
+  ) -> Offset {
+    let __start = Cutaway_Wire_HierarchyChanged.startHierarchyChanged(&fbb)
+    Cutaway_Wire_HierarchyChanged.addVectorOf(roots: roots, &fbb)
+    Cutaway_Wire_HierarchyChanged.add(whole: whole, &fbb)
+    return Cutaway_Wire_HierarchyChanged.endHierarchyChanged(&fbb, start: __start)
+  }
+
+  internal func unpack() -> Cutaway_Wire_HierarchyChangedT {
+    return Cutaway_Wire_HierarchyChangedT(self)
+  }
+  internal static func pack(_ builder: inout FlatBufferBuilder, obj: inout Cutaway_Wire_HierarchyChangedT?) -> Offset {
+    guard var obj = obj else { return Offset() }
+    return pack(&builder, obj: &obj)
+  }
+
+  internal static func pack(_ builder: inout FlatBufferBuilder, obj: inout Cutaway_Wire_HierarchyChangedT) -> Offset {
+    let __roots = builder.createVector(obj.roots)
+    let __root = Cutaway_Wire_HierarchyChanged.startHierarchyChanged(&builder)
+    Cutaway_Wire_HierarchyChanged.addVectorOf(roots: __roots, &builder)
+    Cutaway_Wire_HierarchyChanged.add(whole: obj.whole, &builder)
+    return Cutaway_Wire_HierarchyChanged.endHierarchyChanged(&builder, start: __root)
+  }
+
+  internal static func verify<T>(_ verifier: inout Verifier, at position: Int, of type: T.Type) throws where T: Verifiable {
+    var _v = try verifier.visitTable(at: position)
+    try _v.visit(field: VTOFFSET.roots.p, fieldName: "roots", required: false, type: ForwardOffset<Vector<UInt64, UInt64>>.self)
+    try _v.visit(field: VTOFFSET.whole.p, fieldName: "whole", required: false, type: Bool.self)
+    _v.finish()
+  }
+}
+
+internal class Cutaway_Wire_HierarchyChangedT: NativeObject {
+
+  internal var roots: [UInt64]
+  internal var whole: Bool
+
+  internal init(_ _t: borrowing Cutaway_Wire_HierarchyChanged) {
+    roots = []
+    roots.append(contentsOf: _t.roots)
+    whole = _t.whole
+  }
+
+  internal init() {
+    roots = []
+    whole = false
+  }
+
+  internal func serialize() -> ByteBuffer { return serialize(type: Cutaway_Wire_HierarchyChanged.self) }
+
+}
 internal struct Cutaway_Wire_Error: FlatBufferTable, FlatbuffersVectorInitializable, Verifiable, ObjectAPIPacker {
 
   static func validateVersion() { FlatBuffersVersion_25_12_19() }
@@ -5779,6 +6005,12 @@ internal struct Cutaway_Wire_Frame: FlatBufferTable, FlatbuffersVectorInitializa
         try ForwardOffset<Cutaway_Wire_SetEnvironment>.verify(&verifier, at: pos, of: Cutaway_Wire_SetEnvironment.self)
       case .environment:
         try ForwardOffset<Cutaway_Wire_Environment>.verify(&verifier, at: pos, of: Cutaway_Wire_Environment.self)
+      case .watchhierarchy:
+        try ForwardOffset<Cutaway_Wire_WatchHierarchy>.verify(&verifier, at: pos, of: Cutaway_Wire_WatchHierarchy.self)
+      case .watchhierarchyresult:
+        try ForwardOffset<Cutaway_Wire_WatchHierarchyResult>.verify(&verifier, at: pos, of: Cutaway_Wire_WatchHierarchyResult.self)
+      case .hierarchychanged:
+        try ForwardOffset<Cutaway_Wire_HierarchyChanged>.verify(&verifier, at: pos, of: Cutaway_Wire_HierarchyChanged.self)
       }
     })
     _v.finish()
@@ -5844,6 +6076,15 @@ internal class Cutaway_Wire_FrameT: NativeObject {
     case .environment:
       let _v = _t.body(type: Cutaway_Wire_Environment.self)
       body = Cutaway_Wire_BodyUnion(_v?.unpack(), type: .environment)
+    case .watchhierarchy:
+      let _v = _t.body(type: Cutaway_Wire_WatchHierarchy.self)
+      body = Cutaway_Wire_BodyUnion(_v?.unpack(), type: .watchhierarchy)
+    case .watchhierarchyresult:
+      let _v = _t.body(type: Cutaway_Wire_WatchHierarchyResult.self)
+      body = Cutaway_Wire_BodyUnion(_v?.unpack(), type: .watchhierarchyresult)
+    case .hierarchychanged:
+      let _v = _t.body(type: Cutaway_Wire_HierarchyChanged.self)
+      body = Cutaway_Wire_BodyUnion(_v?.unpack(), type: .hierarchychanged)
     default: break
     }
   }

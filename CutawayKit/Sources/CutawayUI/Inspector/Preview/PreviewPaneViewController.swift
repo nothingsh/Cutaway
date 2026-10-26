@@ -22,6 +22,7 @@ final class PreviewPaneViewController: NSViewController {
     static let controlsIdentifier = "preview.controls"
     static let showHiddenIdentifier = "preview.showHidden"
     static let bordersIdentifier = "preview.borders"
+    static let autoRefreshIdentifier = "preview.autoRefresh"
     static let spacingIdentifier = "preview.spacing"
     static let resetIdentifier = "preview.reset"
     static let canvasIdentifier = "preview.canvas"
@@ -253,6 +254,7 @@ final class PreviewPaneViewController: NSViewController {
                     guard let self else { return }
                     BordersButton.choose(index, of: self.bordersButton, in: self.store)
                 }
+            makeAutoRefreshButton()
             NSBox().configure { $0.boxType = .separator }
                 .frame(width: 1, height: 16)
             NSImageView()
@@ -290,6 +292,34 @@ final class PreviewPaneViewController: NSViewController {
             top: 6, leading: Theme.Spacing.medium, bottom: 6, trailing: Theme.Spacing.medium))
             .configure { $0.takesPointer = true }
             .accessibilityIdentifier(Self.controlsIdentifier)
+    }
+
+    /// Beside the borders: whether the inspection refreshes when the app reports changes,
+    /// tinted while it does (C-LIVE-01). An archive has none.
+    private func makeAutoRefreshButton() -> NSButton {
+        NSButton()
+            .configure {
+                $0.isBordered = false
+                $0.isHidden = store.isArchive
+            }
+            .buttonType(.toggle)
+            .image(Theme.symbol(
+                Theme.Symbol.autoRefresh, size: 13, description: localized("preview.autoRefresh")))
+            .accessibilityIdentifier(Self.autoRefreshIdentifier)
+            .onReceive(viewModel.autoRefreshButton) { button, shown in
+                button.state = shown == .on ? .on : .off
+                button.contentTintColor = shown == .on ? .controlAccentColor : nil
+                button.isEnabled = shown.isEnabled
+                button.toolTip = switch shown {
+                case .on: localized("preview.autoRefresh.on")
+                case .off: localized("preview.autoRefresh.off")
+                case .needsNewerServer: localized("preview.autoRefresh.needsNewerServer")
+                case .disconnected: localized("preview.autoRefresh.disconnected")
+                }
+            }
+            .sink(\.statePublisher) { [weak store] state in
+                store?.setAutoRefresh(state == .on)
+            }
     }
 
     /// A panel of the shape most of them have: a tinted symbol, a line or two of text, and a

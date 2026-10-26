@@ -4,6 +4,8 @@ import os
 
 public enum SessionEvent: Equatable, Sendable {
     case appStateChanged(AppState)
+    /// Part of the hierarchy changed (P-WATCH-02). Protocol 1.3.
+    case hierarchyChanged(HierarchyChanged)
     /// The connection ended. This is the last event.
     case closed
 }
@@ -25,7 +27,7 @@ public actor Session {
 
     enum Phase { case idle, handshaking, ready, closed }
 
-    enum ResponseKind { case appIcon, hierarchy, setAttributeResult, environment }
+    enum ResponseKind { case appIcon, hierarchy, setAttributeResult, environment, watchHierarchyResult }
 
     /// A response and the buffer it arrived in.
     struct Received {
@@ -333,6 +335,21 @@ public actor Session {
             throw RequestError.protocolViolation("the response is not an Environment")
         }
         return Recorded(value: environment, payload: received.payload)
+    }
+
+    /// Turns hierarchy change notifications on or off (P-WATCH-01). Returns whether they are on
+    /// afterwards. Protocol 1.3: throws `.unsupported` below it, sending nothing.
+    public func watchHierarchy(_ enabled: Bool) async throws -> Bool {
+        guard phase == .ready else { throw RequestError.disconnected }
+        guard let negotiatedVersion, negotiatedVersion.minor >= 3 else {
+            throw RequestError.unsupported
+        }
+        let received = try await request(
+            .watchHierarchy(WatchHierarchy(enabled: enabled)), expecting: .watchHierarchyResult)
+        guard case .watchHierarchyResult(let result) = received.body else {
+            throw RequestError.protocolViolation("the response is not a WatchHierarchyResult")
+        }
+        return result.enabled
     }
 
     /// Asks for screenshots and attributes of layers. The response is a stream (P-REQ-03).
