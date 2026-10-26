@@ -68,8 +68,12 @@ extension HierarchyViewController {
             hoveredParent: shownParent(of: hover))
     }
 
-    /// The hover and the guides of the rows there are views for.
+    /// The hover and the guides of the rows there are views for, and what the last refresh
+    /// changed.
     func decorateRows() {
+        if let changes {
+            changeRows = HierarchyChangeMarks.rows(of: changes.diff, in: tree) { row(of: $0) >= 0 }
+        }
         let decoration = rowDecoration()
         outlineView.enumerateAvailableRowViews { [self] view, row in
             guard let view = view as? HierarchyTableRowView else { return }
@@ -86,6 +90,28 @@ extension HierarchyViewController {
         view.guides = HierarchyGuide.guides(
             ancestors: ancestors, selectedParent: decoration.selectedParent,
             hoveredParent: decoration.hoveredParent)
+        let elapsed = changes.map { (ContinuousClock.now - $0.start) / .seconds(1) } ?? 0
+        view.show(
+            id.flatMap { changeRows[$0] }, generation: changes?.diff.generation, elapsed: elapsed,
+            duration: PreviewMotion.changeFade,
+            reducesMotion: NSWorkspace.shared.accessibilityDisplayShouldReduceMotion)
+    }
+
+    // MARK: - What the last refresh changed
+
+    /// Marks the rows of what the last refresh changed, fading, until `PreviewMotion.changeFade`
+    /// has passed; nil takes them away (C-LIVE-05).
+    func showChanges(_ diff: RefreshDiff?) {
+        changesEnd?.cancel()
+        changes = diff.map { ($0, ContinuousClock.now) }
+        changeRows = [:]
+        if diff != nil {
+            changesEnd = Task { [weak self] in
+                guard (try? await Task.sleep(for: .seconds(PreviewMotion.changeFade))) != nil else { return }
+                self?.showChanges(nil)
+            }
+        }
+        decorateRows()
     }
 
     /// The row a layer's row is inside in the list, if the layer has a row.

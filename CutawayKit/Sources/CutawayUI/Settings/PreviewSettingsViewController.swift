@@ -17,6 +17,7 @@ final class PreviewSettingsViewController: NSViewController {
     static let onlyAppClassesIdentifier = "settings.onlyAppClasses"
     static let constraintEndsIdentifier = "settings.constraintEnds"
     static let autoRefreshIdentifier = "settings.autoRefresh"
+    static let highlightsChangesIdentifier = "settings.highlightsChanges"
     static let restoreIdentifier = "settings.restore"
 
     let settings: AppSettings
@@ -153,14 +154,24 @@ final class PreviewSettingsViewController: NSViewController {
         }
     }
 
-    /// Whether the inspection refreshes when the app reports changes (C-LIVE-01).
+    /// Whether the inspection refreshes when the app reports changes (C-LIVE-01), and whether
+    /// refreshes mark what they changed, which applies to the open window too (C-LIVE-05).
     private func makeRefreshColumn() -> NSView {
-        Self.checkbox(localized("settings.autoRefresh"))
-            .accessibilityIdentifier(Self.autoRefreshIdentifier)
-            .bind(\.state, to: settings.$autoRefresh.map { $0 ? .on : .off })
-            .sink(\.statePublisher) { [weak settings] state in
-                settings?.autoRefresh = state == .on
-            }
+        VStack(alignment: .leading, spacing: 7) {
+            Self.checkbox(localized("settings.autoRefresh"))
+                .accessibilityIdentifier(Self.autoRefreshIdentifier)
+                .bind(\.state, to: settings.$autoRefresh.map { $0 ? .on : .off })
+                .sink(\.statePublisher) { [weak settings] state in
+                    settings?.autoRefresh = state == .on
+                }
+            Self.checkbox(localized("settings.highlightsChanges"))
+                .accessibilityIdentifier(Self.highlightsChangesIdentifier)
+                .bind(\.state, to: settings.$highlightsChanges.map { $0 ? .on : .off })
+                .sink(\.statePublisher) { [weak settings] state in
+                    settings?.highlightsChanges = state == .on
+                }
+            Self.help(localized("settings.highlightsChanges.help"))
+        }
     }
 
     // MARK: - The spacing field

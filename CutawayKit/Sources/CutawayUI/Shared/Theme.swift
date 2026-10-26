@@ -1,5 +1,6 @@
 import AppKit
 import CutawayRender
+import CutawayScene
 
 /// The constants the interface is drawn with: spacing, corner radii, fonts and the SF Symbols
 /// it uses. Colours are the system's semantic colours, so light and dark follow the system.
@@ -101,6 +102,16 @@ enum Theme {
         NSColor(name: nil) { appearance in
             let dark = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
             return RenderStyle.preview(dark: dark).endBorder.nsColor
+        }
+    }
+
+    /// What the last refresh did to a layer, in the list as in the preview (C-LIVE-05,
+    /// C-REND-12): the preview's edge colour, which the list lays down faintly.
+    static func change(_ mark: ChangeMark) -> NSColor {
+        NSColor(name: nil) { appearance in
+            let dark = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+            let style = RenderStyle.preview(dark: dark)
+            return (mark == .added ? style.addedBorder : style.changedBorder).nsColor
         }
     }
 

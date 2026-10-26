@@ -52,6 +52,9 @@ public final class InspectorWindowController: NSWindowController {
     /// How long the capsule says "Saved" before it goes back (C-WIN-06).
     private let savedNoticeDuration: Duration
     private var savedDismissal: Task<Void, Never>?
+    /// How many layers the last refresh removed, while the capsule tells it (C-LIVE-05).
+    private let removedNotice = CurrentValueSubject<Int?, Never>(nil)
+    private var removedDismissal: Task<Void, Never>?
     /// Whether the connection to the app is gone (C-WIN-03).
     public var isDisconnected: Bool { store.connection.isLost }
     /// Called when the user asks for the app list.
@@ -249,8 +252,14 @@ public final class InspectorWindowController: NSWindowController {
     /// (C-WIN-06). "Saved" goes after a few seconds, unless another save took its place.
     func followStatus() {
         guard !isArchive else { return }
-        AppCapsuleState.publisher(for: store, subtitle: windowTitle.subtitle)
+        AppCapsuleState.publisher(
+            for: store, subtitle: windowTitle.subtitle, removed: removedNotice.eraseToAnyPublisher())
             .sink { [weak self] state in self?.appCapsule?.show(state) }
+            .store(in: &cancellables)
+        // How many layers a refresh removed is told for as long as its marks show (C-LIVE-05).
+        store.$refreshDiff
+            .dropFirst()
+            .sink { [weak self] diff in self?.tellRemoved(diff?.removed ?? 0) }
             .store(in: &cancellables)
         store.$archiveSave
             .sink { [weak self] state in
@@ -265,6 +274,16 @@ public final class InspectorWindowController: NSWindowController {
                 }
             }
             .store(in: &cancellables)
+    }
+
+    private func tellRemoved(_ count: Int) {
+        removedDismissal?.cancel()
+        removedNotice.send(count > 0 ? count : nil)
+        guard count > 0 else { return }
+        removedDismissal = Task { [weak self] in
+            guard (try? await Task.sleep(for: .seconds(PreviewMotion.changeFade))) != nil else { return }
+            self?.removedNotice.send(nil)
+        }
     }
 
     // MARK: - Actions

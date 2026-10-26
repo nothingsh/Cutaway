@@ -198,4 +198,24 @@ final class AppSettingsTests: XCTestCase {
         defaults.set("no", forKey: AppSettings.Key.autoRefresh)
         XCTAssertTrue(self.settings().autoRefresh)
     }
+
+    func test_C_LIVE_05_theMarkingSwitchIsOnKeptReadBackAndRestored() {
+        XCTAssertTrue(settings().highlightsChanges)
+        XCTAssertTrue(settings().inspectionStart.highlightsChanges)
+        let settings = settings()
+        settings.highlightsChanges = false
+        XCTAssertEqual(defaults.object(forKey: AppSettings.Key.highlightsChanges) as? Bool, false)
+        XCTAssertFalse(settings.isShowingPreviewDefaults)
+        XCTAssertFalse(self.settings().highlightsChanges)
+        XCTAssertFalse(self.settings().inspectionStart.highlightsChanges)
+
+        settings.restorePreviewDefaults()
+        XCTAssertTrue(settings.highlightsChanges)
+        XCTAssertNil(defaults.object(forKey: AppSettings.Key.highlightsChanges))
+        XCTAssertTrue(settings.isShowingPreviewDefaults)
+
+        // Kept wrongly, it reads as on.
+        defaults.set(1, forKey: AppSettings.Key.highlightsChanges)
+        XCTAssertTrue(self.settings().highlightsChanges)
+    }
 }

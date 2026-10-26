@@ -46,6 +46,13 @@ final class PreviewProjector {
     /// Set while new images wait for their showing.
     private var imagesWaiting = false
 
+    /// How long what a refresh changed stays marked, in seconds (C-LIVE-05). Changed by tests.
+    var changeFade = PreviewMotion.changeFade
+    /// What the last refresh changed and when its marks started, while they show (C-REND-12).
+    private var changes: (added: Set<UInt64>, changed: Set<UInt64>, start: Double)?
+    /// Takes the marks away at once when motion is reduced: no frames while they stay.
+    private var changesEnd: Task<Void, Never>?
+
     /// Counts the layouts followed, so that a still picture knows which one it shows.
     private var layoutRevision = 0
     /// The last still picture, with what it was projected from besides the selection and the
@@ -92,10 +99,45 @@ final class PreviewProjector {
         project()
     }
 
+    /// What the last refresh changed, marked from now on and fading over `changeFade`; with
+    /// motion reduced, marked that long and then gone at once. Nil takes the marks away. Only
+    /// a preview that follows changes on a clock marks them (C-REND-12).
+    func follow(_ diff: RefreshDiff?) {
+        changesEnd?.cancel()
+        changesEnd = nil
+        if let diff, followsChanges, let clock {
+            changes = (diff.added, diff.changed, clock.now)
+            if reducesMotion() {
+                changesEnd = Task { [weak self, changeFade] in
+                    guard (try? await Task.sleep(for: .seconds(changeFade))) != nil, let self else { return }
+                    self.changes = nil
+                    self.project()
+                }
+            } else {
+                startTicking()
+            }
+        } else {
+            changes = nil
+        }
+        project()
+    }
+
+    /// How strong the marks are now: from 1 down to 0 over `changeFade`, or 1 until they go
+    /// when motion is reduced.
+    private var changeStrength: Double {
+        guard let changes, let clock else { return 0 }
+        if changesEnd != nil { return 1 }
+        return max(0, 1 - (clock.now - changes.start) / changeFade)
+    }
+
+    /// Whether marks are fading, which the clock ticks for.
+    private var isFading: Bool { changes != nil && changesEnd == nil }
+
     /// Nobody sees a transition once the preview is off screen: it ends, and the clock stops
     /// even if no transition was left for its next tick to find.
     func endTransitions() {
         stopTicking()
+        if isFading { changes = nil }
         guard isInTransition else { return }
         lensTransition = nil
         if layoutTransition != nil {
@@ -225,6 +267,7 @@ final class PreviewProjector {
     /// dropped before the frame, which is then the still picture; with none left, the clock
     /// stops and nothing more is drawn (C-REND-04).
     private func tick() {
+        if isFading, changeStrength <= 0 { changes = nil }
         if let turn = lensTransition, progress(since: turn.start) >= 1 { lensTransition = nil }
         if let moving = layoutTransition, progress(since: moving.start) >= 1 {
             layoutTransition = nil
@@ -271,8 +314,12 @@ final class PreviewProjector {
         // Which mark is stressed changes no projection either.
         list = list.emphasizing(emphasizedEnds)
         lastStill = isInTransition ? nil : (basis, list)
+        // Nor what the last refresh changed, nor its fading (C-REND-12).
+        if let changes {
+            list = list.markingChanges(added: changes.added, changed: changes.changed, strength: changeStrength)
+        }
         // A change that shows at once may have ended the last transition: no tick is due.
-        if !isInTransition { stopTicking() }
+        if !isInTransition, !isFading { stopTicking() }
         show(list, isInTransition)
     }
 }

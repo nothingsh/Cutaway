@@ -107,12 +107,15 @@ public struct InspectionStart: Equatable, Sendable {
     public var showsConstraintEnds = false
     /// Whether the inspection refreshes when the app reports changes (C-LIVE-01).
     public var autoRefresh = true
+    /// Whether a refresh marks what it changed (C-LIVE-05).
+    public var highlightsChanges = true
 
     public init() {}
 
     public init(
         previewMode: PreviewMode, layerSpacing: Double, showsHiddenLayers: Bool,
-        borders: BorderOptions, showsConstraintEnds: Bool = false, autoRefresh: Bool = true
+        borders: BorderOptions, showsConstraintEnds: Bool = false, autoRefresh: Bool = true,
+        highlightsChanges: Bool = true
     ) {
         self.previewMode = previewMode
         self.layerSpacing = layerSpacing
@@ -120,6 +123,7 @@ public struct InspectionStart: Equatable, Sendable {
         self.borders = borders
         self.showsConstraintEnds = showsConstraintEnds
         self.autoRefresh = autoRefresh
+        self.highlightsChanges = highlightsChanges
     }
 
     /// The cameras the inspection starts with, and that Reset View goes back to (C-PREV-07).
