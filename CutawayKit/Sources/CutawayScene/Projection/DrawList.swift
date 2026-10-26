@@ -52,6 +52,12 @@ public enum Highlight: Equatable, Sendable {
 }
 
 /// One layer to draw.
+/// What the last refresh did to a layer, as the preview marks it (C-REND-12).
+public enum ChangeMark: Equatable, Sendable {
+    case added
+    case changed
+}
+
 public struct DrawItem: Equatable, Sendable {
     public var layerID: UInt64
     /// The corners of the layer's bounds: top left, top right, bottom left, bottom right. The
@@ -69,6 +75,8 @@ public struct DrawItem: Equatable, Sendable {
     /// Where its look comes from: its image, its parent's (a virtual node, outlined with
     /// dashes) or nowhere (excluded, hatched) (C-REND-11).
     public var content: SceneLayer.Content
+    /// What the last refresh did to the layer, if anything (C-REND-12).
+    public var change: ChangeMark?
 
     public init(
         layerID: UInt64, corners: Corners<ClipPoint>, points: Corners<ScenePoint>,
@@ -208,6 +216,9 @@ public struct DrawList: Equatable, Sendable {
     public var items: [DrawItem]
     public var marks: [DrawMark]
     public var measurement: DrawMeasurement?
+    /// How strong the changes' marks are, from 1 just after the refresh to 0 once they faded:
+    /// one strength for them all (C-REND-12).
+    public var changeStrength: Double = 0
     /// The viewport the list was projected into: how many points the target's pixels cover.
     /// Nil for a list made by hand.
     public var viewport: Viewport?
@@ -240,6 +251,20 @@ public struct DrawList: Equatable, Sendable {
             let highlight: Highlight =
                 id == selected ? .selected : (id == hovered ? .hovered : .none)
             if list.items[index].highlight != highlight { list.items[index].highlight = highlight }
+        }
+        return list
+    }
+
+    /// The list with the items of `added` and `changed` marked at `strength`, the others not:
+    /// what a refresh changed, marked without projecting again (C-REND-12).
+    public func markingChanges(added: Set<UInt64>, changed: Set<UInt64>, strength: Double) -> Self {
+        var list = self
+        list.changeStrength = strength
+        for index in list.items.indices {
+            let id = list.items[index].layerID
+            let change: ChangeMark? =
+                added.contains(id) ? .added : (changed.contains(id) ? .changed : nil)
+            if list.items[index].change != change { list.items[index].change = change }
         }
         return list
     }

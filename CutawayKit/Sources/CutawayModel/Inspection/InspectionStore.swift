@@ -105,6 +105,13 @@ public final class InspectionStore {
     @StoreState public internal(set) var showsAllConstraintEnds = false
     /// Whether the inspection refreshes when the app reports changes (C-LIVE-01).
     @StoreState public internal(set) var autoRefresh = true
+    /// What the last refresh changed, for the list and the preview to mark (C-LIVE-05). Nil
+    /// for the first tree, a refresh that changed nothing, and while marking is off; each
+    /// refresh replaces it.
+    @StoreState public internal(set) var refreshDiff: RefreshDiff?
+    /// Whether refreshes mark what they changed (C-LIVE-05). The settings set it in every
+    /// window at once.
+    @StoreState public internal(set) var highlightsChanges = true
     /// Whether the app can report changes: a connection at 1.3 or later (C-LIVE-01). False
     /// until the source has told, which `enter()` asks it.
     @StoreState public internal(set) var canAutoRefresh = false
@@ -231,6 +238,10 @@ public final class InspectionStore {
     var turningWatchOff = 0
     /// The last `WatchHierarchy` on its way; the next waits for it.
     var watchRequest: Task<Void, Never>?
+    /// Whether a tree was taken in: the first marks nothing (C-LIVE-05).
+    var hasInstalledTree = false
+    /// The generation of the last `refreshDiff`.
+    var diffGeneration = 0
     /// Changes sent and not yet answered. No batch of screenshots starts meanwhile: it would
     /// go ahead of the next one on the server (P-REQ-06).
     var changesOnTheirWay = 0
@@ -280,6 +291,7 @@ public final class InspectionStore {
         borders = start.borders
         showsAllConstraintEnds = start.showsConstraintEnds
         autoRefresh = start.autoRefresh
+        highlightsChanges = start.highlightsChanges
         self.maxTextureDimension = maxTextureDimension
         self.attributes = AttributesStore(source: source, undoActionName: text.undoActionName)
         attributes.delegate = self

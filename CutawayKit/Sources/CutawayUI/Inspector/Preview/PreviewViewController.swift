@@ -193,6 +193,10 @@ final class PreviewViewController: NSViewController {
                 self?.projector?.project()
             }
             .store(in: &cancellables)
+        // What the last refresh changed, marked and fading (C-REND-12).
+        store.$refreshDiff
+            .sink { [weak self] diff in self?.projector?.follow(diff) }
+            .store(in: &cancellables)
         store.$previewMode
             .sink { [weak self] mode in self?.projector?.follow(mode) }
             .store(in: &cancellables)

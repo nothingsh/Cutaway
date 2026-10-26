@@ -1,6 +1,7 @@
 import AppKit
 import Combine
 import CutawayModel
+import CutawayScene
 import DeclarativeAppKit
 import DeclarativeCombine
 
@@ -113,6 +114,12 @@ final class HierarchyViewController: NSViewController {
     /// The rows in view as last reported to the store; nil before the first report.
     private var reportedVisible: [UInt64]?
     private var cancellables = Set<AnyCancellable>()
+    /// What the last refresh changed and when it came, while its marks show (C-LIVE-05).
+    var changes: (diff: RefreshDiff, start: ContinuousClock.Instant)?
+    /// The rows that mark it, as the list shows the rows now.
+    var changeRows: [UInt64: ChangeMark] = [:]
+    /// Takes the marks away once their time is up.
+    var changesEnd: Task<Void, Never>?
 
     /// `project` is the way to the app's project folder (C-SRC-03), nil for none.
     init(store: InspectionStore, appName: String, project: ProjectLookup? = nil) {
@@ -339,6 +346,11 @@ final class HierarchyViewController: NSViewController {
                 self?.followSideways(id)
                 self?.decorateRows()
             }
+            .store(in: &cancellables)
+        // What the last refresh changed (C-LIVE-05).
+        store.$refreshDiff
+            .dropFirst()
+            .sink { [weak self] diff in self?.showChanges(diff) }
             .store(in: &cancellables)
         // The hover, from the list or the preview (C-HIER-15).
         store.$hoveredLayerID

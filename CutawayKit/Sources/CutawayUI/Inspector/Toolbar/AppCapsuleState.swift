@@ -37,10 +37,13 @@ struct AppCapsuleState: Equatable {
 
     /// The capsule of an app's window. `subtitle` is its device and system. A save under
     /// way, or just done, speaks over the screenshots' progress; a notice or a lost
-    /// connection silences that progress, as it did the panel's (C-DET-02).
+    /// connection silences that progress, as it did the panel's (C-DET-02). How many layers
+    /// the last refresh removed, while that is told, speaks over the progress's words but not
+    /// over a save, and leaves the hairline (C-LIVE-05).
     init(
         subtitle: String, detailProgress: DetailProgress, notice: InspectionStore.Notice?,
-        archiveSave: ArchiveSaveState, isDisconnected: Bool, locale: Locale = .current
+        archiveSave: ArchiveSaveState, isDisconnected: Bool, removed: Int? = nil,
+        locale: Locale = .current
     ) {
         self.subtitle = subtitle
         tone = .plain
@@ -57,6 +60,10 @@ struct AppCapsuleState: Equatable {
             tone = .progress
             progress = Double(detailProgress.completed) / Double(detailProgress.total)
             isRefreshing = true
+        }
+        if let removed, removed > 0 {
+            self.subtitle = localized("capsule.removed", removed.formatted(.number.locale(locale)))
+            tone = .progress
         }
         switch archiveSave {
         case .saving(let completed, let total):
@@ -80,16 +87,21 @@ struct AppCapsuleState: Equatable {
     }
 
     /// What the capsule shows as the inspection goes.
+    /// `removed` is how many layers the last refresh removed while that is told.
     @MainActor
-    static func publisher(for store: InspectionStore, subtitle: String) -> AnyPublisher<Self, Never> {
+    static func publisher(
+        for store: InspectionStore, subtitle: String, removed: AnyPublisher<Int?, Never>
+    ) -> AnyPublisher<Self, Never> {
         Publishers.CombineLatest4(
             store.$detailProgress, store.$notice, store.$archiveSave,
             store.$connection.map(\.isLost).removeDuplicates()
         )
-        .map { progress, notice, save, disconnected in
-            Self(
+        .combineLatest(removed)
+        .map { status, removed in
+            let (progress, notice, save, disconnected) = status
+            return Self(
                 subtitle: subtitle, detailProgress: progress, notice: notice, archiveSave: save,
-                isDisconnected: disconnected)
+                isDisconnected: disconnected, removed: removed)
         }
         .removeDuplicates()
         .eraseToAnyPublisher()

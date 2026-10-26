@@ -19,6 +19,7 @@ public final class AppSettings: ObservableObject {
         public static let onlyAppClasses = "Settings.onlyAppClasses"
         public static let showsConstraintEnds = "Settings.showsConstraintEnds"
         public static let autoRefresh = "Settings.autoRefresh"
+        public static let highlightsChanges = "Settings.highlightsChanges"
         public static let page = "Settings.page"
         public static let appearance = "Settings.appearance"
     }
@@ -86,6 +87,12 @@ public final class AppSettings: ObservableObject {
         didSet { store(autoRefresh, at: Key.autoRefresh) }
     }
 
+    /// Whether refreshes mark what they changed (C-LIVE-05). Unlike the rest of the page it
+    /// applies to every window at once: a window has no switch of its own for it.
+    @Published public var highlightsChanges: Bool {
+        didSet { store(highlightsChanges, at: Key.highlightsChanges) }
+    }
+
     /// The settings window's page last shown, by its index; the first one at first. Not a
     /// setting: Restore Defaults leaves it.
     public var page: Int {
@@ -127,6 +134,8 @@ public final class AppSettings: ObservableObject {
         showsConstraintEnds = Self.bool(defaults.object(forKey: Key.showsConstraintEnds))
             ?? start.showsConstraintEnds
         autoRefresh = Self.bool(defaults.object(forKey: Key.autoRefresh)) ?? start.autoRefresh
+        highlightsChanges = Self.bool(defaults.object(forKey: Key.highlightsChanges))
+            ?? start.highlightsChanges
         appearance = (defaults.object(forKey: Key.appearance) as? String)
             .flatMap(Appearance.init(rawValue:)) ?? .system
         isShowingPreviewDefaults = computeIsShowingPreviewDefaults()
@@ -138,7 +147,8 @@ public final class AppSettings: ObservableObject {
             previewMode: newInspectionMode, layerSpacing: layerSpacing,
             showsHiddenLayers: showsHiddenLayers,
             borders: BorderOptions(style: borderStyle, onlyAppClasses: onlyAppClasses),
-            showsConstraintEnds: showsConstraintEnds, autoRefresh: autoRefresh)
+            showsConstraintEnds: showsConstraintEnds, autoRefresh: autoRefresh,
+            highlightsChanges: highlightsChanges)
     }
 
     /// Puts every value of the Preview page back to its default and forgets what was kept.
@@ -152,10 +162,12 @@ public final class AppSettings: ObservableObject {
             onlyAppClasses = start.borders.onlyAppClasses
             showsConstraintEnds = start.showsConstraintEnds
             autoRefresh = start.autoRefresh
+            highlightsChanges = start.highlightsChanges
         }
         for key in [
             Key.newInspectionMode, Key.layerSpacing, Key.showsHiddenLayers, Key.showsBorders,
             Key.borderStyle, Key.onlyAppClasses, Key.showsConstraintEnds, Key.autoRefresh,
+            Key.highlightsChanges,
         ] {
             defaults.removeObject(forKey: key)
         }

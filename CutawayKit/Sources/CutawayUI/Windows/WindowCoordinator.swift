@@ -78,6 +78,12 @@ public final class WindowCoordinator: NSObject {
             .sink { applyAppearance($0.nsAppearance) }
             .store(in: &cancellables)
         store.inspectionStart = { current.inspectionStart }
+        // Unlike the rest of the Preview page, marking what refreshes change follows the
+        // setting in the open window at once; a window has no switch of its own.
+        current.$highlightsChanges
+            .removeDuplicates()
+            .sink { [weak self] on in self?.inspector?.store.setHighlightsChanges(on) }
+            .store(in: &cancellables)
         store.inspectionText = .interface
         launcher = LauncherWindowController(
             store: store, discoversDevices: discoversDevices,
@@ -234,6 +240,9 @@ public final class WindowCoordinator: NSObject {
         let chosen = store.inspectionOpenedByChoice
         closeInspector()
         guard let inspection = store.inspection(at: location) else { return }
+        // A reconnected inspection starts from the old window's settings: this one follows
+        // the setting as it is now (C-LIVE-05).
+        inspection.setHighlightsChanges(settings.highlightsChanges)
         let controller = InspectorWindowController(
             location: location, entry: entry, store: inspection,
             paneWidths: remembersWindowFrames
