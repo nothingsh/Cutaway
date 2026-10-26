@@ -85,6 +85,9 @@ public final class AppListStore: ObservableObject {
             upsert(entry)
             inspections[location]?.appStateDidChange(state)
 
+        case .hierarchyChanged(let location, let change):
+            inspections[location]?.hierarchyDidChange(change)
+
         case .incompatible(let location, let info, let local, let remote):
             // Before the inspection goes: its window waits for the app to come back.
             if inspectedApp == location { awaitReconnection(of: location) }

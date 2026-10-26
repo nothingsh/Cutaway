@@ -44,6 +44,8 @@ public enum DiscoveryEvent: Sendable {
     /// the inspection both use it (C-CONN-09).
     case found(AppLocation, AppInfo, Session)
     case stateChanged(AppLocation, AppState)
+    /// Part of an app's hierarchy changed (P-WATCH-02). Protocol 1.3.
+    case hierarchyChanged(AppLocation, HierarchyChanged)
     /// An app whose protocol major version differs. Reported again every round it is still
     /// there (C-LIST-02).
     case incompatible(AppLocation, AppInfo?, local: Version, remote: Version)
@@ -225,8 +227,13 @@ public actor Discovery {
     private func follow(_ session: Session, at location: AppLocation) {
         Task { [weak self] in
             for await event in session.events {
-                if case .appStateChanged(let state) = event {
+                switch event {
+                case .appStateChanged(let state):
                     await self?.report(state, at: location, from: session)
+                case .hierarchyChanged(let change):
+                    await self?.report(change, at: location, from: session)
+                case .closed:
+                    break
                 }
             }
             await self?.sessionEnded(session, at: location)
@@ -236,6 +243,11 @@ public actor Discovery {
     private func report(_ state: AppState, at location: AppLocation, from session: Session) {
         guard sessions[location] === session else { return }
         continuation.yield(.stateChanged(location, state))
+    }
+
+    private func report(_ change: HierarchyChanged, at location: AppLocation, from session: Session) {
+        guard sessions[location] === session else { return }
+        continuation.yield(.hierarchyChanged(location, change))
     }
 
     private func sessionEnded(_ session: Session, at location: AppLocation) {

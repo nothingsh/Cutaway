@@ -582,6 +582,19 @@ extension Body {
             return Cutaway_Wire_BodyUnion(object, type: .setenvironment)
         case .environment(let environment):
             return Cutaway_Wire_BodyUnion(environment.makeObject(), type: .environment)
+        case .watchHierarchy(let request):
+            let object = Cutaway_Wire_WatchHierarchyT()
+            object.enabled = request.enabled
+            return Cutaway_Wire_BodyUnion(object, type: .watchhierarchy)
+        case .watchHierarchyResult(let result):
+            let object = Cutaway_Wire_WatchHierarchyResultT()
+            object.enabled = result.enabled
+            return Cutaway_Wire_BodyUnion(object, type: .watchhierarchyresult)
+        case .hierarchyChanged(let event):
+            let object = Cutaway_Wire_HierarchyChangedT()
+            object.roots = event.roots
+            object.whole = event.whole
+            return Cutaway_Wire_BodyUnion(object, type: .hierarchychanged)
         }
     }
 }

@@ -55,6 +55,7 @@ enum Theme {
         static let showHidden = "eye"
         static let hideHidden = "eye.slash"
         static let refresh = "arrow.clockwise"
+        static let autoRefresh = "arrow.triangle.2.circlepath"
         static let editFailed = "exclamationmark.triangle.fill"
         static let saveArchive = "archivebox"
         static let archiveFailed = "exclamationmark.triangle.fill"

@@ -16,6 +16,7 @@ final class PreviewSettingsViewController: NSViewController {
     static let borderStyleIdentifier = "settings.borderStyle"
     static let onlyAppClassesIdentifier = "settings.onlyAppClasses"
     static let constraintEndsIdentifier = "settings.constraintEnds"
+    static let autoRefreshIdentifier = "settings.autoRefresh"
     static let restoreIdentifier = "settings.restore"
 
     let settings: AppSettings
@@ -41,6 +42,7 @@ final class PreviewSettingsViewController: NSViewController {
             [Self.label(localized("settings.layerSpacing")), makeSpacingRow()],
             [Self.label(localized("settings.layers")), makeLayersColumn()],
             [Self.label(localized("settings.borders")), makeBordersColumn()],
+            [Self.label(localized("settings.refresh")), makeRefreshColumn()],
             [NSGridCell.emptyContentView, Self.help(
                 localized("settings.explanation"))],
         ]).configure {
@@ -149,6 +151,16 @@ final class PreviewSettingsViewController: NSViewController {
                     settings?.showsConstraintEnds = state == .on
                 }
         }
+    }
+
+    /// Whether the inspection refreshes when the app reports changes (C-LIVE-01).
+    private func makeRefreshColumn() -> NSView {
+        Self.checkbox(localized("settings.autoRefresh"))
+            .accessibilityIdentifier(Self.autoRefreshIdentifier)
+            .bind(\.state, to: settings.$autoRefresh.map { $0 ? .on : .off })
+            .sink(\.statePublisher) { [weak settings] state in
+                settings?.autoRefresh = state == .on
+            }
     }
 
     // MARK: - The spacing field

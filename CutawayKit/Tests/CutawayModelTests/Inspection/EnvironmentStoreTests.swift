@@ -29,10 +29,13 @@ final class EnvironmentStoreTests: XCTestCase {
     }
 
     /// An inspection, entered and loaded. The refresh after a change comes at once unless
-    /// `settleDelay` says otherwise.
+    /// `settleDelay` says otherwise; a delay is waited only without hierarchy change
+    /// notifications, so with one the switch starts off.
     @MainActor
     private static func model(_ session: Session, settleDelay: Duration = .zero) async -> InspectionStore {
-        let model = InspectionStore(session: session, newLayers: .expanded)
+        var start = InspectionStart()
+        start.autoRefresh = settleDelay == .zero
+        let model = InspectionStore(session: session, newLayers: .expanded, start: start)
         model.rowsWait = .zero
         model.environmentSettleDelay = settleDelay
         model.enter()

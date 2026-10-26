@@ -244,7 +244,7 @@ final class DiscoveryTests: XCTestCase {
             case .lost:
                 XCTAssertTrue(isListed, "lost without having been found")
                 isListed = false
-            case .stateChanged, .incompatible:
+            case .stateChanged, .hierarchyChanged, .incompatible:
                 break
             }
         }
@@ -289,6 +289,31 @@ final class DiscoveryTests: XCTestCase {
             .found(location, Harness.demoApp),
             .stateChanged(location, .active),
             .stateChanged(location, .background),
+        ])
+
+        await discovery.stop()
+        await server.stop()
+    }
+
+    // MARK: - C-CONN-14
+
+    func test_C_CONN_14_hierarchyChangesAreReportedForTheirApp() async throws {
+        var steps = try MockScript.fixtures("handshake").steps
+        steps.append(.send(Frame(
+            requestID: 0, body: .hierarchyChanged(HierarchyChanged(roots: [3], whole: false)))))
+        let server = try await MockServer.start(script: MockScript(steps: steps))
+        let location = AppLocation.simulator(port: server.port)
+        let discovery = Discovery(configuration: configuration(ports: [server.port]))
+        let recorder = DiscoveryRecorder(discovery)
+        await discovery.start()
+
+        let reported = await Harness.eventually { await recorder.seen.count >= 3 }
+        XCTAssertTrue(reported)
+        let seen = await recorder.seen
+        XCTAssertEqual(Array(seen.prefix(3)), [
+            .found(location, Harness.demoApp),
+            .stateChanged(location, .active),
+            .hierarchyChanged(location, HierarchyChanged(roots: [3], whole: false)),
         ])
 
         await discovery.stop()

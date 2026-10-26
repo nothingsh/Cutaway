@@ -103,5 +103,7 @@ extension InspectionStore {
             archiveSave = connectionWasLost ? .failed(.disconnected) : .idle
         }
         attributes.setEditingSuspended(false)
+        // Changes the app reported while saving (C-LIVE-03).
+        refreshAutomaticallyIfDue()
     }
 }

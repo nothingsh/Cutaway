@@ -72,7 +72,11 @@ final class PreviewViewController: NSViewController {
             clock: motion.makeClock?(preview),
             reducesMotion: { [weak preview] in preview.map { motion.reducesMotion($0) } ?? true },
             keepTextures: { drawn in textureLoader.keepDrawnTextures(drawn) },
-            show: { [weak preview] list, isInTransition in
+            show: { [weak preview, weak store] list, isInTransition in
+                // Automatic refreshes wait for an expand or collapse to end (C-LIVE-03).
+                if let preview, preview.isInTransition != isInTransition {
+                    store?.holdAutoRefresh(.transition, isInTransition)
+                }
                 preview?.isInTransition = isInTransition
                 preview?.show(list)
             })
@@ -118,6 +122,8 @@ final class PreviewViewController: NSViewController {
         }
         preview.onResize = { [weak self] viewport in self?.projector?.resize(to: viewport) }
         preview.onMeasuringChange = { [weak self] measuring in
+            // Automatic refreshes wait while ⌥ measures (C-LIVE-03).
+            self?.store.holdAutoRefresh(.measuring, measuring)
             self?.projector?.measuring = measuring
             self?.projector?.project()
         }

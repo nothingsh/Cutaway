@@ -101,6 +101,30 @@ final class PreviewPaneViewModel {
             .eraseToAnyPublisher()
     }
 
+    // MARK: - Auto refresh
+
+    /// What the auto refresh button beside the borders shows (C-LIVE-01).
+    enum AutoRefreshButton: Equatable {
+        case on
+        case off
+        /// The app's CutawayServer cannot report changes.
+        case needsNewerServer
+        case disconnected
+
+        var isEnabled: Bool { self == .on || self == .off }
+    }
+
+    var autoRefreshButton: AnyPublisher<AutoRefreshButton, Never> {
+        Publishers.CombineLatest3(store.$autoRefresh, store.$canAutoRefresh, isConnected)
+            .map { on, canAutoRefresh, isConnected -> AutoRefreshButton in
+                if !isConnected { return .disconnected }
+                if !canAutoRefresh { return .needsNewerServer }
+                return on ? .on : .off
+            }
+            .removeDuplicates()
+            .eraseToAnyPublisher()
+    }
+
     // MARK: - The lost connection
 
     var disconnectedText: AnyPublisher<String, Never> {

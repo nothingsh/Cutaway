@@ -17,15 +17,18 @@ public struct InspectionCapabilities: Equatable, Sendable {
     /// Giving the digests of the images held, to have unchanged ones not sent again: only an
     /// app, and from protocol 1.3 on (C-DET-12).
     public var canReuseImages: Bool
+    /// `WatchHierarchy` and its events: only an app, and from protocol 1.3 on (C-LIVE-01).
+    public var canWatchHierarchy: Bool
 
     public init(
         canRefreshSubtrees: Bool, canEditAttributes: Bool, canOverrideEnvironment: Bool = false,
-        canReuseImages: Bool = false
+        canReuseImages: Bool = false, canWatchHierarchy: Bool = false
     ) {
         self.canRefreshSubtrees = canRefreshSubtrees
         self.canEditAttributes = canEditAttributes
         self.canOverrideEnvironment = canOverrideEnvironment
         self.canReuseImages = canReuseImages
+        self.canWatchHierarchy = canWatchHierarchy
     }
 
     /// The capabilities of an app that negotiated `version`, or of an archive, which can only
@@ -35,6 +38,7 @@ public struct InspectionCapabilities: Equatable, Sendable {
         canEditAttributes = isLive
         canOverrideEnvironment = isLive && version.minor >= 2
         canReuseImages = isLive && version.minor >= 3
+        canWatchHierarchy = isLive && version.minor >= 3
     }
 }
 
@@ -74,6 +78,9 @@ public protocol InspectionSource: AnyObject, Sendable {
     func environment() async throws -> Environment
     /// Replaces every override of the app's trait environment (P-ENV-02). Only an app can.
     func setEnvironment(_ overrides: Traits) async throws -> Environment
+    /// Turns hierarchy change notifications on or off (P-WATCH-01); whether they are on after.
+    /// Only an app can.
+    func watchHierarchy(_ enabled: Bool) async throws -> Bool
 }
 
 extension InspectionSource {
@@ -97,6 +104,11 @@ extension InspectionSource {
 
     /// By default, the environment cannot be changed.
     public func setEnvironment(_ overrides: Traits) async throws -> Environment {
+        throw RequestError.unsupported
+    }
+
+    /// By default, nothing tells of changes.
+    public func watchHierarchy(_ enabled: Bool) async throws -> Bool {
         throw RequestError.unsupported
     }
 }

@@ -185,6 +185,36 @@ public final class InspectorWindowController: NSWindowController {
             }
             .store(in: &cancellables)
         environment.follow()
+        holdAutoRefreshWhileTyping()
+    }
+
+    /// Automatic refreshes wait while a value typed into the attribute panel is not yet sent
+    /// (C-LIVE-03). A text view tells when the first key changes it and when its editing ends,
+    /// also as its field leaves the window; by then the field may no longer be in one.
+    private func holdAutoRefreshWhileTyping() {
+        let center = NotificationCenter.default
+        for (name, held) in [
+            (NSText.didBeginEditingNotification, true), (NSText.didEndEditingNotification, false),
+        ] {
+            center.publisher(for: name)
+                .sink { [weak self] notification in
+                    MainActor.assumeIsolated {
+                        guard let self, let text = notification.object as? NSView,
+                              Self.isAttributeEditor(text),
+                              text.window === self.window || (!held && text.window == nil)
+                        else { return }
+                        self.store.holdAutoRefresh(.editing, held)
+                    }
+                }
+                .store(in: &cancellables)
+        }
+    }
+
+    /// Whether `view` is the text of an attribute's field or text area.
+    private static func isAttributeEditor(_ view: NSView) -> Bool {
+        sequence(first: view, next: \.superview).contains {
+            $0 is AttributeEditField || $0 is AttributeTextArea
+        }
     }
 
     /// Whether this window shows an archive rather than an app (C-ARCH-05).
@@ -309,6 +339,11 @@ public final class InspectorWindowController: NSWindowController {
     }
 
     /// Loads the selected layer's subtree again, with its screenshots (C-DET-07).
+    /// Refreshes when the app reports that its layers changed, or stops (C-LIVE-01).
+    @objc func toggleAutoRefresh(_ sender: Any?) {
+        store.toggleAutoRefresh()
+    }
+
     @objc func refreshSelectedSubtree(_ sender: Any?) {
         guard let id = store.selectedLayerID else { return }
         store.refreshSubtree(of: id)
@@ -438,6 +473,9 @@ extension InspectorWindowController: NSMenuItemValidation {
             return commands.canRefresh
         case #selector(refreshSelectedSubtree(_:)):
             return commands.canRefreshSelectedSubtree
+        case #selector(toggleAutoRefresh(_:)):
+            menuItem.state = commands.isAutoRefreshing ? .on : .off
+            return commands.canAutoRefresh
         case #selector(saveArchive(_:)):
             return commands.canSaveArchive
         case #selector(linkProjectFolder(_:)):
