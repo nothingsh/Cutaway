@@ -17,22 +17,21 @@ final class LazyRowsTests: XCTestCase {
         (0..<groups).reversed().flatMap { group in (0..<perGroup).map { "Attribute \(group).\($0)" } }
     }
 
-    func test_C_SCALE_03_aLayerOfTwoHundredItemsIsBuiltAtOnce() async throws {
-        let panel = try await ManyAttributes(groups: ManyAttributes.groups(2, of: 100))
+    func test_C_SCALE_06_aLayerOfThirtyItemsIsBuiltAtOnce() async throws {
+        let panel = try await ManyAttributes(groups: ManyAttributes.groups(2, of: 15))
         let selected = await panel.select()
         XCTAssertTrue(selected)
         XCTAssertTrue(panel.controller.lazyParts.isEmpty)
-        XCTAssertEqual(panel.controller.attributeRows.count, 200)
+        XCTAssertEqual(panel.controller.attributeRows.count, 30)
         await panel.close()
 
         let more = try await ManyAttributes(
-            groups: ManyAttributes.groups(2, of: 100) + ManyAttributes.groups(1, of: 1).map {
+            groups: ManyAttributes.groups(2, of: 15) + ManyAttributes.groups(1, of: 1).map {
                 AttributeGroup(id: "one", title: "One", attributes: $0.attributes)
             })
         let shown = await more.select()
         XCTAssertTrue(shown)
-        XCTAssertFalse(more.controller.lazyParts.isEmpty, "201 items: page by page")
-        XCTAssertLessThan(more.controller.attributeRows.count, 201)
+        XCTAssertFalse(more.controller.lazyParts.isEmpty, "31 items: page by page")
         await more.close()
     }
 

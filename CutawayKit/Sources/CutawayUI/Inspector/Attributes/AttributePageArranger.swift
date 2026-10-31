@@ -1,11 +1,13 @@
 import AppKit
 
-/// The pages of a layer with very many attributes (C-SCALE-03): built as the list comes near
-/// them, and taken down again when it is far from them, keeping what is seen where it is.
+/// The pages of a layer with more attributes than a screen or so (C-SCALE-03, C-SCALE-06): built
+/// as the list comes near them, and taken down again when it is far from them, keeping what is
+/// seen where it is.
 @MainActor
 final class AttributePageArranger {
     /// More items than this, and the parts are built page by page; fewer are built at once.
-    static let threshold = 200
+    /// Low, as building every row of a layer of a hundred attributes took most of going to it.
+    static let threshold = 30
 
     /// Whether `listing` is built page by page.
     static func isBuiltByPage(_ listing: AttributesViewModel.Listing) -> Bool {
