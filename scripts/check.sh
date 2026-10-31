@@ -98,12 +98,26 @@ fi
 # Through xcodebuild, not "swift test": SwiftPM compiles the string catalog only from Xcode 27
 # (Swift 6.4) on; Xcode 26 copies it as it is and every text comes out as its key. Xcode's
 # build system compiles it with either. The tests expect English (C-LOC-01).
-(cd CutawayKit && xcodebuild test -scheme CutawayKit-Package -destination 'platform=macOS' \
-  -derivedDataPath ../DerivedData -testLanguage en) >"$logs/package-tests.log" 2>&1 || {
-  grep -E " error: |^Test Case .* failed" "$logs/package-tests.log" || true
-  tail -40 "$logs/package-tests.log"
-  fail "xcodebuild test (CutawayKit-Package)"
+# What is timed runs on its own, after the rest: in one process with hundreds of other tests its
+# times vary by more than their limits allow.
+timed=(
+  CutawayModelTests/ScaleArchiveTests CutawayModelTests/ScaleImageTakingTests
+  CutawayModelTests/ScaleRelayoutTests CutawayRenderTests/ScaleRenderTests
+  CutawaySceneTests/ScaleLayoutTests CutawayUITests/ScaleAttributesTests
+  CutawayUITests/ScaleHighlightTests CutawayUITests/ScaleInspectionTests
+  CutawayUITests/ScaleRefreshTests CutawayUITests/ScaleScreenshotTests
+)
+package_tests() {
+  (cd CutawayKit && xcodebuild test -scheme CutawayKit-Package -destination 'platform=macOS' \
+    -derivedDataPath ../DerivedData -testLanguage en "$@") >>"$logs/package-tests.log" 2>&1 || {
+    grep -E " error: |^Test Case .* failed" "$logs/package-tests.log" || true
+    tail -40 "$logs/package-tests.log"
+    fail "xcodebuild test (CutawayKit-Package)"
+  }
 }
+: >"$logs/package-tests.log"
+package_tests "${timed[@]/#/-skip-testing:}"
+package_tests "${timed[@]/#/-only-testing:}"
 grep -E "^Test Case .* (failed|skipped)|Test skipped" "$logs/package-tests.log" || true
 # The times C-SCALE-01 records.
 grep -E "^C-SCALE-01 " "$logs/package-tests.log" || true
