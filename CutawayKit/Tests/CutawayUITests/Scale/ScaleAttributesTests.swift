@@ -1,10 +1,11 @@
 import AppKit
 import CutawayTestSupport
+import CutawayWire
 import XCTest
 
 @testable import CutawayUI
 
-/// C-SCALE-03 in the test configuration: a layer with 1,000 attributes shows in the panel
+/// C-SCALE-03 and C-SCALE-06 in the test configuration: a layer with 1,000 attributes shows in the panel
 /// within half a second, a filter of one character updates it within a tenth, and scrolling
 /// through it stays as quick, with at most so many rows built. The times are printed.
 @MainActor
@@ -62,4 +63,40 @@ final class ScaleAttributesTests: XCTestCase {
         XCTAssertEqual(panel.titlesInView.last, "Attribute 0.99")
         await panel.close()
     }
+
+    /// About 100 attributes each: one group that both have, others that differ, as two classes
+    /// of view share most of what a view has.
+    private static func groups(_ name: String) -> [AttributeGroup] {
+        var groups = ManyAttributes.groups(4, of: 20)
+        for index in groups.indices where index > 0 {
+            groups[index].id = "\(name)\(index)"
+        }
+        groups[3].attributes.append(contentsOf: ManyAttributes.groups(1, of: 20)[0].attributes.map {
+            var attribute = $0
+            attribute.id = "\(name)-\(attribute.id ?? "")"
+            return attribute
+        })
+        return groups
+    }
+
+    func test_C_SCALE_06_goingFromOneLayerToAnotherTakesUnderTheLimit() async throws {
+        let panel = try await ManyAttributes(groups: Self.groups("a"), others: Self.groups("b"))
+        let first = await panel.select(3)
+        XCTAssertTrue(first)
+        var slowest = Duration.zero
+        for id: UInt64 in [8, 3, 8, 3, 8, 3] {
+            let start = ContinuousClock.now
+            let shown = await panel.select(id)
+            panel.window.layoutIfNeeded()
+            let elapsed = ContinuousClock.now - start
+            XCTAssertTrue(shown)
+            slowest = max(slowest, elapsed)
+            print("C-SCALE-06: layer \(id) shown in \(elapsed)")
+        }
+        XCTAssertLessThanOrEqual(slowest, .milliseconds(Self.switchLimit))
+        await panel.close()
+    }
+
+    /// C-SCALE-06: about four tenths over the slowest measured, the first time, 105 ms.
+    private static let switchLimit = 150
 }

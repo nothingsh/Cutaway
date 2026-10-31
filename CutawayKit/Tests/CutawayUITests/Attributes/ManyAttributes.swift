@@ -33,12 +33,21 @@ final class ManyAttributes {
         }
     }
 
-    init(groups: [AttributeGroup], editing: MockResponder.Editing = .refuse) async throws {
+    /// `others` are what layer 8 has, for going from one layer to another (C-SCALE-06).
+    init(
+        groups: [AttributeGroup], others: [AttributeGroup]? = nil,
+        editing: MockResponder.Editing = .refuse
+    ) async throws {
         var responder = try MockResponder.demo()
         responder.editing = editing
         var detail = try XCTUnwrap(responder.details[3])
         detail.attributeGroups = groups
         responder.details[3] = detail
+        if let others {
+            var detail = try XCTUnwrap(responder.details[8])
+            detail.attributeGroups = others
+            responder.details[8] = detail
+        }
         let server = try await MockServer.start(
             script: MockScript(steps: try MockScript.fixtures("handshake").steps + [.respond(responder)]))
         let channel = try await ConnectionChannel.connect(
@@ -77,10 +86,10 @@ final class ManyAttributes {
         controller.lazyParts.reduce(0) { $0 + $1.pagesNotBuilt(in: visible, of: document) }
     }
 
-    /// Selects layer 3 and waits until what is in view is built.
+    /// Selects the layer and waits until what is in view is built.
     @discardableResult
-    func select() async -> Bool {
-        model.select(3)
+    func select(_ id: UInt64 = 3) async -> Bool {
+        model.select(id)
         return await Wait.untilOnMain(within: .seconds(20)) {
             window.layoutIfNeeded()
             return isLoaded && !controller.attributeRows.isEmpty && unbuiltInView == 0
