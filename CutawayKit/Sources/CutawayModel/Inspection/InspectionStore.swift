@@ -228,8 +228,8 @@ public final class InspectionStore {
     var reusesImages = false
     /// The changes the app reported that are not refreshed yet (C-LIVE-02).
     var reportedChanges = ReportedChanges()
-    /// What holds automatic refreshes back now (C-LIVE-03).
-    var autoRefreshHolds: Set<AutoRefreshHold> = []
+    /// Whether the preview is in an expand or collapse transition (C-LIVE-03).
+    var isInTransition = false
     /// What the last `WatchHierarchy` asked for; nil before any.
     var watchSent: Bool?
     /// Requests that turn the telling off and are not answered yet: events still count until then.

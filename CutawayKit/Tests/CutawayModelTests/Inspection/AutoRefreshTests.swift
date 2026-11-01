@@ -336,35 +336,21 @@ final class AutoRefreshTests: XCTestCase {
     }
 
     @MainActor
-    func test_C_LIVE_03_heldRefreshesComeOnceTheLastHoldEnds() async throws {
+    func test_C_LIVE_03_eventsDuringATransitionMakeOneRefreshAfterIt() async throws {
         let (model, server, session) = try await inspect(try MockResponder.demo())
         _ = await Self.watching(server)
         let before = await Self.treeRequests(server).count
-        model.holdAutoRefresh(.editing, true)
-        model.holdAutoRefresh(.measuring, true)
+        model.setInTransition(true)
         try await server.sendEvent(Self.roots(3))
         try await server.sendEvent(Self.roots(6))
         try await Task.sleep(for: .milliseconds(150))
-        var count = await Self.treeRequests(server).count
+        let count = await Self.treeRequests(server).count
         XCTAssertEqual(count, before, "held")
-        model.holdAutoRefresh(.editing, false)
-        try await Task.sleep(for: .milliseconds(100))
-        count = await Self.treeRequests(server).count
-        XCTAssertEqual(count, before, "still measuring")
-        model.holdAutoRefresh(.measuring, false)
+        model.setInTransition(false)
         let came = await Wait.until { await Self.treeRequests(server).count == before + 2 }
         XCTAssertTrue(came)
         let after = await Self.treeRequests(server).dropFirst(before)
         XCTAssertEqual(Set(after), [3, 6])
-
-        model.holdAutoRefresh(.transition, true)
-        try await server.sendEvent(Self.roots(8))
-        try await Task.sleep(for: .milliseconds(100))
-        count = await Self.treeRequests(server).count
-        XCTAssertEqual(count, before + 2)
-        model.holdAutoRefresh(.transition, false)
-        let transition = await Wait.until { await Self.treeRequests(server).count == before + 3 }
-        XCTAssertTrue(transition)
         await session.close()
         await server.stop()
     }
