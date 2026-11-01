@@ -53,6 +53,26 @@ final class ProjectIndexTests: XCTestCase {
         XCTAssertFalse(strings.contains { $0.key == "bundle.key" })
     }
 
+    /// The one bundle whose string tables are read; nothing else in it is.
+    func test_C_SRC_02_stringsInSettingsBundleAreIndexed() async throws {
+        let builder = try sample()
+        try builder.write("Shop/Settings.bundle/en.lproj/Root.strings", #""settings.title" = "Sync";"#)
+        try builder.write("Shop/Settings.bundle/Root.strings", #""settings.plain" = "Plain";"#)
+        try builder.write("Shop/Settings.bundle/InSettings.swift", "class InSettings {}")
+
+        let indexer = ProjectIndexer(root: builder.root)
+        let index = try await indexer.build().0
+        XCTAssertFalse(names(index).contains("InSettings"))
+        let strings = await indexer.strings()
+        let found = strings.filter { $0.key.hasPrefix("settings.") }
+            .map { "\($0.table) \($0.language ?? "-") \($0.value) \($0.file)" }
+            .sorted()
+        XCTAssertEqual(found, [
+            "Root - Plain Shop/Settings.bundle/Root.strings",
+            "Root en Sync Shop/Settings.bundle/en.lproj/Root.strings",
+        ])
+    }
+
     func test_C_SRC_02_symbolicLinksAreNotFollowed() async throws {
         let builder = try sample()
         let elsewhere = try ProjectBuilder(name: "Elsewhere")

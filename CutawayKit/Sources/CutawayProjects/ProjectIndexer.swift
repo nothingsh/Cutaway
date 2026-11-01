@@ -42,6 +42,8 @@ actor ProjectIndexer {
     ]
     /// Folders left out by their extension: built code and resources, not the app's sources.
     static let skippedPackages: Set<String> = ["framework", "xcframework", "bundle"]
+    /// The one bundle that is read, for its string tables only.
+    static let settingsBundle = "Settings.bundle"
 
     /// The folder itself could not be listed: gone, or no longer readable.
     struct FolderUnreadable: Error {}
@@ -164,7 +166,7 @@ actor ProjectIndexer {
 
     /// What a folder is, for what the files in it are.
     private enum Place {
-        case sources, assetCatalog, colorSet
+        case sources, assetCatalog, colorSet, settingsBundle
     }
 
     private struct Candidate {
@@ -238,8 +240,11 @@ actor ProjectIndexer {
         guard !name.hasPrefix("."), !skippedFolders.contains(name) else { return nil }
         switch place {
         case .sources:
+            if name == settingsBundle { return .settingsBundle }
             guard !skippedPackages.contains(`extension`) else { return nil }
             return `extension` == "xcassets" ? .assetCatalog : .sources
+        case .settingsBundle:
+            return .settingsBundle
         case .assetCatalog:
             // A group may provide a namespace; image sets and the like hold no colours.
             if `extension` == "colorset" { return .colorSet }
@@ -258,16 +263,22 @@ actor ProjectIndexer {
             case "swift": return .swift
             case "h", "m", "mm": return .objectiveC
             case "xcstrings": return .catalog
-            case "strings":
-                let parent = folder.url.lastPathComponent
-                return .strings(language: parent.hasSuffix(".lproj") ? String(parent.dropLast(6)) : nil)
+            case "strings": return strings(in: folder.url)
             default: return nil
             }
+        case .settingsBundle:
+            return `extension` == "strings" ? strings(in: folder.url) : nil
         case .assetCatalog:
             return name == "Contents.json" ? .namespace : nil
         case .colorSet:
             return name == "Contents.json" ? .colorSet : nil
         }
+    }
+
+    /// A string table, in the language of the `.lproj` folder it is in.
+    private static func strings(in folder: URL) -> Kind {
+        let parent = folder.lastPathComponent
+        return .strings(language: parent.hasSuffix(".lproj") ? String(parent.dropLast(6)) : nil)
     }
 
     // MARK: - Reading
