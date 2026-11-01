@@ -34,7 +34,8 @@ enum SiteVideo {
             AVVideoCodecKey: AVVideoCodecType.h264,
             AVVideoWidthKey: width,
             AVVideoHeightKey: height,
-            AVVideoScalingModeKey: AVVideoScalingModeResizeAspect,
+            // Fill: the size is rounded to even numbers, and fitting would add black lines at the edges.
+            AVVideoScalingModeKey: AVVideoScalingModeResizeAspectFill,
             AVVideoCompressionPropertiesKey: [
                 AVVideoAverageBitRateKey: bitsPerSecond,
                 AVVideoProfileLevelKey: AVVideoProfileLevelH264HighAutoLevel,
