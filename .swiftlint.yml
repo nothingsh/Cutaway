@@ -10,6 +10,7 @@ excluded:
   - BaselineCandidates
   - .build
   - .tools
+  - .claude
 
 disabled_rules:
   - todo
