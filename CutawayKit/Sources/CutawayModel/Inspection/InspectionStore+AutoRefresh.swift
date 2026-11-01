@@ -53,8 +53,16 @@ extension InspectionStore {
         }
     }
 
+    /// The user moved the switch: as `setAutoRefresh`, and told, so that the window can say what
+    /// the switch does.
+    public func chooseAutoRefresh(_ on: Bool) {
+        guard takesIntents, on != autoRefresh else { return }
+        setAutoRefresh(on)
+        autoRefreshChosenSubject.send(on)
+    }
+
     public func toggleAutoRefresh() {
-        setAutoRefresh(!autoRefresh)
+        chooseAutoRefresh(!autoRefresh)
     }
 
     /// Asks the app to tell of changes when the switch is on, the app can, the first tree is

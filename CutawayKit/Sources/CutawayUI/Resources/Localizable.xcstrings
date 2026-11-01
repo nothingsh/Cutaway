@@ -10753,6 +10753,76 @@
         }
       }
     },
+    "preview.autoRefresh.hint.off" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Auto Refresh is off. Press ⌘R to refresh."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自动刷新已关闭，按 ⌘R 手动刷新"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自動重新整理已關閉，按 ⌘R 手動重新整理"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自動更新はオフです。⌘R で更新できます"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "자동 새로 고침이 꺼졌습니다. ⌘R을 눌러 새로 고침하세요"
+          }
+        }
+      }
+    },
+    "preview.autoRefresh.hint.on" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Auto Refresh is on. Updates when the app’s layers change."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自动刷新已打开，App 的图层变化时自动更新"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自動重新整理已開啟，App 的圖層變化時自動更新"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自動更新はオンです。App のレイヤーが変わると更新します"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "자동 새로 고침이 켜졌습니다. 앱의 레이어가 바뀌면 업데이트합니다"
+          }
+        }
+      }
+    },
     "preview.autoRefresh.needsNewerServer" : {
       "extractionState" : "manual",
       "localizations" : {

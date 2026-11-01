@@ -11,21 +11,27 @@ import Foundation
 /// panels out.
 @MainActor
 final class PreviewPaneViewModel {
-    /// The notice's symbol: the app is not active, or something could not be loaded.
+    /// The notice's symbol: the app is not active, something could not be loaded, or the user
+    /// just turned auto refresh on or off.
     enum NoticeSymbol: Equatable {
         case notActive
         case failed
+        case autoRefresh
 
         var name: String {
             switch self {
             case .notActive: Theme.Symbol.notActive
             case .failed: Theme.Symbol.screenshotsFailed
+            case .autoRefresh: Theme.Symbol.autoRefresh
             }
         }
     }
 
     let store: InspectionStore
     let appName: String
+    /// What the user just turned auto refresh to, while that is told in place of the notice
+    /// (C-LIVE-01); nil otherwise.
+    let autoRefreshHint = CurrentValueSubject<Bool?, Never>(nil)
 
     /// False once the connection is gone (C-WIN-03).
     var isConnected: AnyPublisher<Bool, Never> {
@@ -51,17 +57,20 @@ final class PreviewPaneViewModel {
     // MARK: - The notice
 
     var notice: AnyPublisher<String?, Never> {
-        Publishers.CombineLatest(store.$notice, isConnected)
-            .map { [appName] notice, isConnected in
-                isConnected ? PreviewPaneText.noticeText(notice, appName: appName) : nil
+        Publishers.CombineLatest3(store.$notice, autoRefreshHint, isConnected)
+            .map { [appName] notice, hint, isConnected in
+                guard isConnected else { return nil }
+                return hint.map(PreviewPaneText.autoRefreshHint)
+                    ?? PreviewPaneText.noticeText(notice, appName: appName)
             }
             .removeDuplicates()
             .eraseToAnyPublisher()
     }
 
     var noticeSymbol: AnyPublisher<NoticeSymbol, Never> {
-        store.$notice
-            .map { notice -> NoticeSymbol in
+        store.$notice.combineLatest(autoRefreshHint)
+            .map { notice, hint -> NoticeSymbol in
+                if hint != nil { return .autoRefresh }
                 switch notice {
                 case .appNotActive: return .notActive
                 case .screenshotsFailed, .layersFailed, .layerGone, nil: return .failed

@@ -137,6 +137,11 @@ public final class InspectionStore {
         imagesChangedSubject.eraseToAnyPublisher()
     }
 
+    /// What the user turned automatic refreshing to, each time they do (C-LIVE-01).
+    public var autoRefreshChosen: AnyPublisher<Bool, Never> {
+        autoRefreshChosenSubject.eraseToAnyPublisher()
+    }
+
     /// The pixels of images just taken in, by the keys they are held under, sent right before
     /// `imagesChanged` names their layers. Nothing keeps them: whoever wants them takes them
     /// now.
@@ -203,6 +208,7 @@ public final class InspectionStore {
     let saver = ArchiveSaver()
     let arrivingPixelsSubject = PassthroughSubject<[TextureKey: Bitmap], Never>()
     let imagesChangedSubject = PassthroughSubject<[UInt64], Never>()
+    let autoRefreshChosenSubject = PassthroughSubject<Bool, Never>()
     private var attributesState: AnyCancellable?
     /// The selected layer's constraints while they are held, and what the pointer is on
     /// among them (C-LAYOUT-04): what `constraintEnds` is made from.

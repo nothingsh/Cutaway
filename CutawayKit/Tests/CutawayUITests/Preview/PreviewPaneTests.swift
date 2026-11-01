@@ -92,4 +92,34 @@ final class PreviewPaneTests: XCTestCase {
         XCTAssertEqual(model.camera, .standard3D, "the camera no longer moves")
         withExtendedLifetime(window) {}
     }
+
+    @MainActor
+    func test_C_LIVE_01_choosingTheSwitchSaysWhatItDoesForAMoment() async throws {
+        let model = InspectionStore(
+            session: Session(channel: InertChannel(), client: Self.client), newLayers: .expanded)
+        let (controller, window) = container(model)
+        controller.autoRefreshHintDuration = .milliseconds(50)
+        let notice = try label(PreviewPaneViewController.noticeIdentifier, in: controller)
+        XCTAssertEqual(notice.stringValue, "")
+
+        model.setAutoRefresh(false)
+        XCTAssertEqual(notice.stringValue, "", "not when an earlier connection's setting is taken over")
+
+        model.chooseAutoRefresh(true)
+        let on = notice.stringValue
+        XCTAssertNotEqual(on, "")
+        let gone = await Wait.untilOnMain { notice.stringValue.isEmpty }
+        XCTAssertTrue(gone)
+
+        // The notice it stood in for comes back.
+        model.notice = .appNotActive
+        let waiting = notice.stringValue
+        model.toggleAutoRefresh()
+        XCTAssertFalse(model.autoRefresh)
+        XCTAssertNotEqual(notice.stringValue, waiting, "the menu item says it too")
+        XCTAssertNotEqual(notice.stringValue, on)
+        let back = await Wait.untilOnMain { notice.stringValue == waiting }
+        XCTAssertTrue(back)
+        withExtendedLifetime(window) {}
+    }
 }

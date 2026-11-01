@@ -58,6 +58,9 @@ final class PreviewPaneViewController: NSViewController {
     private weak var controlsPanel: NSView?
     /// Follows the toolbar's height.
     private var layoutRectObservation: NSKeyValueObservation?
+    /// How long the hint of the auto refresh switch stays.
+    var autoRefreshHintDuration: Duration = .seconds(3)
+    private var autoRefreshHintDismissal: Task<Void, Never>?
 
     /// `project` is the way to the app's project folder (C-SRC-03), nil for none.
     init(store: InspectionStore, appName: String, project: ProjectLookup? = nil) {
@@ -148,10 +151,24 @@ final class PreviewPaneViewController: NSViewController {
         ])
         placeFailures(failures, under: noticePanel, or: disconnectedPanel, in: root)
         view = root
+        store.autoRefreshChosen
+            .sink { [weak self] on in self?.tellAutoRefresh(on) }
+            .store(in: &cancellables)
         // The tags name the selected and the hovered layer on the preview (C-PREV-16).
         viewModel.tags
             .sink { [weak self] tags in self?.previewController.preview?.tags = tags }
             .store(in: &cancellables)
+    }
+
+    /// Says for a moment what the switch just turned means, which a tooltip tells only to
+    /// whoever waits for it (C-LIVE-01).
+    private func tellAutoRefresh(_ on: Bool) {
+        autoRefreshHintDismissal?.cancel()
+        viewModel.autoRefreshHint.send(on)
+        autoRefreshHintDismissal = Task { [weak self, autoRefreshHintDuration] in
+            guard (try? await Task.sleep(for: autoRefreshHintDuration)) != nil else { return }
+            self?.viewModel.autoRefreshHint.send(nil)
+        }
     }
 
     /// The failures go under whichever of the notice and the lost connection shows.
@@ -185,6 +202,7 @@ final class PreviewPaneViewController: NSViewController {
                     switch symbol {
                     case .notActive: return Self.tinted(symbol.name, .systemOrange)
                     case .failed: return Self.tinted(symbol.name, .systemYellow)
+                    case .autoRefresh: return Self.tinted(symbol.name, .controlAccentColor)
                     }
                 })
                 .frame(width: 16, height: 16)
@@ -318,7 +336,7 @@ final class PreviewPaneViewController: NSViewController {
                 }
             }
             .sink(\.statePublisher) { [weak store] state in
-                store?.setAutoRefresh(state == .on)
+                store?.chooseAutoRefresh(state == .on)
             }
     }
 
