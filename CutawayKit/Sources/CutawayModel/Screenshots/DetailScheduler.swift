@@ -42,6 +42,8 @@ struct DetailScheduler: Sendable {
 
     private var round: UInt64 = 0
     private var needs: [TextureNeed] = []
+    /// What goes before everything else (C-DET-14); among `needs` too.
+    private var firstNeeds: [TextureNeed] = []
     private var kindByLayer: [UInt64: TextureKey.Kind] = [:]
     private var visible: [UInt64] = []
     private var receivedIn: [TextureNeed: UInt64] = [:]
@@ -70,11 +72,15 @@ struct DetailScheduler: Sendable {
         cursor = 0
     }
 
-    /// What the display needs now, as `SceneLayout.neededTextures` gives it.
-    mutating func setNeeds(_ needs: [TextureNeed]) {
+    /// What the display needs now, as `SceneLayout.neededTextures` gives it, and `first`, which
+    /// is asked for before it whether the display draws it or not.
+    mutating func setNeeds(_ display: [TextureNeed], first: [TextureNeed] = []) {
+        let ahead = Set(first)
+        let needs = first + display.filter { !ahead.contains($0) }
         self.needs = needs
+        firstNeeds = first
         kindByLayer = Dictionary(
-            needs.map { ($0.layerID, $0.kind) }, uniquingKeysWith: { first, _ in first })
+            display.map { ($0.layerID, $0.kind) }, uniquingKeysWith: { first, _ in first })
         neededCount = Dictionary(needs.map { ($0, 1) }, uniquingKeysWith: +)
         settledCount = 0
         for need in needs where isSettled(need) { settledCount += 1 }
@@ -103,6 +109,10 @@ struct DetailScheduler: Sendable {
             return chosen.count < batchSize
         }
         search: do {
+            // In `seen` only after the rest: a window's other image goes in the same request.
+            for need in firstNeeds where !seen.contains(need.layerID) && !isSettled(need) {
+                chosen.append(need)
+            }
             for need in inView where !consider(need) { break search }
             for need in needs[cursor...] where !consider(need) { break search }
         }
@@ -142,8 +152,7 @@ struct DetailScheduler: Sendable {
     /// that is still needed and it did not come, that kind failed this round.
     mutating func answered(_ layerID: UInt64) {
         for batch in inFlight {
-            guard let asked = batch.needs.first(where: { $0.layerID == layerID }) else { continue }
-            failIfStillDue(asked)
+            for asked in batch.needs where asked.layerID == layerID { failIfStillDue(asked) }
         }
     }
 
@@ -180,9 +189,11 @@ struct DetailScheduler: Sendable {
         receivedIn[need] == round || failedIn[need] == round
     }
 
-    /// Fails a kind that was asked for, if the display still needs that kind of that layer.
+    /// Fails a kind that was asked for, if that kind of that layer is still needed.
     private mutating func failIfStillDue(_ asked: TextureNeed) {
-        guard kindByLayer[asked.layerID] == asked.kind, !isSettled(asked) else { return }
+        guard kindByLayer[asked.layerID] == asked.kind || firstNeeds.contains(asked),
+              !isSettled(asked)
+        else { return }
         settle(asked) { $0.failedIn[asked] = $0.round }
     }
 }

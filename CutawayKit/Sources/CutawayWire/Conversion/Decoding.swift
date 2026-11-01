@@ -196,7 +196,8 @@ extension EncodedImage {
         self.init(
             encoding: ImageEncoding(wire.encoding), pixelWidth: wire.pixelWidth,
             pixelHeight: wire.pixelHeight, bytesPerRow: wire.bytesPerRow, scale: wire.scale,
-            data: data ?? Data(), digest: checkedDigest(Array(wire.digest)))
+            data: data ?? Data(), digest: checkedDigest(Array(wire.digest)),
+            composited: wire.composited)
     }
 }
 

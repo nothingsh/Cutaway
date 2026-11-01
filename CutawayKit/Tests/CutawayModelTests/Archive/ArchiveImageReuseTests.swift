@@ -104,8 +104,10 @@ final class ArchiveImageReuseTests: XCTestCase {
         await server.stop()
     }
 
-    private static func saved(over version: Version, to destination: URL) async throws -> ArchiveDecoder {
-        let server = try await ArchiveCaptureTests.server(try MockResponder.demo())
+    private static func saved(
+        over version: Version, to destination: URL, responder: MockResponder? = nil
+    ) async throws -> ArchiveDecoder {
+        let server = try await ArchiveCaptureTests.server(try responder ?? MockResponder.demo())
         let session = try await ArchiveCaptureTests.session(to: server, protocolVersion: version)
         try await ArchiveCapture.run(
             from: session, to: destination,
@@ -133,6 +135,26 @@ final class ArchiveImageReuseTests: XCTestCase {
                 XCTAssertNil(model.knownDigest(for: TextureNeed(layerID: id, kind: kind)))
             }
         }
+    }
+
+    @MainActor
+    func test_C_DET_14_anOpenedArchiveDrawsTheWindowsPictureItHolds() async throws {
+        var responder = try MockResponder.demo()
+        var image = EncodedImage.solid(pixelWidth: 4, pixelHeight: 4, bgra: 0xFFF2_F2F2)
+        image.digest = Data([1, 2, 3, 4])
+        image.composited = true
+        responder.details[1]?.group = .full(image)
+        let archive = try await Self.saved(
+            over: ProtocolVersion.current, to: destination, responder: responder)
+        let model = InspectionStore(
+            source: ArchiveSource(decoder: archive), maxTextureDimension: 4096, newLayers: .expanded,
+            start: InspectionStart().drawingWindowPictures)
+        model.rowsWait = .zero
+        model.enter()
+        let done = await Self.roundDone(model)
+        XCTAssertTrue(done)
+        let drawn = await Wait.untilOnMain { model.layout.usesWindowPictures }
+        XCTAssertTrue(drawn)
     }
 
     @MainActor

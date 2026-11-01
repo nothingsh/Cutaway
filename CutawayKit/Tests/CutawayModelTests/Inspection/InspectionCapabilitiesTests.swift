@@ -23,7 +23,7 @@ final class InspectionCapabilitiesTests: XCTestCase {
             current,
             InspectionCapabilities(
                 canRefreshSubtrees: true, canEditAttributes: true, canOverrideEnvironment: true,
-                canReuseImages: true, canWatchHierarchy: true))
+                canReuseImages: true, canWatchHierarchy: true, asksWindowGroups: true))
 
         let older = try await capabilities(try MockScript.fixtures("handshake").asProtocol11())
         XCTAssertEqual(
@@ -35,7 +35,9 @@ final class InspectionCapabilitiesTests: XCTestCase {
         XCTAssertEqual(negotiated, ProtocolVersion.current)
         let offline = await archive.capabilities
         XCTAssertEqual(
-            offline, InspectionCapabilities(canRefreshSubtrees: false, canEditAttributes: false),
+            offline,
+            InspectionCapabilities(
+                canRefreshSubtrees: false, canEditAttributes: false, asksWindowGroups: true),
             "an archive can only be looked at, whatever its version")
     }
 }

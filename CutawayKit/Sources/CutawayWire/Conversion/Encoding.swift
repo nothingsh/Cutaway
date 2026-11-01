@@ -194,6 +194,7 @@ extension EncodedImage {
         object.data = [UInt8](data)
         // The object API writes an absent digest as an empty vector; a reader takes it as none.
         object.digest = digest.map { [UInt8]($0) } ?? []
+        object.composited = composited
         return object
     }
 }

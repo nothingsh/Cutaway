@@ -109,6 +109,9 @@ public struct InspectionStart: Equatable, Sendable {
     public var autoRefresh = true
     /// Whether a refresh marks what it changed (C-LIVE-05).
     public var highlightsChanges = true
+    /// Whether each window's `group` is asked for, to be its picture in 2D (C-SCENE-14,
+    /// C-DET-14). Not a setting: the app turns it on for every inspection.
+    public var drawsWindowPictures = false
 
     public init() {}
 
@@ -124,6 +127,13 @@ public struct InspectionStart: Equatable, Sendable {
         self.showsConstraintEnds = showsConstraintEnds
         self.autoRefresh = autoRefresh
         self.highlightsChanges = highlightsChanges
+    }
+
+    /// This start, drawing windows as their pictures.
+    public var drawingWindowPictures: Self {
+        var start = self
+        start.drawsWindowPictures = true
+        return start
     }
 
     /// The cameras the inspection starts with, and that Reset View goes back to (C-PREV-07).
