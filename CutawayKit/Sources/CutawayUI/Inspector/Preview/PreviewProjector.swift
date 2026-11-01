@@ -204,7 +204,8 @@ final class PreviewProjector {
     func follow(_ layout: SceneLayout) {
         if let moving = layoutTransition, let retargeted = moving.transition.retargeted(to: layout) {
             layoutTransition = (retargeted, moving.start)
-        } else if animates, clock != nil, layout.expandsOtherNodes(than: self.layout),
+        } else if animates, clock != nil, !(mode == .twoD && layout.usesWindowPictures),
+                  layout.expandsOtherNodes(than: self.layout),
                   let transition = SceneTransition(
                       from: layoutTransition.map { $0.transition.presentation(at: progress(since: $0.start)) }
                           ?? self.layout.presentation,

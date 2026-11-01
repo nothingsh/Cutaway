@@ -15,10 +15,13 @@ public struct EncodedImage: Equatable, Sendable {
     /// Identifies the image's content on this connection (P-IMG-04). Nil when absent (a 1.2
     /// peer, the app icon) or not 1 to 32 bytes. Protocol 1.3.
     public var digest: Data?
+    /// Whether this `group` is taken from what the app composited, not drawn layer by layer
+    /// (P-IMG-07). Protocol 1.3.
+    public var composited: Bool
 
     public init(
         encoding: ImageEncoding, pixelWidth: UInt32, pixelHeight: UInt32, bytesPerRow: UInt32,
-        scale: Float, data: Data, digest: Data? = nil
+        scale: Float, data: Data, digest: Data? = nil, composited: Bool = false
     ) {
         self.encoding = encoding
         self.pixelWidth = pixelWidth
@@ -27,6 +30,7 @@ public struct EncodedImage: Equatable, Sendable {
         self.scale = scale
         self.data = data
         self.digest = digest
+        self.composited = composited
     }
 }
 

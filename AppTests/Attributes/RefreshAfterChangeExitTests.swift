@@ -80,12 +80,12 @@ final class RefreshAfterChangeExitTests: XCTestCase {
         let subtree = try XCTUnwrap(kinds.firstIndex(of: .getSubtree))
         XCTAssertLessThan(set, subtree, "the window is taken after the change")
         XCTAssertEqual(frames[subtree].body, .getSubtree(GetSubtree(rootID: 1)))
-        // The label's group, and layer 6, which moved; nothing else.
+        // The window's group (C-DET-14), the label's, and layer 6, which moved; nothing else.
         let requests = await Self.detailRequests(server)
         let screenshots = requests.dropFirst(2).filter {
             !($0.requests.first?.wantAttributes ?? true)
         }
-        XCTAssertEqual(screenshots.map { $0.requests.map(\.layerID) }, [[3, 6]])
+        XCTAssertEqual(screenshots.map { $0.requests.map(\.layerID) }, [[1, 3, 6]])
         let mismatches = await server.mismatches
         XCTAssertEqual(mismatches, [])
     }

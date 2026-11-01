@@ -119,14 +119,7 @@ final class ScreenshotFetcher {
         else { return false }
         batchesStarted += 1
         let request = GetLayerDetails(
-            requests: batch.needs.map { need in
-                let digest = delegate.knownDigest(for: need)
-                return LayerDetailRequest(
-                    layerID: need.layerID, wantSolo: need.kind == .solo,
-                    wantGroup: need.kind == .group, wantAttributes: false,
-                    knownSoloDigest: need.kind == .solo ? digest : nil,
-                    knownGroupDigest: need.kind == .group ? digest : nil)
-            },
+            requests: Self.requests(for: batch.needs, knownDigest: delegate.knownDigest(for:)),
             maxTextureDimension: maxTextureDimension)
         let task = Task { [weak self, source] in
             // Cancelled before it ran: nothing was sent, so there is nothing to cancel, and
@@ -156,6 +149,33 @@ final class ScreenshotFetcher {
         }
         fetches.append(Fetch(batch: batch.id, generation: delegate.activeGeneration, task: task))
         return true
+    }
+
+    /// One request a layer, in the order of `needs`: a window is asked for both its images at
+    /// once (C-DET-14).
+    private static func requests(
+        for needs: [TextureNeed], knownDigest: (TextureNeed) -> Data?
+    ) -> [LayerDetailRequest] {
+        var requests: [LayerDetailRequest] = []
+        var indexByLayer: [UInt64: Int] = [:]
+        for need in needs {
+            let index = indexByLayer[need.layerID] ?? requests.count
+            if index == requests.count {
+                indexByLayer[need.layerID] = index
+                requests.append(LayerDetailRequest(
+                    layerID: need.layerID, wantSolo: false, wantGroup: false, wantAttributes: false))
+            }
+            let digest = knownDigest(need)
+            switch need.kind {
+            case .solo:
+                requests[index].wantSolo = true
+                requests[index].knownSoloDigest = digest
+            case .group:
+                requests[index].wantGroup = true
+                requests[index].knownGroupDigest = digest
+            }
+        }
+        return requests
     }
 
     /// The decompression to use for a chunk of this batch; nil once the batch was cancelled or

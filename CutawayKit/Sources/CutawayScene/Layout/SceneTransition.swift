@@ -11,7 +11,7 @@ public struct ScenePresentation: Sendable {
 extension SceneLayout {
     /// The layout standing still.
     public var presentation: ScenePresentation {
-        ScenePresentation(layout: self, placements: drawOrder.map(placement(of:)), stage: stage)
+        ScenePresentation(layout: self, placements: drawOrder.map { placement(of: $0) }, stage: stage)
     }
 
     /// The layer's parent among the layers, as the layout took it: a parent that does not

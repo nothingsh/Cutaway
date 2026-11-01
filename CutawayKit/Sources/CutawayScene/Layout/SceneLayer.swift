@@ -78,10 +78,15 @@ public struct TextureKey: Hashable, Sendable {
 public struct LayerTextures: Equatable, Sendable {
     public var solo: TextureKey?
     public var group: TextureKey?
+    /// Whether `group` is taken from what the app composited (C-SCENE-14).
+    public var groupIsComposited: Bool
 
-    public init(solo: TextureKey? = nil, group: TextureKey? = nil) {
+    public init(
+        solo: TextureKey? = nil, group: TextureKey? = nil, groupIsComposited: Bool = false
+    ) {
         self.solo = solo
         self.group = group
+        self.groupIsComposited = groupIsComposited
     }
 }
 
