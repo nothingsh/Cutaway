@@ -2,7 +2,7 @@
 // them in the page's language.
 
 const en = {
-  pill: ['New', '1.2: environment overrides, virtual nodes, Open in Xcode →'],
+  pill: ['New', '1.3: auto refresh, marks for what changed, windows as the app drew them →'],
   title: 'Inspect iOS interfaces, layer by layer.',
   lead: 'Cutaway is a free Mac app that looks inside your running iOS app: every layer of the interface in 2D or spread apart in 3D, with its attributes and Auto Layout constraints. Change a value, and the app changes with it.',
   download: 'Download for macOS',
@@ -141,7 +141,7 @@ const en = {
       {
         title: 'Cutaway Protocol',
         text: 'The FlatBuffers protocol between them: a numbered specification, the schema, and fixtures for testing either end.',
-        meta: 'MIT · version 1.2',
+        meta: 'MIT · version 1.3',
         links: [
           { text: 'Protocol', link: '/protocol/' },
           { text: 'GitHub', href: 'https://github.com/nothingsh/CutawayProtocol' }
@@ -158,7 +158,7 @@ const en = {
 export type HomeText = typeof en
 
 const zh: HomeText = {
-  pill: ['新', '1.2：改写环境、虚拟节点、在 Xcode 中打开 →'],
+  pill: ['新', '1.3：自动刷新、标出变化、按 App 合成的样子显示窗口 →'],
   title: '逐层查看 iOS 界面。',
   lead: 'Cutaway 是一个免费的 Mac App，让你看到正在运行的 iOS App 内部：界面的每一个图层，以 2D 平铺或在 3D 中分层展开，连同它的属性和 Auto Layout 约束。改一个值，App 随之改变。',
   download: '下载 macOS 版',
@@ -297,7 +297,7 @@ const zh: HomeText = {
       {
         title: 'Cutaway Protocol',
         text: '两者之间的 FlatBuffers 协议：带编号的规范、schema，以及用来测试任何一端的夹具。',
-        meta: 'MIT · 版本 1.2',
+        meta: 'MIT · 版本 1.3',
         links: [
           { text: '协议', link: '/protocol/' },
           { text: 'GitHub', href: 'https://github.com/nothingsh/CutawayProtocol' }

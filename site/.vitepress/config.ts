@@ -5,7 +5,7 @@ const origin = 'https://nothingsh.github.io'
 const base = '/Cutaway/'
 const repository = 'https://github.com/nothingsh/Cutaway'
 // The release the site describes. The download links and the pages' version notes read it.
-const version = '1.2.0'
+const version = '1.3.0'
 
 const guide = [
   {
