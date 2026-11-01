@@ -11,8 +11,8 @@ packages:
 settings:
   base:
     SWIFT_VERSION: "6.0"
-    MARKETING_VERSION: "1.2.0"
-    CURRENT_PROJECT_VERSION: "3"
+    MARKETING_VERSION: "1.3.0"
+    CURRENT_PROJECT_VERSION: "4"
     # Signed ad hoc, here and in the releases (scripts/release.sh): Cutaway is not signed with a
     # Developer ID and not notarised.
     CODE_SIGN_STYLE: Manual
