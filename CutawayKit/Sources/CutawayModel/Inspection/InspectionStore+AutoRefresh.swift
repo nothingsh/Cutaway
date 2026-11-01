@@ -1,16 +1,5 @@
 import CutawayWire
 
-/// Why automatic refreshes wait (C-LIVE-03). Saving an archive holds them too, which the
-/// inspection knows of itself.
-public enum AutoRefreshHold: Hashable, Sendable {
-    /// An attribute's field has the focus and input not yet sent.
-    case editing
-    /// The preview is in the middle of an expand or collapse transition (C-PREV-12).
-    case transition
-    /// ⌥ is held to measure (C-PREV-10).
-    case measuring
-}
-
 /// The changes the app reported that no load has covered yet (C-LIVE-02, C-LIVE-03).
 struct ReportedChanges: Equatable {
     var roots: Set<UInt64> = []
@@ -100,21 +89,20 @@ extension InspectionStore {
         refreshAutomaticallyIfDue()
     }
 
-    /// Holds automatic refreshes back, or lets them go (C-LIVE-03). Changes reported meanwhile
-    /// make one refresh once nothing holds.
-    public func holdAutoRefresh(_ hold: AutoRefreshHold, _ held: Bool) {
-        if held {
-            autoRefreshHolds.insert(hold)
-        } else if autoRefreshHolds.remove(hold) != nil {
-            refreshAutomaticallyIfDue()
-        }
+    /// An expand or collapse transition of the preview (C-PREV-12) started or ended: automatic
+    /// refreshes wait for it, as they do for an archive being saved (C-LIVE-03). Changes
+    /// reported meanwhile make one refresh after it.
+    public func setInTransition(_ inTransition: Bool) {
+        guard inTransition != isInTransition else { return }
+        isInTransition = inTransition
+        refreshAutomaticallyIfDue()
     }
 
     /// Makes the reported changes one refresh, unless something holds it back or another load
     /// is on its way or waits: those end by asking again.
     func refreshAutomaticallyIfDue() {
         guard !reportedChanges.isEmpty, isOpen, takesIntents, loadState == .loaded,
-              !isSavingArchive, autoRefreshHolds.isEmpty, !loader.isLoading, loader.hasNothingQueued
+              !isSavingArchive, !isInTransition, !loader.isLoading, loader.hasNothingQueued
         else { return }
         let roots = reportedChanges.refresh(in: tree)
         reportedChanges = ReportedChanges()

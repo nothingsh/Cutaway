@@ -188,36 +188,6 @@ public final class InspectorWindowController: NSWindowController {
             }
             .store(in: &cancellables)
         environment.follow()
-        holdAutoRefreshWhileTyping()
-    }
-
-    /// Automatic refreshes wait while a value typed into the attribute panel is not yet sent
-    /// (C-LIVE-03). A text view tells when the first key changes it and when its editing ends,
-    /// also as its field leaves the window; by then the field may no longer be in one.
-    private func holdAutoRefreshWhileTyping() {
-        let center = NotificationCenter.default
-        for (name, held) in [
-            (NSText.didBeginEditingNotification, true), (NSText.didEndEditingNotification, false),
-        ] {
-            center.publisher(for: name)
-                .sink { [weak self] notification in
-                    MainActor.assumeIsolated {
-                        guard let self, let text = notification.object as? NSView,
-                              Self.isAttributeEditor(text),
-                              text.window === self.window || (!held && text.window == nil)
-                        else { return }
-                        self.store.holdAutoRefresh(.editing, held)
-                    }
-                }
-                .store(in: &cancellables)
-        }
-    }
-
-    /// Whether `view` is the text of an attribute's field or text area.
-    private static func isAttributeEditor(_ view: NSView) -> Bool {
-        sequence(first: view, next: \.superview).contains {
-            $0 is AttributeEditField || $0 is AttributeTextArea
-        }
     }
 
     /// Whether this window shows an archive rather than an app (C-ARCH-05).
