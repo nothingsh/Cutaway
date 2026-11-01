@@ -82,6 +82,9 @@ final class AttributesViewController: NSViewController {
     private var listedLayerID: UInt64?
     private var selectedLayerID: UInt64?
     private var pendingLoading: DispatchWorkItem?
+    private let heldInput: AnyPublisher<Bool, Never>
+    private var isHeld = false
+    private var heldState: AttributesStore.State?
     let list = VScroll(alignment: .fill, spacing: 0) {}
     /// The sections, each after a line that shows when a section above it does.
     private let sections = VStack(alignment: .fill, spacing: 0) {}
@@ -135,6 +138,7 @@ final class AttributesViewController: NSViewController {
         self.actions = actions
         self.loadingDelay = loadingDelay
         projectIndex = inputs.projectIndex
+        heldInput = inputs.isHeld
         identityView = IdentityLinesView(copy: actions.copy, openInXcode: actions.openInXcode)
         super.init(nibName: nil, bundle: nil)
     }
@@ -317,6 +321,10 @@ final class AttributesViewController: NSViewController {
         viewModel.state
             .sink { [weak self] state in self?.show(state) }
             .store(in: &cancellables)
+        heldInput
+            .removeDuplicates()
+            .sink { [weak self] held in self?.setHeld(held) }
+            .store(in: &cancellables)
 
         // The names of the constraints' ends follow the tree. After the state: the first list
         // is built once, knowing whether it can edit.
@@ -374,9 +382,23 @@ final class AttributesViewController: NSViewController {
 
     // MARK: - What is shown
 
+    /// Whether what the store publishes waits, and the latest of it: what is on screen stays
+    /// meanwhile.
+    private func setHeld(_ held: Bool) {
+        isHeld = held
+        if !held, let state = heldState {
+            heldState = nil
+            show(state)
+        }
+    }
+
     /// Shows what the store published. The list is rebuilt only when the groups change, and
     /// then from the top.
     private func show(_ state: AttributesStore.State) {
+        guard !isHeld else {
+            heldState = state
+            return
+        }
         pendingLoading?.cancel()
         pendingLoading = nil
         if case .loading = state, loadingDelay > 0 {

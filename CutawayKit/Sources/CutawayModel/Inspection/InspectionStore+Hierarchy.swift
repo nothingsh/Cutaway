@@ -32,8 +32,12 @@ extension InspectionStore {
         let (change, state) = transition { $0.setExpanded(ids, expanded, in: tree) }
         guard change.contains(.expansion) else { return }
         announceExpansion()
+        let movesSelection = takesIntents && state.selection != selectedLayerID
+        if movesSelection { holdsAttributesPanel = true }
         if takesIntents { setSelection(state.selection) }
         rebuildLayout()
+        // The preview said whether a transition started: the panel waits for it, if so.
+        if movesSelection, !isInTransition { holdsAttributesPanel = false }
         if takesIntents { fetchNext() }
     }
 

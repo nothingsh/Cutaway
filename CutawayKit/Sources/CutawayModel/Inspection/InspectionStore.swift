@@ -89,6 +89,9 @@ public final class InspectionStore {
     /// connection is gone it stays where it was (`setExpanded(_:_:)`). Changed only by
     /// `setSelection(_:)`, which the attributes follow.
     @StoreState public private(set) var selectedLayerID: UInt64?
+    /// Whether the attribute panel waits to show the selection: a collapse moved it, and
+    /// building the panel then would take the frames of the transition (C-PREV-12).
+    @StoreState public internal(set) var holdsAttributesPanel = false
 
     /// The attributes of the selected layer (C-ATTR-01).
     public let attributes: AttributesStore
