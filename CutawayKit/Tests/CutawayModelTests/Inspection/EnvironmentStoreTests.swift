@@ -136,8 +136,12 @@ final class EnvironmentStoreTests: XCTestCase {
         model.setEnvironment(.userInterfaceStyle, to: .userInterfaceStyle(.dark))
         XCTAssertEqual(model.environment.controls?.shown.userInterfaceStyle, .dark, "shown at once")
         XCTAssertEqual(model.environment.controls?.isSending, true)
+        // The first round of screenshots may still be under way: wait for those of the tree
+        // taken again.
         let screenshots = await Wait.until {
-            await Self.kinds(server).dropFirst(before).contains(.getLayerDetails)
+            let after = await Self.kinds(server).dropFirst(before)
+            guard let tree = after.firstIndex(of: .getHierarchy) else { return false }
+            return after[tree...].contains(.getLayerDetails)
         }
         XCTAssertTrue(screenshots)
 
