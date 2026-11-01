@@ -57,7 +57,7 @@ final class ArchiveOpener {
         }
         let inspection = InspectionStore(
             source: archive.source, maxTextureDimension: maxTextureDimension,
-            start: settings.inspectionStart, text: .interface)
+            start: settings.inspectionStart.drawingWindowPictures, text: .interface)
         let controller = InspectorWindowController(
             archive: archive, store: inspection, paneWidths: paneWidths, projects: projects)
         controller.onClose = { [weak self, weak controller] in

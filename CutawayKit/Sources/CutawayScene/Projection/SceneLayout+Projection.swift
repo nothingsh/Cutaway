@@ -80,7 +80,8 @@ extension SceneLayout {
     ) -> DrawList {
         guard let stage, viewport.width > 0, viewport.height > 0 else { return .empty }
         let projector = Projector(lens: lens, stage: stage)
-        let placements = drawOrder.map(placement(of:))
+        let pictures = lens.facesSquareOn ? Set(windowPictures) : []
+        let placements = drawOrder.map { placement(of: $0, pictures: pictures) }
         let backToFront = projector.levelOrder(topLevel: levelRanges.count - 1).flatMap {
             levelRanges[$0]
         }
@@ -92,11 +93,14 @@ extension SceneLayout {
     }
 
     /// A drawn layer as it stands in this layout.
-    func placement(of index: Int) -> Placement {
+    func placement(of index: Int, pictures: Set<Int> = []) -> Placement {
         let entry = entries[index]
+        // In a window shown as its picture, the layers add nothing to it (C-SCENE-14).
+        let texture = pictures.contains(entry.window)
+            ? (entry.window == index ? images[index].group : nil) : texture(at: index)
         return Placement(
             id: entry.layer.id, quad: entry.quad, level: Double(entry.level),
-            texture: texture(at: index), kind: Self.neededKind(for: entry),
+            texture: texture, kind: Self.neededKind(for: entry),
             opacity: entry.isGhost ? entry.opacityIfShown : entry.opacity,
             isGhost: entry.isGhost, content: entry.layer.content, index: index)
     }

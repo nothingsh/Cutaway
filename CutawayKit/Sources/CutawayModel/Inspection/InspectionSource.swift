@@ -19,16 +19,21 @@ public struct InspectionCapabilities: Equatable, Sendable {
     public var canReuseImages: Bool
     /// `WatchHierarchy` and its events: only an app, and from protocol 1.3 on (C-LIVE-01).
     public var canWatchHierarchy: Bool
+    /// Asking for each window's `group`, which may be the picture of the window: from protocol
+    /// 1.3 on, of an archive too (C-DET-14).
+    public var asksWindowGroups: Bool
 
     public init(
         canRefreshSubtrees: Bool, canEditAttributes: Bool, canOverrideEnvironment: Bool = false,
-        canReuseImages: Bool = false, canWatchHierarchy: Bool = false
+        canReuseImages: Bool = false, canWatchHierarchy: Bool = false,
+        asksWindowGroups: Bool = false
     ) {
         self.canRefreshSubtrees = canRefreshSubtrees
         self.canEditAttributes = canEditAttributes
         self.canOverrideEnvironment = canOverrideEnvironment
         self.canReuseImages = canReuseImages
         self.canWatchHierarchy = canWatchHierarchy
+        self.asksWindowGroups = asksWindowGroups
     }
 
     /// The capabilities of an app that negotiated `version`, or of an archive, which can only
@@ -39,6 +44,7 @@ public struct InspectionCapabilities: Equatable, Sendable {
         canOverrideEnvironment = isLive && version.minor >= 2
         canReuseImages = isLive && version.minor >= 3
         canWatchHierarchy = isLive && version.minor >= 3
+        asksWindowGroups = version.minor >= 3
     }
 }
 

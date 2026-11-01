@@ -48,7 +48,8 @@ public struct LayerImages: Equatable, Sendable {
     public func textures(layerID: UInt64) -> LayerTextures {
         LayerTextures(
             solo: solo.map { TextureKey(layerID: layerID, kind: .solo, revision: $0.revision) },
-            group: group.map { TextureKey(layerID: layerID, kind: .group, revision: $0.revision) })
+            group: group.map { TextureKey(layerID: layerID, kind: .group, revision: $0.revision) },
+            groupIsComposited: group?.image.composited ?? false)
     }
 
     /// The image a key names, when it is held under that key's revision.

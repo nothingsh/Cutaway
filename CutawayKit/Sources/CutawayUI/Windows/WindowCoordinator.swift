@@ -77,7 +77,7 @@ public final class WindowCoordinator: NSObject {
             .removeDuplicates()
             .sink { applyAppearance($0.nsAppearance) }
             .store(in: &cancellables)
-        store.inspectionStart = { current.inspectionStart }
+        store.inspectionStart = { current.inspectionStart.drawingWindowPictures }
         // Unlike the rest of the Preview page, marking what refreshes change follows the
         // setting in the open window at once; a window has no switch of its own.
         current.$highlightsChanges

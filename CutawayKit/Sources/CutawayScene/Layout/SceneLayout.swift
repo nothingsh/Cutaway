@@ -30,6 +30,8 @@ public struct SceneLayout: Sendable {
         /// collapsed node it is inside of otherwise. Nil when it or an ancestor is hidden, and
         /// for a layer outside the focus.
         var standIn: Int?
+        /// The root of its window: itself for a root.
+        var window: Int
         /// Meaningful for displayed layers.
         var level: Int
         var opacity: Double
@@ -52,6 +54,9 @@ public struct SceneLayout: Sendable {
     let displayed: [Int]
     /// The displayed layers that have an area, by level, then in the order of the wire.
     let drawOrder: [Int]
+    /// The roots among `drawOrder`: the windows, each of which may have a picture of its own
+    /// (C-SCENE-14).
+    let windows: [Int]
     /// Where each level's layers are in `drawOrder`, by level.
     let levelRanges: [Range<Int>]
     /// The box around every displayed layer that has an area, in window coordinates. Nil when
@@ -143,7 +148,7 @@ public struct SceneLayout: Sendable {
                 isDisplayed: isDisplayed, isHidden: isHidden, isInFocus: isInFocus,
                 isGhost: showsHidden && (isHidden || opacity == 0),
                 isExpanded: expanded.contains(layer.id), hasChildren: hasChildren[index],
-                standIn: standIn, level: 0, opacity: opacity,
+                standIn: standIn, window: parentEntry?.window ?? index, level: 0, opacity: opacity,
                 opacityIfShown: opacityIfShown)
             entry.layer.solo = nil
             entry.layer.group = nil
@@ -161,6 +166,7 @@ public struct SceneLayout: Sendable {
         }
         let levelRanges = Self.levelRanges(of: drawOrder, in: entries)
         self.drawOrder = drawOrder
+        self.windows = drawOrder.filter { entries[$0].window == $0 }
         self.levelRanges = levelRanges
         self.expanded = expanded
         self.focus = focus
@@ -252,7 +258,31 @@ public struct SceneLayout: Sendable {
         for index in drawOrder {
             if let texture = texture(at: index) { textures.insert(texture) }
         }
+        for window in windowPictures {
+            if let group = images[window].group { textures.insert(group) }
+        }
         return textures
+    }
+
+    /// The groups of the windows, each the picture of its window once it comes composited
+    /// (C-DET-14). They are asked for besides the images the layers are drawn with.
+    public var windowGroupNeeds: [TextureNeed] {
+        windows.compactMap { window in
+            let layer = entries[window].layer
+            return layer.capturesImage ? TextureNeed(layerID: layer.id, kind: .group) : nil
+        }
+    }
+
+    /// The windows drawn as the picture the app composited, seen square on (C-SCENE-14). The
+    /// focus and hidden layers show what the picture does not.
+    var windowPictures: [Int] {
+        guard focus == nil, !showsHidden else { return [] }
+        return windows.filter { images[$0].groupIsComposited && images[$0].group != nil }
+    }
+
+    /// Whether a window is drawn as a picture in 2D: collapsing a node there changes nothing.
+    public var usesWindowPictures: Bool {
+        !windowPictures.isEmpty
     }
 
     /// The same layout with other images. Positions, levels and the draw order do not depend

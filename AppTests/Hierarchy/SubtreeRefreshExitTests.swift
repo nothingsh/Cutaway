@@ -74,13 +74,13 @@ final class SubtreeRefreshExitTests: XCTestCase {
             [.getSubtree(GetSubtree(rootID: 4))])
         let requests = await Self.detailRequests(server)
         XCTAssertEqual(requests.count, 4)
-        // After the subtree: CardView's image again, and its attributes; nothing else. It
-        // starts collapsed (C-HIER-09), so the image is the group.
+        // After the subtree: CardView's image again, and its attributes; and the window's group,
+        // which shows it (C-DET-14). It starts collapsed (C-HIER-09), so the image is the group.
         let after = requests.suffix(2).flatMap(\.requests)
         XCTAssertEqual(
             Set(after.map { [$0.layerID, $0.wantSolo ? 1 : 0, $0.wantGroup ? 1 : 0,
                              $0.wantAttributes ? 1 : 0] }),
-            [[4, 0, 1, 0], [4, 0, 0, 1]])
+            [[4, 0, 1, 0], [1, 0, 1, 0], [4, 0, 0, 1]])
         let mismatches = await server.mismatches
         XCTAssertEqual(mismatches, [])
     }

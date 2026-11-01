@@ -235,6 +235,15 @@ public final class InspectionStore {
     /// Whether requests give the digests of the images held (C-DET-12). Set once the
     /// capabilities are known; nothing is held before then.
     var reusesImages = false
+    /// Whether each window's `group` is asked for too (C-DET-14). Set with `reusesImages`.
+    var asksWindowGroups = false {
+        didSet {
+            guard asksWindowGroups != oldValue else { return }
+            updateNeeds()
+            fetchNext()
+        }
+    }
+
     /// The changes the app reported that are not refreshed yet (C-LIVE-02).
     var reportedChanges = ReportedChanges()
     /// Whether the preview is in an expand or collapse transition (C-LIVE-03).
@@ -335,6 +344,8 @@ public final class InspectionStore {
             guard let capabilities = await source.capabilities else { return }
             self?.canRefreshSubtrees = capabilities.canRefreshSubtrees
             self?.reusesImages = capabilities.canReuseImages
+            self?.asksWindowGroups =
+                capabilities.asksWindowGroups && self?.start.drawsWindowPictures == true
             self?.canAutoRefresh = capabilities.canWatchHierarchy
             self?.startWatchingIfDue()
             self?.attributes.setCapabilities(capabilities)
@@ -492,6 +503,12 @@ public final class InspectionStore {
             layers: tree.sceneLayers(), expanded: expansion.expandedIDs, focus: focusedLayerID,
             showsHidden: showsHiddenLayers, keepingLevelsOf: geometry)
         geometryBuildCount += 1
-        fetcher.scheduler.setNeeds(geometry.neededTextures)
+        updateNeeds()
+    }
+
+    /// Tells the scheduler what the layout needs, the windows' groups first.
+    private func updateNeeds() {
+        fetcher.scheduler.setNeeds(
+            geometry.neededTextures, first: asksWindowGroups ? geometry.windowGroupNeeds : [])
     }
 }

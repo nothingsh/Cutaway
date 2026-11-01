@@ -109,7 +109,9 @@ final class Protocol13DecodingTests: XCTestCase {
                     let digest = try XCTUnwrap(image.digest, "\(scenario) \(detail.layerID) \(kind)")
                     XCTAssertTrue((1...32).contains(digest.count))
                     // The same picture has the same digest in every scenario (README).
+                    // A composited one is another picture, whatever its pixels (P-IMG-04).
                     let picture = "\(image.pixelWidth)×\(image.pixelHeight) \(try pixels(image))"
+                        + (image.composited ? " composited" : "")
                     digests[picture, default: []].insert(digest)
                 }
             }
@@ -246,5 +248,27 @@ final class Protocol13DecodingTests: XCTestCase {
         XCTAssertEqual(try digest([1]), Data([1]))
         XCTAssertEqual(try digest([UInt8](repeating: 2, count: 32)), Data(repeating: 2, count: 32))
         XCTAssertNil(try digest([UInt8](repeating: 3, count: 33)))
+    }
+
+    // MARK: - Composited images (P-IMG-07)
+
+    private func compositedChunk(_ file: String) throws -> LayerDetailsChunk {
+        guard case .layerDetailsChunk(let chunk) = try decode("layer-details-composited", file).body
+        else { throw UnexpectedBody() }
+        return chunk
+    }
+
+    func test_C_WIRE_13_aCompositedGroupSaysSoAndAnUnchangedImageDoesNot() throws {
+        let first = try full(try compositedChunk("02-s2c-chunk-0.bin").details[0].group)
+        XCTAssertTrue(first.composited)
+        let digest = try XCTUnwrap(first.digest)
+
+        guard case .unchanged(digest) = try compositedChunk("05-s2c-chunk-0.bin").details[0].group
+        else { throw NotFull() }
+
+        let again = try full(try compositedChunk("08-s2c-chunk-0.bin").details[0].group)
+        XCTAssertFalse(again.composited)
+        XCTAssertNotEqual(again.digest, digest, "the same pixels, not composited")
+        XCTAssertEqual(try again.decoded().pixels, try first.decoded().pixels)
     }
 }
