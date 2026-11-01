@@ -468,16 +468,20 @@ final class AutoRefreshTests: XCTestCase {
     }
 
     @MainActor
-    func test_C_LIVE_04_withNotificationsOnTheEnvironmentsRefreshDoesNotWait() async throws {
+    func test_C_LIVE_04_withNotificationsOnTheEnvironmentsRefreshStillWaitsForTheAppToRedraw() async throws {
         var responder = try MockResponder.demo()
         responder.environment = MockEnvironment.iPhone()
         let (model, server, session) = try await inspect(responder)
         _ = await Self.watching(server)
-        model.environmentSettleDelay = .seconds(5)
+        model.environmentSettleDelay = .milliseconds(500)
         let before = await Self.treeRequests(server).count
         model.setEnvironment(.userInterfaceStyle, to: .userInterfaceStyle(.dark))
+        // A change of what layers draw alone comes as no event (P-WATCH-07, P-WATCH-09).
+        try await Task.sleep(for: .milliseconds(200))
+        let early = await Self.treeRequests(server).count
+        XCTAssertEqual(early, before, "the app has not redrawn yet")
         let came = await Wait.until(within: .seconds(2)) { await Self.treeRequests(server).count > before }
-        XCTAssertTrue(came, "not after the 5 seconds")
+        XCTAssertTrue(came)
         let after = await Self.treeRequests(server).last
         XCTAssertEqual(after, .some(nil), "the whole tree")
         await session.close()

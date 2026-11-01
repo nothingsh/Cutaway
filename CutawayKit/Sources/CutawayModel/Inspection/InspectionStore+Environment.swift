@@ -57,9 +57,9 @@ extension InspectionStore: EnvironmentControllerDelegate {
             fetchNext()
             return
         }
-        // Told of changes, what the app redraws late comes as an event after the tree
-        // (P-WATCH-02), so nothing is waited for.
-        let delay = watchIsOn ? .zero : environmentSettleDelay
+        // Also when told of changes: what layers draw may change with no event for it
+        // (P-WATCH-07, P-WATCH-09).
+        let delay = environmentSettleDelay
         guard delay > .zero else {
             endChange()
             self.refresh()
