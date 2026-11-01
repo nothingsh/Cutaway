@@ -36,7 +36,7 @@ and add the CutawayServer library to your app target.
 
 ```swift [In Package.swift]
 dependencies: [
-    .package(url: "https://github.com/nothingsh/CutawayServer", from: "1.2.0")
+    .package(url: "https://github.com/nothingsh/CutawayServer", from: "1.3.0")
 ]
 // …and add the product "CutawayServer" to your target's dependencies.
 ```

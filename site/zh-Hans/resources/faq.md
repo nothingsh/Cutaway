@@ -39,17 +39,17 @@ App 进入后台时，Cutaway 会说明，等它回来后继续。如果连接�
 
 ## 看到的内容 {#what-you-see}
 
-### 为什么模糊效果、视频或 Metal 视图是空白的？ {#why-is-a-blur-video-or-metal-view-blank}
+### 为什么模糊效果、视频或 Metal 视图是空白的或与屏幕不同？ {#why-is-a-blur-video-or-metal-view-blank-or-different}
 
-这些内容由系统的渲染服务在 App 的进程之外合成，所以 CutawayServer 无法从图层树把它画出来。见[限制](/zh-Hans/integrate/limitations)。
+这些内容由系统的渲染服务在 App 的进程之外合成。使用 CutawayServer 1.3 时，预览在 2D 和折叠的图层上显示它们；图层自己的图（3D 下展开的图层显示的就是它）从图层树绘制，没有这些内容。视频和 Metal 仍可能是空白的。见[限制](/zh-Hans/integrate/limitations)。
 
-### 为什么栏的标题在截图里是白色，在屏幕上是黑色？ {#why-is-a-bar-title-white-in-the-screenshot-but-black-on-screen}
+### 为什么栏的标题在截图里是白色，在屏幕上是黑色？ {#why-is-a-bar-title-white-in-a-screenshot-but-black-on-screen}
 
-在 iOS 26 上，导航栏、工具栏和标签栏里的文字与图标以一种单一的颜色绘制（常常是白色），由父图层上的滤镜在渲染服务合成屏幕时给出它们在屏幕上的颜色。截图显示的是每个图层自己的内容，在那个滤镜之前。`textColor` 等属性显示的仍是 App 设置的颜色。
+在 iOS 26 上，导航栏、工具栏和标签栏里的文字与图标以一种单一的颜色绘制（常常是白色），由父图层上的滤镜在渲染服务合成屏幕时给出它们在屏幕上的颜色。图层自己的图显示的是滤镜之前的内容；把栏折叠起来，或在 2D 下看，就是屏幕上的颜色。`textColor` 等属性显示的仍是 App 设置的颜色。
 
 ### 预览显示的是旧画面。 {#the-preview-shows-an-old-picture}
 
-Cutaway 显示的是请求时 App 的样子。按 <kbd>⌘R</kbd> 重新请求整棵树和每一张截图，或按 <kbd>⇧⌘R</kbd> 只请求所选的子树。见[刷新](/zh-Hans/guide/preview#refresh)。
+Cutaway 显示的是请求时 App 的样子。使用 CutawayServer 1.3 时，App 报告变化后它会自己刷新，但只改了图层画的内容时不一定会报告。按 <kbd>⌘R</kbd> 重新请求整棵树和每一张截图，或按 <kbd>⇧⌘R</kbd> 只请求所选的子树。见[刷新](/zh-Hans/guide/preview#refresh)。
 
 ### 我改了环境，但有些图层还是原来的样子。 {#i-changed-the-environment-but-some-layers-still-look-the-old-way}
 

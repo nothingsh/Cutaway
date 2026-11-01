@@ -1,6 +1,6 @@
 ---
 title: Specification
-description: The normative text of the Cutaway Protocol 1.2, clause by clause.
+description: The normative text of the Cutaway Protocol 1.3, clause by clause.
 outline: [2, 2]
 ---
 

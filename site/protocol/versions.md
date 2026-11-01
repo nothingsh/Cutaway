@@ -13,10 +13,21 @@ The protocol version is `MAJOR.MINOR`; releases of the protocol repository are t
 | 1.0.0 | 1.0.0 | 1.0 |
 | 1.1.0 | 1.1.0 | 1.1 |
 | 1.2.0 | 1.2.0 | 1.2 |
+| 1.3.0 | 1.3.0 | 1.3 |
 
 **Any 1.x Cutaway works with any 1.x CutawayServer.** When their minor versions differ, both work at the lower one: Cutaway 1.2 with CutawayServer 1.1 speaks protocol 1.1, and so does Cutaway 1.1 with CutawayServer 1.2. You get what the older side knows.
 
 A 0.x release and a 1.x release cannot work together: 1.0 was a major version, and the handshake fails by design.
+
+## What needs 1.3 on both sides
+
+These arrived with protocol 1.3. They appear only when both Cutaway and CutawayServer are 1.3 or later:
+
+| Feature | Where it shows |
+|---|---|
+| Auto refresh | The button beside the borders menu, **View › Auto Refresh** |
+| Unchanged images are not sent again | Refreshes take less time |
+| A window’s picture as the app composited it | The preview in 2D |
 
 ## What needs 1.2 on both sides
 

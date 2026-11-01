@@ -55,7 +55,7 @@ Virtual nodes are outlined with a dashed line, and views the app leaves out of i
 - **Point** at a layer to highlight it, and its row in the list.
 - **Double-click** a layer to expand or collapse its row.
 
-Some content is blank in the preview: blurs, video and Metal are drawn by the system outside the app, so they are not in the screenshots. See [Limitations](/integrate/limitations).
+In 2D the preview shows the window as the app composited it, with its blurs, Liquid Glass and color filters, however the list is expanded. <Badge type="info" text="Needs CutawayServer 1.3" /> In 3D, with a focus and with hidden layers shown, each layer is drawn from its own image, where such effects can be missing or look different. See [Limitations](/integrate/limitations).
 
 ## Refresh
 
@@ -65,6 +65,20 @@ The preview shows the app as it was when Cutaway asked. To ask again:
 - **View › Refresh Selected Subtree** (<kbd>⇧⌘R</kbd>), or **Refresh Subtree** in a row’s context menu, loads only that layer and its descendants, with their screenshots.
 
 An archive can’t be refreshed: it keeps what the app looked like when it was saved.
+
+### Auto refresh <Badge type="info" text="Needs CutawayServer 1.3" />
+
+With auto refresh on, the app tells Cutaway when its layers change, and Cutaway takes the changed part again by itself. It is on by default. Turn it off with the button beside the borders menu or **View › Auto Refresh**; **Settings › Preview** sets how new inspections start.
+
+It waits while an archive is saved and while the preview goes through an expand or collapse. Typing a value or measuring doesn’t hold it back. What you typed stays in its field, unless the selected layer goes away or its attributes change shape; then it’s lost, so turn auto refresh off if you’d rather not be interrupted. A change that only alters what a layer draws may not be reported, so press <kbd>⌘R</kbd> if the preview looks out of date.
+
+### What changed
+
+After a refresh, new layers are marked green and changed ones yellow, in the list and the preview, and the marks fade in about a second and a half. A change inside a collapsed row marks the nearest row you can see. The toolbar says how many layers went. A layer whose picture changed but whose position and fields did not is not marked.
+
+Turn the marks off in **Settings › Preview**.
+
+<Shot name="guide-preview-changes" alt="After a refresh in 3D: new layers tinted green in the layer list and the preview, and the toolbar saying 86 layers were removed." />
 
 ## Next
 

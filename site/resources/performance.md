@@ -21,12 +21,14 @@ The limits are measured against a generated, app-shaped tree of 10,000 layers (w
 | Expand all / collapse all | 1 s |
 | Opening an archive of the tree → the list is on screen | 2 s |
 
-Two more limits cover layers with many attributes:
+More limits cover attributes and refreshing:
 
 | Operation | Limit |
 |---|---|
 | Selecting a layer with 1,000 attributes → the inspector shows them | 0.5 s |
 | Filtering those attributes by one more character | 0.1 s |
+| Going from one layer of about 100 attributes to another | 0.15 s |
+| A refresh of 5,000 layers where no image changed, against the first load | half |
 
 Every full test run on the development Mac checks these limits, along with the memory tests below. The CI runners are slower virtual Macs and skip those tests.
 
@@ -34,7 +36,8 @@ Every full test run on the development Mac checks these limits, along with the m
 
 - **Screenshots stay compressed.** The model keeps only the compressed bytes it received. They are decompressed off the main thread, uploaded to the GPU, and the pixels are let go.
 - **Screenshots arrive in batches.** Cutaway asks for screenshots 32 layers at a time, with two batches in flight, so the work after each batch is paid once per batch rather than once per layer.
-- **Long attribute lists are built as you scroll.** Rows are made as they come into view, so a layer with a thousand attributes shows at once.
+- **Attribute lists are built as you scroll.** Only the rows near what you see are made, for any layer of more than 30 items, so going to another layer stays quick and a layer with a thousand attributes shows at once.
+- **Images that have not changed are not sent again.** On a refresh Cutaway gives the digest of each image it holds, and the app answers “unchanged” where it can.
 - **The preview draws only on change.** No frame is submitted while nothing moves.
 - **Reading keeps pace with drawing.** When screenshots arrive faster than they are used, Cutaway stops reading from the connection, and TCP tells the app to wait. Nothing piles up in memory.
 - **Nothing accumulates.** The suite repeats every operation ten times over 5,000 layers and checks that no screenshot, texture, request or window is left behind. A longer soak run prints the memory curve over a hundred rounds.

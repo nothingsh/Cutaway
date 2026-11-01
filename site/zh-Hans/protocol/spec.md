@@ -1,6 +1,6 @@
 ---
 title: 规范
-description: Cutaway Protocol 1.2 的规范性原文，逐条列出。
+description: Cutaway Protocol 1.3 的规范性原文，逐条列出。
 outline: [2, 2]
 ---
 

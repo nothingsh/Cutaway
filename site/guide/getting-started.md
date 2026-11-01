@@ -15,7 +15,7 @@ From download to your app’s layers in 3D. You need a Mac with macOS 14 or late
 
 <div class="facts">
   <Badge type="info" text="About 10 minutes" />
-  <Badge type="info" :text="`Cutaway ${cutaway.version} · CutawayServer 1.2`" />
+  <Badge type="info" :text="`Cutaway ${cutaway.version} · CutawayServer 1.3`" />
 </div>
 
 <div class="steps">
@@ -52,7 +52,7 @@ and add the CutawayServer library to your app target.
 
 ```swift [In Package.swift]
 dependencies: [
-    .package(url: "https://github.com/nothingsh/CutawayServer", from: "1.2.0")
+    .package(url: "https://github.com/nothingsh/CutawayServer", from: "1.3.0")
 ]
 // …and add the product "CutawayServer" to your app target's dependencies.
 ```

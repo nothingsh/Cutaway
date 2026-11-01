@@ -28,7 +28,7 @@ To use the server in configurations of the second kind, enable the package trait
 ```swift [Package.swift]
 .package(
     url: "https://github.com/nothingsh/CutawayServer",
-    from: "1.2.0",
+    from: "1.3.0",
     traits: ["ReleaseEnabled"]
 )
 ```

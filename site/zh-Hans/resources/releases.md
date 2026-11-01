@@ -6,7 +6,35 @@ description: Cutaway 每个版本的变化，以及下载的链接。
 
 每个版本都在 [GitHub Releases](https://github.com/nothingsh/Cutaway/releases) 上，附有磁盘映像、zip 和它们的 SHA-256 校验和。哪个 Cutaway 能与哪个 CutawayServer 搭配，见[版本与兼容](/zh-Hans/protocol/versions)。
 
-## 1.2.0 <Badge type="tip" text="当前" /> {#_1-2-0}
+## 1.3.0 <Badge type="tip" text="当前" /> {#_1-3-0}
+
+Cutaway 1.3.0 使用协议 1.3。它能与集成了 CutawayServer 1.0 至 1.2 的 App 一起使用；下面标出的功能需要 [CutawayServer 1.3.0](https://github.com/nothingsh/CutawayServer/releases/tag/1.3.0)。
+
+[GitHub 上的 Cutaway 1.3.0](https://github.com/nothingsh/Cutaway/releases/tag/v1.3.0)
+
+**自动刷新**（需要 CutawayServer 1.3）
+
+- App 在图层变化时告诉 Cutaway，Cutaway 自己重新取变化的部分。展开、选中、聚焦和相机都保持不变。
+- 用边框菜单旁的按钮或**显示 › 自动刷新**关掉它；默认值在**设置 › 预览**里。
+- 保存存档时、预览的展开或折叠过渡途中，它会等一等。
+
+**看出刷新改了什么**
+
+- 每次刷新后，新出现的图层标绿色，变了的标黄色，列表和预览里都有，约一秒半后淡去。工具栏写出移除了多少个图层。
+- 可以在**设置 › 预览**里关掉。
+
+**预览更接近 App**（需要 CutawayServer 1.3）
+
+- 2D 下预览显示 App 合成好的窗口，带模糊、Liquid Glass 和颜色滤镜，不管列表怎样展开。
+- 折叠的图层在 3D 下也带这些效果，只是看不到它们背后的内容。
+
+**更快**
+
+- 没有变化的图像不再重新发送，所以什么都没变的刷新只要第一次载入的一小部分时间。（需要 CutawayServer 1.3）
+- 切换图层时只建看得见的属性行，一百个属性的图层大约快四倍。
+- Mac 忙的时候，展开和折叠的动画不再直接跳到终点。
+
+## 1.2.0 {#_1-2-0}
 
 Cutaway 1.2.0 使用协议 1.2。它能与集成了 CutawayServer 1.0 或 1.1 的 App 一起使用；下面标出的功能需要 [CutawayServer 1.2.0](https://github.com/nothingsh/CutawayServer/releases/tag/1.2.0)。
 

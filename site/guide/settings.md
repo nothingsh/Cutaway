@@ -21,10 +21,11 @@ These choose how a **new** inspection starts. Windows already open keep how they
 - **Layer spacing:** the 3D spacing, from 0 to 200 points.
 - **Layers:** Show hidden layers.
 - **Borders:** Off, Plain or By Kind; **Outline only the app’s own classes**; **Mark every constraint’s other end**.
+- **Refresh:** **Refresh when the app’s layers change**; and **Mark what changed after a refresh**, which applies to open windows at once.
 
 You can change all of these in a window at any time; see [The preview](/guide/preview).
 
-<Shot name="guide-settings-preview" alt="The Preview page of Settings: the default mode, layer spacing, hidden layers and borders." />
+<Shot name="guide-settings-preview" alt="The Preview page of Settings: the default mode, layer spacing, hidden layers, borders and the two Refresh checkboxes." />
 
 ## Projects
 
