@@ -80,20 +80,12 @@ extension InspectionStore {
     /// the switch as it is, says nothing, and is not made again until the switch moves.
     private func sendWatch(_ enabled: Bool) {
         watchSent = enabled
-        if !enabled {
-            watchIsOn = false
-            turningWatchOff += 1
-        }
+        if !enabled { turningWatchOff += 1 }
         let previous = watchRequest
         watchRequest = Task { [weak self, source] in
             await previous?.value
-            let on = try? await source.watchHierarchy(enabled)
-            guard let self else { return }
-            if enabled {
-                watchIsOn = on == true && watchSent == true
-            } else {
-                turningWatchOff -= 1
-            }
+            _ = try? await source.watchHierarchy(enabled)
+            if !enabled { self?.turningWatchOff -= 1 }
         }
     }
 

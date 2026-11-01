@@ -232,8 +232,6 @@ public final class InspectionStore {
     var autoRefreshHolds: Set<AutoRefreshHold> = []
     /// What the last `WatchHierarchy` asked for; nil before any.
     var watchSent: Bool?
-    /// Whether the app answered that it tells of changes, and the switch is still on.
-    var watchIsOn = false
     /// Requests that turn the telling off and are not answered yet: events still count until then.
     var turningWatchOff = 0
     /// The last `WatchHierarchy` on its way; the next waits for it.
