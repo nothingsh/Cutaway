@@ -45,7 +45,6 @@ onMounted(() => {
   display: block;
   width: 100%;
   height: auto;
-  aspect-ratio: 16 / 10;
   border-radius: 12px;
   box-shadow: var(--cw-shadow);
   background: var(--cw-soft);
