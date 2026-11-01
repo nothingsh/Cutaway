@@ -34,6 +34,7 @@ App angewendet.
 
 - **Sehen, wie die Oberfläche aufgebaut ist.** Der Layer-Baum jedes Fensters, mit markierten View-Controllern und den Member-Variablen, die jede View halten. [Die Layer-Liste](https://nothingsh.github.io/Cutaway/guide/hierarchy)
 - **In 3D zerlegen.** Ein Screenshot jedes Layers, flach in 2D oder in 3D auseinandergezogen; drehen, zoomen, den Abstand ändern. [Die Vorschau](https://nothingsh.github.io/Cutaway/guide/preview)
+- **Der App folgen.** Die Vorschau aktualisiert sich selbst, wenn sich die Layer der App ändern, und markiert, was sich geändert hat. In 2D zeigt sie das Fenster so, wie die App es zusammengesetzt hat, mit Unschärfe und Liquid Glass. [Aktualisieren](https://nothingsh.github.io/Cutaway/guide/preview#refresh)
 - **Messen.** Halten Sie ⌥ gedrückt und zeigen Sie auf einen anderen Layer, in der Vorschau oder in der Liste, um die Abstände in Punkten zu sehen. [Messen](https://nothingsh.github.io/Cutaway/guide/measuring)
 - **Im laufenden Betrieb ändern.** Bearbeitete Attribute wirken sofort in der laufenden App; ⌘Z macht sie rückgängig. [Attribute](https://nothingsh.github.io/Cutaway/guide/attributes)
 - **Den Constraints folgen.** Jeder Auto-Layout-Constraint einer View, die nicht wirksamen markiert, und ihre anderen Enden. [Constraints](https://nothingsh.github.io/Cutaway/guide/constraints)

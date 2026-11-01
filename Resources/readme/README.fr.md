@@ -34,6 +34,7 @@ d'exécution.
 
 - **Voyez comment l'interface est construite.** L'arbre des calques de chaque fenêtre, avec les contrôleurs de vue et les variables membres qui détiennent chaque vue signalés. [La liste des calques](https://nothingsh.github.io/Cutaway/guide/hierarchy)
 - **Démontez-la en 3D.** Une capture de chaque calque, à plat en 2D ou écartés en 3D ; faites pivoter, zoomez, changez l'espacement. [L'aperçu](https://nothingsh.github.io/Cutaway/guide/preview)
+- **Suivre l’app.** L’aperçu se rafraîchit tout seul quand les calques de l’app changent et marque ce qui a changé. En 2D, il montre la fenêtre telle que l’app l’a composée, avec les flous et Liquid Glass. [Actualiser](https://nothingsh.github.io/Cutaway/guide/preview#refresh)
 - **Mesurez.** Maintenez ⌥ et pointez un autre calque, dans l'aperçu ou dans la liste, pour voir les distances en points. [Mesurer](https://nothingsh.github.io/Cutaway/guide/measuring)
 - **Modifiez-la pendant qu'elle tourne.** Modifiez des attributs : ils s'appliquent aussitôt à l'app en cours d'exécution, et ⌘Z les annule. [Attributs](https://nothingsh.github.io/Cutaway/guide/attributes)
 - **Suivez les contraintes.** Chaque contrainte Auto Layout d'une vue, celles qui ne s'appliquent pas signalées, et leurs autres extrémités. [Contraintes](https://nothingsh.github.io/Cutaway/guide/constraints)

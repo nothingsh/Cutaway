@@ -32,6 +32,7 @@ Cutaway는 실행 중인 iOS 앱의 인터페이스 내부를 들여다보기 �
 
 - **인터페이스가 어떻게 만들어졌는지 봅니다.** 모든 윈도우의 레이어 트리와 함께 뷰 컨트롤러, 각 뷰를 보유한 멤버 변수를 표시합니다. [레이어 목록](https://nothingsh.github.io/Cutaway/guide/hierarchy)
 - **3D로 분해해 봅니다.** 모든 레이어의 스크린샷을 2D로 평평하게, 또는 3D로 떨어뜨려 보여 줍니다. 회전, 확대/축소, 간격 조절이 가능합니다. [미리보기](https://nothingsh.github.io/Cutaway/guide/preview)
+- **앱의 변화를 따라가기.** 앱의 레이어가 바뀌면 미리보기가 저절로 새로 고쳐지고 바뀐 부분을 표시합니다. 2D에서는 앱이 합성한 윈도우를 흐림 효과와 Liquid Glass까지 그대로 보여 줍니다. [새로 고침](https://nothingsh.github.io/Cutaway/guide/preview#refresh)
 - **측정합니다.** ⌥를 누른 채 다른 레이어(미리보기 또는 목록)를 가리키면 포인트 단위의 거리가 보입니다. [측정](https://nothingsh.github.io/Cutaway/guide/measuring)
 - **실행 중에 바꿉니다.** 속성을 편집하면 실행 중인 앱에 바로 적용되고, ⌘Z로 되돌릴 수 있습니다. [속성](https://nothingsh.github.io/Cutaway/guide/attributes)
 - **제약 조건을 따라갑니다.** 뷰의 모든 Auto Layout 제약 조건과 적용되지 않는 것, 그리고 반대쪽 끝을 보여 줍니다. [제약 조건](https://nothingsh.github.io/Cutaway/guide/constraints)
