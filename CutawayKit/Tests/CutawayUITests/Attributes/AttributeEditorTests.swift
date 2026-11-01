@@ -400,6 +400,26 @@ final class AttributeEditorTests: XCTestCase {
         XCTAssertNil(gone)
     }
 
+    /// Counts being told to let the colour panel go.
+    private final class CountingWell: NSColorWell {
+        var deactivations = 0
+        override func deactivate() {
+            deactivations += 1
+            super.deactivate()
+        }
+    }
+
+    @MainActor
+    func test_C_ATTR_07_leavingTheWindowAsksNothingOfAWellThatIsNotActive() {
+        let (editor, _) = editor(nil, kind: .color, acceptsNil: true)
+        let well = CountingWell()
+        editor.colorWell = well
+        let window = inWindow(editor)
+        window.contentView = NSView()
+        XCTAssertEqual(well.deactivations, 0, "it would load the system's colour panel")
+        withExtendedLifetime(window) {}
+    }
+
     /// The colour panel stayed attached to the well of a row that went away with the
     /// selection, and went on changing the layer selected before (found in review).
     @MainActor

@@ -366,6 +366,71 @@ final class PreviewTransitionTests: XCTestCase {
     }
 
     @MainActor
+    func test_C_PREV_12_aStallOnTheWayDoesNotUseTheTransitionUp() throws {
+        let model = try model()
+        model.setPreviewMode(.threeD)
+        let clock = ManualClock()
+        let (controller, preview, window) = try previewInWindow(
+            model, motion: .paced(by: clock, longestStep: 1.0 / 30))
+        let start = preview.drawList
+
+        // Collapsing, then what took the main thread in the attribute panel: a frame comes
+        // only after the whole transition would have gone by.
+        model.setExpanded(2, false)
+        clock.advance(by: 1)
+        XCTAssertTrue(controller.isInTransition, "the rest still shows")
+        XCTAssertNotEqual(preview.drawList, still(model, preview), "it has not jumped to the end")
+        XCTAssertNotEqual(preview.drawList, start, "it goes on")
+
+        for _ in 0..<40 where controller.isInTransition { clock.advance(by: 1.0 / 60) }
+        XCTAssertFalse(controller.isInTransition)
+        XCTAssertEqual(preview.drawList, still(model, preview))
+        withExtendedLifetime(window) {}
+    }
+
+    @MainActor
+    func test_C_PREV_12_theAttributePanelWaitsForACollapseThatMovesTheSelection() throws {
+        let model = try model()
+        model.setPreviewMode(.threeD)
+        model.select(3)
+        let clock = ManualClock()
+        let (controller, _, window) = try previewInWindow(model, motion: .paced(by: clock))
+
+        model.setExpanded(2, false)
+        XCTAssertEqual(model.selectedLayerID, 2)
+        XCTAssertTrue(controller.isInTransition)
+        XCTAssertTrue(model.holdsAttributesPanel)
+        clock.advance(by: PreviewMotion.duration)
+        XCTAssertFalse(model.holdsAttributesPanel)
+
+        // Nothing moves the selection now: nothing waits.
+        model.setExpanded(2, true)
+        XCTAssertFalse(model.holdsAttributesPanel)
+        withExtendedLifetime(window) {}
+    }
+
+    @MainActor
+    func test_C_PREV_12_withoutATransitionThePanelDoesNotWait() throws {
+        let model = try model()
+        model.select(3)
+        model.setExpanded(2, false)
+        XCTAssertEqual(model.selectedLayerID, 2)
+        XCTAssertFalse(model.holdsAttributesPanel)
+    }
+
+    @MainActor
+    func test_C_PREV_11_aStallOnTheWayDoesNotUseTheTurnUp() throws {
+        let model = try model()
+        let clock = ManualClock()
+        let (controller, preview, window) = try previewInWindow(
+            model, motion: .paced(by: clock, longestStep: 1.0 / 30))
+        model.setPreviewMode(.threeD)
+        clock.advance(by: 1)
+        XCTAssertTrue(controller.isInTransition, "the turn goes on")
+        withExtendedLifetime((window, preview)) {}
+    }
+
+    @MainActor
     func test_C_PREV_12_otherChangesOfTheLayoutShowAtOnceAndEndTheTransition() throws {
         let changes: [(String, @MainActor (InspectionStore) throws -> Void)] = [
             ("a focus", { $0.focus(on: 2) }),

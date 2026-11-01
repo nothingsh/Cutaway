@@ -25,6 +25,12 @@ final class PreviewProjector {
 
     /// Paces the transitions; nil for `PreviewMotion.instant`.
     private let clock: (any PreviewClock)?
+    /// The most a frame moves a transition on.
+    private let longestStep: Double
+    /// The time transitions go by: the clock's, without what a frame could not keep up with.
+    private var motionTime = 0.0
+    /// The clock when `motionTime` last moved on.
+    private var lastFrame = 0.0
     /// Asked as each transition would start: true leaves it out.
     private let reducesMotion: @MainActor () -> Bool
     /// Keeps the textures of the images drawn and drops the rest.
@@ -75,11 +81,13 @@ final class PreviewProjector {
     var isInTransition: Bool { lensTransition != nil || layoutTransition != nil }
 
     init(
-        clock: (any PreviewClock)?, reducesMotion: @escaping @MainActor () -> Bool,
+        clock: (any PreviewClock)?, longestStep: Double = .infinity,
+        reducesMotion: @escaping @MainActor () -> Bool,
         keepTextures: @escaping @MainActor (Set<TextureKey>) -> Void,
         show: @escaping @MainActor (_ list: DrawList, _ isInTransition: Bool) -> Void
     ) {
         self.clock = clock
+        self.longestStep = longestStep
         self.reducesMotion = reducesMotion
         self.keepTextures = keepTextures
         self.show = show
@@ -167,8 +175,8 @@ final class PreviewProjector {
 
     /// How far a transition that started at `start` is, eased.
     private func progress(since start: Double) -> Double {
-        guard let clock else { return 1 }
-        return PreviewMotion.eased((clock.now - start) / PreviewMotion.duration)
+        guard clock != nil else { return 1 }
+        return PreviewMotion.eased((motionTime - start) / PreviewMotion.duration)
     }
 
     /// The lens on screen.
@@ -182,8 +190,8 @@ final class PreviewProjector {
     func follow(_ mode: PreviewMode) {
         let from = lens
         self.mode = mode
-        if animates, let clock, from != Lens(cameras[mode]) {
-            lensTransition = (from, clock.now)
+        if animates, clock != nil, from != Lens(cameras[mode]) {
+            lensTransition = (from, motionTime)
             startTicking()
         } else {
             lensTransition = nil
@@ -196,13 +204,13 @@ final class PreviewProjector {
     func follow(_ layout: SceneLayout) {
         if let moving = layoutTransition, let retargeted = moving.transition.retargeted(to: layout) {
             layoutTransition = (retargeted, moving.start)
-        } else if animates, let clock, layout.expandsOtherNodes(than: self.layout),
+        } else if animates, clock != nil, layout.expandsOtherNodes(than: self.layout),
                   let transition = SceneTransition(
                       from: layoutTransition.map { $0.transition.presentation(at: progress(since: $0.start)) }
                           ?? self.layout.presentation,
                       to: layout)
         {
-            layoutTransition = (transition, clock.now)
+            layoutTransition = (transition, motionTime)
             startTicking()
         } else {
             layoutTransition = nil
@@ -249,6 +257,7 @@ final class PreviewProjector {
     private func startTicking() {
         // The clock may have stopped on its own, its view gone: it is started again.
         guard let clock, !clock.isRunning else { return }
+        lastFrame = clock.now
         // A projector let go of in a transition, its preview's `viewDidDisappear` never
         // come, stops the clock with its next frame.
         clock.start { [weak self] in
@@ -267,6 +276,10 @@ final class PreviewProjector {
     /// dropped before the frame, which is then the still picture; with none left, the clock
     /// stops and nothing more is drawn (C-REND-04).
     private func tick() {
+        if let clock {
+            motionTime += min(clock.now - lastFrame, longestStep)
+            lastFrame = clock.now
+        }
         if isFading, changeStrength <= 0 { changes = nil }
         if let turn = lensTransition, progress(since: turn.start) >= 1 { lensTransition = nil }
         if let moving = layoutTransition, progress(since: moving.start) >= 1 {

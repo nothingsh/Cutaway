@@ -69,7 +69,7 @@ final class PreviewViewController: NSViewController {
         let motion = motion
         self.textureLoader = textureLoader
         projector = PreviewProjector(
-            clock: motion.makeClock?(preview),
+            clock: motion.makeClock?(preview), longestStep: motion.longestStep,
             reducesMotion: { [weak preview] in preview.map { motion.reducesMotion($0) } ?? true },
             keepTextures: { drawn in textureLoader.keepDrawnTextures(drawn) },
             show: { [weak preview, weak store] list, isInTransition in
