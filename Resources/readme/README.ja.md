@@ -28,6 +28,7 @@ Cutaway は、実行中の iOS アプリのインターフェースの内部を�
 
 - **インターフェイスの組み立てを見る。** すべてのウインドウのレイヤーツリー。ビューコントローラと、各ビューを保持するメンバー変数が示されます。 [レイヤーリスト](https://nothingsh.github.io/Cutaway/guide/hierarchy)
 - **3D で分解して見る。** すべてのレイヤーのスクリーンショットを 2D で平らに、または 3D で離して表示。回転、ズーム、間隔の調整ができます。 [プレビュー](https://nothingsh.github.io/Cutaway/guide/preview)
+- **アプリの変化を追う。** アプリのレイヤーが変わるとプレビューが自動で更新され、変わった部分に印が付きます。2D ではアプリが合成したウインドウを、ぼかしや Liquid Glass ごと表示します。 [更新](https://nothingsh.github.io/Cutaway/guide/preview#refresh)
 - **計測する。** ⌥ を押したまま別のレイヤー（プレビューまたはリスト）を指すと、ポイント単位の距離が表示されます。 [計測](https://nothingsh.github.io/Cutaway/guide/measuring)
 - **実行中に変更する。** 属性を編集すると、実行中のアプリにすぐ反映されます。⌘Z で取り消せます。 [属性](https://nothingsh.github.io/Cutaway/guide/attributes)
 - **制約をたどる。** ビューのすべての Auto Layout 制約と、有効でないもの、もう一方の端。 [制約](https://nothingsh.github.io/Cutaway/guide/constraints)

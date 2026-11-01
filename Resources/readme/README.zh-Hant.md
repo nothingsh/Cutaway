@@ -32,6 +32,7 @@ Cutaway 是一個用來查看正在執行的 iOS App 介面內部的 macOS App�
 
 - **看清介面是如何建構的。** 每個視窗的圖層樹，標出視圖控制器，以及持有各個視圖的成員變數。 [圖層列表](https://nothingsh.github.io/Cutaway/guide/hierarchy)
 - **在 3D 中拆開來看。** 每個圖層的截圖，平鋪為 2D 或在 3D 中分開展示；可以旋轉、縮放、改變層間距。 [預覽](https://nothingsh.github.io/Cutaway/guide/preview)
+- **跟著 App 變化。** App 的圖層變化時，預覽自動重新整理，並標出變動的地方。2D 下顯示 App 合成好的視窗，帶模糊和 Liquid Glass。 [重新整理](https://nothingsh.github.io/Cutaway/guide/preview#refresh)
 - **測量。** 按住 ⌥ 並指向另一個圖層（在預覽或列表中），就能看到以點為單位的距離。 [測量](https://nothingsh.github.io/Cutaway/guide/measuring)
 - **在執行中修改。** 編輯屬性，修改會立即套用到正在執行的 App；⌘Z 可以還原。 [屬性](https://nothingsh.github.io/Cutaway/guide/attributes)
 - **跟隨約束。** 視圖的每一條 Auto Layout 約束，標出未生效的，以及它們的另一端。 [約束](https://nothingsh.github.io/Cutaway/guide/constraints)
