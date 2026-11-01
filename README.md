@@ -30,6 +30,7 @@ running app.
 
 - **See how the interface is built.** The layer tree of every window, with view controllers and the member variables that hold each view marked. [The layer list](https://nothingsh.github.io/Cutaway/guide/hierarchy)
 - **Take it apart in 3D.** A screenshot of every layer, flat in 2D or spread apart in 3D; turn, zoom and change the spacing. [The preview](https://nothingsh.github.io/Cutaway/guide/preview)
+- **Follow the app.** The preview refreshes by itself when the app’s layers change, and marks what changed. In 2D it shows the window as the app composited it, with blurs and Liquid Glass. [Refresh](https://nothingsh.github.io/Cutaway/guide/preview#refresh)
 - **Measure.** Hold ⌥ and point at another layer, in the preview or in the list, to see the distances in points. [Measuring](https://nothingsh.github.io/Cutaway/guide/measuring)
 - **Change it while it runs.** Edit attributes and they apply in the running app at once; ⌘Z undoes them. [Attributes](https://nothingsh.github.io/Cutaway/guide/attributes)
 - **Follow the constraints.** Every Auto Layout constraint of a view, the ones not in effect marked, and their other ends. [Constraints](https://nothingsh.github.io/Cutaway/guide/constraints)

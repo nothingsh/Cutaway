@@ -33,6 +33,7 @@ hagas en los atributos se aplican a la app en ejecución.
 
 - **Mira cómo está construida la interfaz.** El árbol de capas de cada ventana, con los controladores de vista y las variables miembro que contienen cada vista marcados. [La lista de capas](https://nothingsh.github.io/Cutaway/guide/hierarchy)
 - **Desármala en 3D.** Una captura de cada capa, plana en 2D o separada en 3D; gira, haz zoom y cambia la separación. [La vista previa](https://nothingsh.github.io/Cutaway/guide/preview)
+- **Sigue a la app.** La vista previa se actualiza sola cuando cambian las capas de la app y marca lo que ha cambiado. En 2D muestra la ventana tal como la compuso la app, con desenfoques y Liquid Glass. [Actualizar](https://nothingsh.github.io/Cutaway/guide/preview#refresh)
 - **Mide.** Mantén pulsada ⌥ y señala otra capa, en la vista previa o en la lista, para ver las distancias en puntos. [Medir](https://nothingsh.github.io/Cutaway/guide/measuring)
 - **Cámbiala mientras se ejecuta.** Edita atributos y se aplican al instante en la app en ejecución; ⌘Z los deshace. [Atributos](https://nothingsh.github.io/Cutaway/guide/attributes)
 - **Sigue las restricciones.** Cada restricción de Auto Layout de una vista, con las que no están en vigor marcadas, y sus otros extremos. [Restricciones](https://nothingsh.github.io/Cutaway/guide/constraints)
