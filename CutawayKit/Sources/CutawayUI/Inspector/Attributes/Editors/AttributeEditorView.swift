@@ -144,7 +144,8 @@ final class AttributeEditorView: NSView {
     override func viewWillMove(toWindow newWindow: NSWindow?) {
         super.viewWillMove(toWindow: newWindow)
         hasLeftWindow = newWindow == nil && window != nil
-        if hasLeftWindow { colorWell?.deactivate() }
+        // Only one that is active: asking any other loads the system's colour panel.
+        if hasLeftWindow, colorWell?.isActive == true { colorWell?.deactivate() }
     }
 
     /// Shows a value, keeping what is being typed or dragged. `names` are what a colour is

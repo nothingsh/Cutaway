@@ -103,6 +103,7 @@ extension InspectionStore {
     public func setInTransition(_ inTransition: Bool) {
         guard inTransition != isInTransition else { return }
         isInTransition = inTransition
+        if !inTransition, holdsAttributesPanel { holdsAttributesPanel = false }
         refreshAutomaticallyIfDue()
     }
 

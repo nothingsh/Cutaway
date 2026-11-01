@@ -11,6 +11,8 @@ struct AttributesPanelInputs {
     var layer: AnyPublisher<LayerSummary?, Never> = Just(nil).eraseToAnyPublisher()
     var tree: AnyPublisher<LayerTree, Never> = Just(.empty).eraseToAnyPublisher()
     var connection: AnyPublisher<InspectionStore.Connection, Never> = Just(.live).eraseToAnyPublisher()
+    /// Whether what the store publishes waits to be shown.
+    var isHeld: AnyPublisher<Bool, Never> = Just(false).eraseToAnyPublisher()
     var projectIndex: AnyPublisher<ProjectIndex?, Never> = Just(nil).eraseToAnyPublisher()
 }
 
@@ -42,6 +44,7 @@ extension InspectionStore {
         AttributesPanelInputs(
             layer: project.map { selectedLayerSummary(index: $0.index) } ?? selectedLayerSummary,
             tree: $tree.eraseToAnyPublisher(), connection: $connection.eraseToAnyPublisher(),
+            isHeld: $holdsAttributesPanel.eraseToAnyPublisher(),
             projectIndex: project?.index ?? Just(nil).eraseToAnyPublisher())
     }
 

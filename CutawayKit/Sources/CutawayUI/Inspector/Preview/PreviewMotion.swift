@@ -27,6 +27,9 @@ struct PreviewMotion {
     let makeClock: (@MainActor (NSView) -> any PreviewClock)?
     /// Asked as each transition would start: true leaves it out.
     let reducesMotion: @MainActor (NSView) -> Bool
+    /// The most a frame moves a transition on, in seconds: after the main thread was held, what
+    /// is left of it still shows rather than ending at once.
+    var longestStep = 1.0 / 30
 
     /// Paced by the display. Leaves transitions out when the system asks for reduced motion,
     /// and when the window is not on screen, where nobody would see them and the display does
@@ -43,9 +46,10 @@ struct PreviewMotion {
 
     /// Paced by a clock the caller drives. For tests.
     static func paced(
-        by clock: any PreviewClock, reducesMotion: @escaping @MainActor () -> Bool = { false }
+        by clock: any PreviewClock, longestStep: Double = .infinity,
+        reducesMotion: @escaping @MainActor () -> Bool = { false }
     ) -> Self {
-        Self(makeClock: { _ in clock }, reducesMotion: { _ in reducesMotion() })
+        Self(makeClock: { _ in clock }, reducesMotion: { _ in reducesMotion() }, longestStep: longestStep)
     }
 
     /// Slow at both ends: cubic ease in and out, from 0 to 1 as `t` goes from 0 to 1.
