@@ -53,6 +53,11 @@ enum PreviewPaneText {
         }
     }
 
+    /// What auto refresh turned on or off means (C-LIVE-01).
+    static func autoRefreshHint(on: Bool) -> String {
+        on ? localized("preview.autoRefresh.hint.on") : localized("preview.autoRefresh.hint.off")
+    }
+
     /// "12 / 40" until every screenshot is settled, then nil (C-DET-02).
     static func progressText(_ progress: DetailProgress, locale: Locale = .current) -> String? {
         guard progress.total > 0, progress.completed < progress.total else { return nil }
