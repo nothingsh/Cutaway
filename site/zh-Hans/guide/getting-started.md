@@ -15,7 +15,7 @@ const cutaway = theme.value.cutaway
 
 <div class="facts">
   <Badge type="info" text="约 10 分钟" />
-  <Badge type="info" :text="`Cutaway ${cutaway.version} · CutawayServer 1.2`" />
+  <Badge type="info" :text="`Cutaway ${cutaway.version} · CutawayServer 1.3`" />
 </div>
 
 <div class="steps">
@@ -52,7 +52,7 @@ File › Add Package Dependencies…，输入
 
 ```swift [在 Package.swift 中]
 dependencies: [
-    .package(url: "https://github.com/nothingsh/CutawayServer", from: "1.2.0")
+    .package(url: "https://github.com/nothingsh/CutawayServer", from: "1.3.0")
 ]
 // …and add the product "CutawayServer" to your app target's dependencies.
 ```

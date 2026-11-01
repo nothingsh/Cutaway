@@ -39,17 +39,17 @@ No. It talks to simulators over the loopback address and to devices over USB, an
 
 ## What you see
 
-### Why is a blur, video or Metal view blank?
+### Why is a blur, video or Metal view blank or different?
 
-That content is composited by the system’s render server, outside the app’s process, so CutawayServer can’t render it from the layer tree. See [Limitations](/integrate/limitations).
+That content is composited by the system’s render server, outside the app’s process. With CutawayServer 1.3 the preview shows it in 2D and on collapsed layers; a layer’s own image, which 3D shows of expanded layers, is drawn from the layer tree without it. Video and Metal can still be blank. See [Limitations](/integrate/limitations).
 
-### Why is a bar title white in the screenshot but black on screen?
+### Why is a bar title white in a screenshot but black on screen?
 
-On iOS 26, text and icons in navigation bars, toolbars and tab bars are drawn in a plain color, often white, and a filter on a parent layer gives them their on-screen color when the render server composites the screen. Screenshots show each layer’s own content, before that filter. Attributes such as `textColor` still show the color the app set.
+On iOS 26, text and icons in navigation bars, toolbars and tab bars are drawn in a plain color, often white, and a filter on a parent layer gives them their on-screen color when the render server composites the screen. A layer’s own image shows its content before that filter; collapse the bar, or look at it in 2D, to see the on-screen color. Attributes such as `textColor` still show the color the app set.
 
 ### The preview shows an old picture.
 
-Cutaway shows what the app looked like when it was asked. Press <kbd>⌘R</kbd> to ask again for the whole tree and every screenshot, or <kbd>⇧⌘R</kbd> for the selected subtree only. See [Refresh](/guide/preview#refresh).
+Cutaway shows what the app looked like when it was asked. With CutawayServer 1.3 it refreshes by itself when the app reports a change, but a change of what a layer draws may not be reported. Press <kbd>⌘R</kbd> to ask again for the whole tree and every screenshot, or <kbd>⇧⌘R</kbd> for the selected subtree only. See [Refresh](/guide/preview#refresh).
 
 ### I changed the environment, but some layers still look the old way.
 

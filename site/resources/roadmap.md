@@ -1,10 +1,10 @@
 ---
-description: The directions planned for Cutaway and CutawayServer after 1.2.
+description: The directions planned for Cutaway and CutawayServer after 1.3.
 ---
 
 # Roadmap
 
-These are the directions planned after 1.2, shared by Cutaway and CutawayServer. Order and scope may change.
+These are the directions planned after 1.3, shared by Cutaway and CutawayServer. Order and scope may change.
 
 - **Interaction analysis.** Show gesture recognizers and target–action pairs; enable and disable gestures; call methods on objects.
 - **Large hierarchies.** A fast mode that captures only visible layers; chunked transfer for very large images.
@@ -12,6 +12,10 @@ These are the directions planned after 1.2, shared by Cutaway and CutawayServer.
 - **SwiftUI.** A semantic hierarchy of SwiftUI views alongside the layer tree.
 
 Features that need new messages or fields also need a change to the [protocol](/protocol/), which only grows by appending, so older apps keep working with newer releases (see [Versions and compatibility](/protocol/versions)).
+
+## Done in 1.3
+
+Auto refresh, marks for what a refresh changed, images that are not sent again when they have not changed, and a 2D preview that shows the window as the app composited it; see the [release notes](/resources/releases).
 
 ## Done in 1.2
 

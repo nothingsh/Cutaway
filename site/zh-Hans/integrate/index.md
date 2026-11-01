@@ -36,7 +36,7 @@ File › Add Package Dependencies…，输入
 
 ```swift [在 Package.swift 中]
 dependencies: [
-    .package(url: "https://github.com/nothingsh/CutawayServer", from: "1.2.0")
+    .package(url: "https://github.com/nothingsh/CutawayServer", from: "1.3.0")
 ]
 // …and add the product "CutawayServer" to your target's dependencies.
 ```

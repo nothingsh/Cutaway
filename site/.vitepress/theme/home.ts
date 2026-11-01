@@ -34,6 +34,15 @@ const en = {
       alt: 'Turning the 3D preview, then widening the layer spacing'
     },
     {
+      kicker: 'Auto refresh',
+      title: 'Follow the app as it changes',
+      text: 'Use the app and the preview keeps up by itself, with your selection and camera where they were. New layers show green and changed ones yellow for a moment, so you can see what moved.',
+      link: '/guide/preview#refresh',
+      more: 'Refresh',
+      video: 'home-refresh',
+      alt: 'Scrolling and changing tabs in the Simulator while Cutaway refreshes by itself and marks what changed'
+    },
+    {
       kicker: 'Measuring',
       title: 'Measure without a ruler',
       text: 'Select a layer, hold ⌥ and point at another, in the preview or in the layer list. The distances appear in points, in 2D and in 3D.',
@@ -49,7 +58,7 @@ const en = {
       link: '/guide/attributes',
       more: 'Attributes',
       video: 'home-edit',
-      alt: 'Dragging opacity and picking a color, then undoing'
+      alt: 'Dragging a label’s opacity and picking its text color, with the app in the Simulator following'
     },
     {
       kicker: 'Auto Layout',
@@ -181,6 +190,15 @@ const zh: HomeText = {
       alt: '转动 3D 预览，然后加大层间距'
     },
     {
+      kicker: '自动刷新',
+      title: '跟着 App 一起变化',
+      text: '在 App 里操作，预览自己跟上，选中和相机都留在原处。新出现的图层短暂显示绿色，变了的显示黄色，一眼看出动了什么。',
+      link: '/zh-Hans/guide/preview#refresh',
+      more: '刷新',
+      video: 'home-refresh',
+      alt: '在模拟器里滚动、切换标签时，Cutaway 自己刷新并标出变化'
+    },
+    {
       kicker: '测距',
       title: '不用尺子也能量',
       text: '选中一个图层，按住 ⌥ 指向另一个，在预览里或图层列表里都可以。距离以点为单位显示，2D 和 3D 下都有。',
@@ -196,7 +214,7 @@ const zh: HomeText = {
       link: '/guide/attributes',
       more: '属性',
       video: 'home-edit',
-      alt: '拖动不透明度、挑选颜色，然后撤销'
+      alt: '拖动一个标签的不透明度、选它的文字颜色，模拟器里的 App 随之变化'
     },
     {
       kicker: 'Auto Layout',

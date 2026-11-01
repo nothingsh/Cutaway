@@ -9,7 +9,7 @@ Cutaway 与 CutawayServer 不共享代码。两者经一个小的、带版本的
 本页只是导览。下面的每一条规则都是规范里的一个条款（`P-TRANS-01`、`P-FRAME-03`……），要紧的地方附了链接。
 
 <div class="facts">
-  <Badge type="info" text="协议 1.2" />
+  <Badge type="info" text="协议 1.3" />
   <Badge type="info" text="FlatBuffers" />
   <Badge type="info" text="MIT 许可证" />
 </div>
@@ -46,12 +46,12 @@ Cutaway 与 CutawayServer 不共享代码。两者经一个小的、带版本的
 <ExchangeDiagram />
 
 - **`request_id`。** 客户端从 1 开始给请求编号，在一个连接内递增；每个回答都带着所属请求的编号。0 留给握手、事件，以及不回答某个具体请求的错误（P-REQ-01）。
-- **普通请求**恰好得到一个回答：`GetAppIcon`、`GetHierarchy`、`GetSubtree`、`SetAttribute`，以及 1.2 起的 `GetEnvironment` 和 `SetEnvironment`（P-REQ-02）。
+- **普通请求**恰好得到一个回答：`GetAppIcon`、`GetHierarchy`、`GetSubtree`、`SetAttribute`，1.2 起的 `GetEnvironment` 和 `SetEnvironment`，以及 1.3 起的 `WatchHierarchy`（P-REQ-02）。
 - **流式请求。** `GetLayerDetails` 按图层 ID 请求图像、属性和约束。它的回答是零个或多个 `LayerDetailsChunk` 帧，然后恰好一个 `StreamEnd`（P-REQ-03）。
 - **取消。** `Cancel` 提前结束一个流；流以 `StreamEnd`（状态 `Cancelled`）结束。它本身没有回答（P-REQ-04）。
 - **顺序。** 服务端按收到的顺序一次处理一个请求，`Cancel` 除外：它在当前请求进行中就会被处理（P-REQ-06）。
 - **背压。** 有 64 个请求未答时，服务端可以暂停读取；这时 TCP 的流量控制让客户端等待。协议本身没有流量控制（P-REQ-09）。
-- **事件。** 握手之后，以及 App 的活跃状态每次改变时，服务端都以 `request_id` 0 发送 `AppStateChanged`（P-EVT-01、02）。App 不活跃时，需要截取或修改它的请求以 `AppNotActive` 失败（P-APP-01）。
+- **事件。** 握手之后，以及 App 的活跃状态每次改变时，服务端都以 `request_id` 0 发送 `AppStateChanged`（P-EVT-01、02）。1.3 起，用 `WatchHierarchy` 开启后，图层变化时还会发送 `HierarchyChanged`（P-WATCH-02）。App 不活跃时，需要截取或修改它的请求以 `AppNotActive` 失败（P-APP-01）。
 
 ## 错误 {#errors}
 
@@ -80,6 +80,7 @@ Cutaway 与 CutawayServer 不共享代码。两者经一个小的、带版本的
 | `GetLayerDetails` → `LayerDetailsChunk`…、`StreamEnd` | 所请求图层的图像、属性和约束 |
 | `SetAttribute` → `SetAttributeResult` | 修改一个图层的一项属性；结果里是修改之后这个图层的属性 |
 | `GetEnvironment`、`SetEnvironment` → `Environment` | App 的特征环境，以及 Cutaway 对它的改写（1.2） |
+| `WatchHierarchy` → `WatchHierarchyResult` | 开启或关闭层级变化的通知（1.3） |
 | `AppStateChanged` | 事件：App 变为活跃或不活跃 |
 
 ## 继续阅读 {#go-further}

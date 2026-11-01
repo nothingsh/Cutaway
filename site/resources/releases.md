@@ -6,7 +6,35 @@ description: What changed in each release of Cutaway, with links to the download
 
 Every release is on [GitHub Releases](https://github.com/nothingsh/Cutaway/releases), with the disk image, a zip and their SHA-256 checksums. Which Cutaway works with which CutawayServer is in [Versions and compatibility](/protocol/versions).
 
-## 1.2.0 <Badge type="tip" text="Current" />
+## 1.3.0 <Badge type="tip" text="Current" />
+
+Cutaway 1.3.0 speaks protocol 1.3. It works with apps that include CutawayServer 1.0 to 1.2; the features marked below need [CutawayServer 1.3.0](https://github.com/nothingsh/CutawayServer/releases/tag/1.3.0).
+
+[Cutaway 1.3.0 on GitHub](https://github.com/nothingsh/Cutaway/releases/tag/v1.3.0)
+
+**Auto refresh** (needs CutawayServer 1.3)
+
+- The app tells Cutaway when its layers change, and Cutaway takes those again by itself. Your expansion, selection, focus and camera stay.
+- Turn it off with the button beside the borders menu or **View › Auto Refresh**; the default is in **Settings › Preview**.
+- It waits while an archive is saved and while the preview goes through an expand or collapse.
+
+**See what a refresh changed**
+
+- After any refresh, new layers are marked green and changed ones yellow, in the list and the preview, fading in about a second and a half. The toolbar says how many layers went.
+- Turn this off in **Settings › Preview**.
+
+**A preview that looks like the app** (needs CutawayServer 1.3)
+
+- In 2D the preview shows the window as the app composited it, with blurs, Liquid Glass and color filters, however the list is expanded.
+- Collapsed layers show those effects in 3D too, as far as they can be seen without what lies behind them.
+
+**Faster**
+
+- Images that have not changed are not sent again, so a refresh where nothing changed takes a fraction of the first load. (needs CutawayServer 1.3)
+- Going from one layer to another builds only the attribute rows near what you see, about four times faster on a layer of a hundred attributes.
+- Expand and collapse animations no longer skip to the end when the Mac is busy.
+
+## 1.2.0
 
 Cutaway 1.2.0 speaks protocol 1.2. It works with apps that include CutawayServer 1.0 or 1.1; the features marked below need [CutawayServer 1.2.0](https://github.com/nothingsh/CutawayServer/releases/tag/1.2.0).
 

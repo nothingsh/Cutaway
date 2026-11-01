@@ -27,7 +27,8 @@ The measured numbers are on the [Performance](/resources/performance) page.
 ## Capturing
 
 - **The hierarchy.** Member variable names (such as `titleLabel`) are found by comparing addresses in the owner’s memory; no getter is called. [Limitations](/integrate/limitations#member-variable-names) lists the references this cannot find.
-- **Images.** Each layer is rendered on its own. While rendering a layer, the server temporarily sets its opacity to 1 and makes it visible, and for the image without sublayers temporarily hides the sublayers. All of this is restored in the same stretch of main-thread code, with no animation and no layout.
+- **Images.** Each layer is rendered on its own. While rendering a layer, the server temporarily sets its opacity to 1 and makes it visible, and for the image without sublayers temporarily hides the sublayers. All of this is restored in the same stretch of main-thread code, with no animation and no layout. The picture of a window, and of a subtree with effects only the system draws, comes from `drawHierarchy(in:afterScreenUpdates:)` instead, which changes nothing in the app.
+- **Change notifications.** While Cutaway’s auto refresh is on, the server compares the hierarchy with what it last sent, on the main thread, at most once a second. Turn auto refresh off in Cutaway to stop this.
 - **Attributes.** Reading attributes does not trigger layout. Colors are sent in sRGB, so wide-gamut colors are clipped; dynamic colors are resolved for the view’s current appearance (light or dark), and with CutawayServer 1.2 in both appearances.
 
 ## What lasts after Cutaway disconnects

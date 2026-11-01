@@ -50,6 +50,9 @@ If your FlatBuffers runtime’s verifier has a limit on the number of tables, ra
 - **Every frame the client sends takes its own `request_id`**, including `Cancel`, increasing from 1. Match responses by `request_id`, not by order alone (P-REQ-01).
 - **`Cancel` can arrive late.** A stream may end normally before the server reads your `Cancel`; then the `Cancel` is ignored. Keep fewer than 64 requests outstanding so the server never pauses reading and `Cancel` takes effect promptly (P-REQ-04, 09).
 - **Branch on error codes, never on messages.** `Error.message` is English text for people; the codes are listed under [Error codes](/protocol/spec#error-codes) in the specification.
+- **Digests belong to the connection.** Give a digest only for an image you hold, byte for byte as you received it, and drop them all when you reconnect (P-DET-11, P-IMG-04).
+- **`composited` is a fact about one image.** Treat a window’s `group` as the picture of the window only when this image says so; it can change from one capture to the next. An unchanged image doesn’t carry it, so keep it with the image you hold (P-IMG-07).
+- **`HierarchyChanged` is a hint.** Events are merged and delayed, and a change of what a layer draws need not be reported. Refresh after your own `SetAttribute` and `SetEnvironment` yourself, and when an event arrives while a request is on its way, ask again: that answer may be older than the check (P-WATCH-04, 05, 07, 09).
 - **A server waits 5 seconds for `Hello`**, then closes the connection (P-HELLO-06).
 
 ## Check the protocol repository itself
