@@ -1,10 +1,10 @@
 ---
-description: Cutaway 与 CutawayServer 在 1.2 之后计划的方向。
+description: Cutaway 与 CutawayServer 在 1.3 之后计划的方向。
 ---
 
 # 路线图 {#roadmap}
 
-以下是 1.2 之后计划的方向，Cutaway 与 CutawayServer 共用。顺序和范围可能会变。
+以下是 1.3 之后计划的方向，Cutaway 与 CutawayServer 共用。顺序和范围可能会变。
 
 - **交互分析。** 显示手势识别器和 target–action 对；启用和停用手势；调用对象的方法。
 - **大型层级。** 只截取可见图层的快速模式；分块传输非常大的图像。
@@ -12,6 +12,10 @@ description: Cutaway 与 CutawayServer 在 1.2 之后计划的方向。
 - **SwiftUI。** 在图层树旁边显示 SwiftUI 视图的语义层级。
 
 需要新消息或新字段的功能，同样要改[协议](/zh-Hans/protocol/)。协议只以追加的方式增长，所以旧的 App 能继续与新的版本一起使用（见[版本与兼容](/zh-Hans/protocol/versions)）。
+
+## 1.3 已完成 {#done-in-1-3}
+
+自动刷新、标出刷新改了什么、没有变化的图像不再重新发送，以及 2D 下显示 App 合成好的窗口；见[版本记录](/zh-Hans/resources/releases)。
 
 ## 1.2 已完成 {#done-in-1-2}
 

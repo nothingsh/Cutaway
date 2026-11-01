@@ -9,7 +9,7 @@ Cutaway and CutawayServer share no code. They talk over a small, versioned wire 
 This page is an orientation. Every rule below is a clause of the specification (`P-TRANS-01`, `P-FRAME-03`, …), linked where it matters.
 
 <div class="facts">
-  <Badge type="info" text="Protocol 1.2" />
+  <Badge type="info" text="Protocol 1.3" />
   <Badge type="info" text="FlatBuffers" />
   <Badge type="info" text="MIT license" />
 </div>
@@ -46,12 +46,12 @@ The client’s first frame is `Hello`; the server always answers with its own `H
 <ExchangeDiagram />
 
 - **`request_id`.** The client numbers its requests from 1, increasing within a connection; every response carries the number of its request. 0 is reserved for the handshake, events, and errors that answer no particular request (P-REQ-01).
-- **Ordinary requests** get exactly one response: `GetAppIcon`, `GetHierarchy`, `GetSubtree`, `SetAttribute`, and since 1.2 `GetEnvironment` and `SetEnvironment` (P-REQ-02).
+- **Ordinary requests** get exactly one response: `GetAppIcon`, `GetHierarchy`, `GetSubtree`, `SetAttribute`, since 1.2 `GetEnvironment` and `SetEnvironment`, and since 1.3 `WatchHierarchy` (P-REQ-02).
 - **Streaming requests.** `GetLayerDetails` asks for images, attributes and constraints by layer ID. Its response is zero or more `LayerDetailsChunk` frames, then exactly one `StreamEnd` (P-REQ-03).
 - **Cancel.** `Cancel` ends a stream early; the stream ends with `StreamEnd` (status `Cancelled`). It has no response of its own (P-REQ-04).
 - **Order.** The server handles requests one at a time, in the order received, except `Cancel`, which it handles while the current request is in progress (P-REQ-06).
 - **Backpressure.** With 64 requests outstanding, the server may pause reading; TCP flow control then holds the client back. The protocol has no flow control of its own (P-REQ-09).
-- **Events.** The server sends `AppStateChanged` with `request_id` 0 right after the handshake and whenever the app’s active state changes (P-EVT-01, 02). While the app is not active, requests that capture or change it fail with `AppNotActive` (P-APP-01).
+- **Events.** The server sends `AppStateChanged` with `request_id` 0 right after the handshake and whenever the app’s active state changes (P-EVT-01, 02). Since 1.3, once asked with `WatchHierarchy`, it also sends `HierarchyChanged` when layers change (P-WATCH-02). While the app is not active, requests that capture or change it fail with `AppNotActive` (P-APP-01).
 
 ## Errors
 
@@ -80,6 +80,7 @@ The client’s first frame is `Hello`; the server always answers with its own `H
 | `GetLayerDetails` → `LayerDetailsChunk`…, `StreamEnd` | Images, attributes and constraints of the layers asked for |
 | `SetAttribute` → `SetAttributeResult` | Changes one attribute of one layer; the result has the layer’s attributes after the change |
 | `GetEnvironment`, `SetEnvironment` → `Environment` | The app’s trait environment and Cutaway’s overrides of it (1.2) |
+| `WatchHierarchy` → `WatchHierarchyResult` | Turns notifications of hierarchy changes on or off (1.3) |
 | `AppStateChanged` | Event: the app became active or inactive |
 
 ## Go further

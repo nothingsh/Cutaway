@@ -6,13 +6,15 @@ description: What CutawayServer cannot capture or find, and why.
 
 These come from how iOS draws, and from what an app can see of itself.
 
-## Blurs, video and Metal are blank
+## What only the system draws
 
-Content composited by the system’s render server, outside the app’s process, is not in the images: blur effects, Metal and video layers, and the like. CutawayServer renders each layer from the layer tree inside the app, and that content is not there. The layers themselves are in the hierarchy, with their attributes; only their pictures are empty.
+CutawayServer 1.3 takes the picture of a window, and of a subtree with blurs, Liquid Glass or color filters, from what the app composited, so these show in 2D and on collapsed layers. A layer’s own image is still rendered from the layer tree inside the app, without them, and that is what 3D shows of expanded layers. The status bar does not belong to the app and is in no image.
 
-## Bar text is white in the images
+An effect that samples what lies behind it, such as glass, can look different in a picture of its subtree. While an excluded view shows, or when a window is translucent, the server draws the layers instead. Video and Metal content can still be blank. With a server older than 1.3 every image is drawn from the layers.
 
-Filters applied by the render server are not in the images either. On iOS 26, text and icons in navigation bars, toolbars and tab bars are drawn in a plain color, often white, and a filter on a parent layer gives them their on-screen color when the render server composites the screen. Images show each layer’s own content, before that filter.
+## Bar text can be white in a layer’s own image
+
+On iOS 26, text and icons in navigation bars, toolbars and tab bars are drawn in a plain color, often white, and a filter on a parent layer gives them their on-screen color when the render server composites the screen. A layer’s own image shows its content before that filter. The picture of the window and of a collapsed bar has the right color.
 
 Attributes such as `textColor` still show the color the app set.
 

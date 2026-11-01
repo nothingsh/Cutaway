@@ -50,6 +50,9 @@ description: 为 Cutaway Protocol 编写你自己的客户端或服务端，并�
 - **客户端发出的每一帧都占用自己的 `request_id`**，包括 `Cancel`，从 1 开始递增。按 `request_id` 匹配回答，不要只靠顺序（P-REQ-01）。
 - **`Cancel` 可能来得太晚。** 流可能在服务端读到你的 `Cancel` 之前就正常结束；这时 `Cancel` 被忽略。让未答的请求少于 64 个，服务端就永远不会暂停读取，`Cancel` 也能及时生效（P-REQ-04、09）。
 - **按错误代码分支，从不按消息分支。** `Error.message` 是给人看的英文；代码列在规范的 [Error codes](/zh-Hans/protocol/spec#error-codes) 一节。
+- **摘要只在一个连接内有效。** 只为持有的图给摘要，逐字节照收到时的样子，重新连接时全部丢掉（P-DET-11、P-IMG-04）。
+- **`composited` 是每张图自己的事实。** 只有这张图标了它，才把窗口的 `group` 当作窗口的画面；它在两次截取之间可以变。“没变”的图不带它，所以要和持有的图一起保存（P-IMG-07）。
+- **`HierarchyChanged` 只是提示。** 事件会合并、延迟，只改了图层画的内容时不一定报告。自己的 `SetAttribute`、`SetEnvironment` 之后要自己刷新；事件到达时有请求在途，要再请求一次，那个回答可能早于这次检查（P-WATCH-04、05、07、09）。
 - **服务端等待 `Hello` 5 秒**，之后关闭连接（P-HELLO-06）。
 
 ## 检查协议仓库本身 {#check-the-protocol-repository-itself}

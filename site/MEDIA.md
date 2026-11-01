@@ -24,7 +24,8 @@ translates only the alt text.
   and `-dark.png`.
 
 Videos are 5 to 10 seconds, recorded with ⌘⇧5 (Record Selected Portion) in Light, of the region
-that shows the movement, without the pointer jumping. Put each in place with
+that shows the movement, without the pointer jumping. A region of the whole window must lie just
+inside it: anything of the desktop along an edge shows on the page. Crop it first if it does not. Put each in place with
 `scripts/site-media.sh video <name> <recording.mov>`: it writes an H.264 `public/media/<name>.mp4`
 and a poster `<name>.jpg`. The page loops it silently, or shows the poster and controls to a
 viewer who asked for reduced motion.
@@ -49,7 +50,8 @@ The product picture on the home page and in the README is `public/media/home-ove
 | `guide-source-open` | Source code | The Object section with an Open in Xcode button beside an app class, and the File menu's Open in Xcode item |
 | `guide-archives-window` | Archives and export | An archive window, marked Archive in the toolbar with the date it was saved, next to the File menu |
 | `guide-settings-general` | Settings | The General page of Settings: the Language and Appearance pop-up menus |
-| `guide-settings-preview` | Settings | The Preview page of Settings: the default mode, layer spacing, hidden layers and borders |
+| `guide-settings-preview` | Settings | The Preview page of Settings: the default mode, layer spacing, hidden layers, borders and the two Refresh checkboxes |
+| `guide-preview-changes` | The preview | After a refresh: new layers tinted green in the list and the preview, and the toolbar saying how many layers went |
 | `integrate-app-section` | Customizing (CutawayDemo) | The inspector of the sales chart: the App section with the Chart group, an editable bar color showing the registered name brandBlue |
 | `integrate-virtual-nodes` | Customizing (CutawayDemo) | The sales chart: the bars North, South and East as virtual nodes in the layer list, and their dashed outlines in the preview |
 
@@ -61,8 +63,9 @@ CutawayDemo, or leave the name out of the shot and the alt text.
 | Name | What it shows |
 |---|---|
 | `home-3d` | Turning the 3D preview, then widening the layer spacing |
+| `home-refresh` | Using the app in the Simulator beside Cutaway, which refreshes by itself and marks what changed |
 | `home-measure` | Holding ⌥ over neighbouring layers, then over a row in the list |
-| `home-edit` | Dragging opacity and picking a color, then ⌘Z |
+| `home-edit` | Dragging a label's opacity and picking its text color, beside the app in the Simulator |
 | `home-constraints` | Pointing at constraints; their other ends light up in the preview |
 | `home-environment` | Switching to Dark, then to a larger text size |
 | `home-archive` | Saving an archive, then opening it in its own window |

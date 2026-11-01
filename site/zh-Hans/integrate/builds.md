@@ -28,7 +28,7 @@ description: 你的 App 的哪些构建里有 CutawayServer，以及怎样在 De
 ```swift [Package.swift]
 .package(
     url: "https://github.com/nothingsh/CutawayServer",
-    from: "1.2.0",
+    from: "1.3.0",
     traits: ["ReleaseEnabled"]
 )
 ```

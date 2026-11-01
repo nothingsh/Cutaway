@@ -28,8 +28,8 @@ const { t, link } = useLocale(text)
       </div>
       <p class="meta">{{ t.meta(cutaway.version) }}</p>
       <div class="product">
-        <img class="light-only" :src="withBase('/media/home-overview-light.png')" width="1600" height="1000" fetchpriority="high" :alt="t.overview" />
-        <img class="dark-only" :src="withBase('/media/home-overview-dark.png')" width="1600" height="1000" :alt="t.overview" />
+        <img class="light-only" :src="withBase('/media/home-overview-light.png')" width="1600" height="954" fetchpriority="high" :alt="t.overview" />
+        <img class="dark-only" :src="withBase('/media/home-overview-dark.png')" width="1600" height="954" :alt="t.overview" />
       </div>
     </section>
 
@@ -308,7 +308,7 @@ header {
   width: 100%;
   height: auto;
   /* The picture is the window with its own rounded corners; this follows them at any width. */
-  border-radius: 2.75% / 4.4%;
+  border-radius: 2.75% / 4.6%;
   box-shadow: var(--cw-shadow);
 }
 
